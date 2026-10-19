@@ -300,6 +300,7 @@ l_sx_last: .byte 0
 ; (gated once, never re-triggered, so it doesn't stutter).
 shower_on:      .byte 0
 shower_gate:    .byte 0
+shower_pitch:   .byte $C0   ; noise pitch: $C0 shower spray, lower for the tap
 
 shower_tick:
         lda shower_on
@@ -319,11 +320,11 @@ shower_tick:
         sta shower_gate
         lda #0
         sta SID+14
-        lda #$C0
+        lda shower_pitch
         sta SID+15              ; high noise = water spray
         lda #$60                ; soft attack
         sta SID+19
-        lda #$A9                ; sustain 10, release 9
+        lda #$A9                ; sustain 10, release 9 (tap: same, lower pitch)
         sta SID+20
         lda #$81
         sta SID+18

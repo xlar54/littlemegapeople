@@ -31,6 +31,7 @@ PM_FRONT        = 7         ; facing out of the screen
 PM_DOWNSTEP     = 8         ; coming down a front step block, facing you
 PM_BEND         = 9         ; back to you, bent down looking for something
 PM_BENDSIDE     = 10        ; side view, leaning forward (switching the TV)
+PM_WASH         = 11        ; back to you at the sink, elbows working
 
 ; activities (also request ids)
 A_NONE          = 0
@@ -65,7 +66,8 @@ A_FILES         = 28        ; looking through the filing cabinet
 A_CHAT          = 29        ; comes to the front and talks to you
 A_TVON          = 30        ; walks to the attic TV and switches it on
 A_TVOFF         = 31        ; ...and off again
-A_COUNT         = 32
+A_WASH          = 32        ; washes his hands at the bathroom sink
+A_COUNT         = 33
 
 REQ_EAT         = A_FRIDGE
 REQ_DRINK       = A_DRINK
@@ -688,37 +690,37 @@ l_fire_b: .byte 0,0,0
 ;---------------------------------------------------------------------------------------
 ;               floor  x     face(1=right)
 act_floor:
-        .byte 0, 0,0,0,0,0, 1,0,0, 1,1,1,1,1, 1,2, 2,2,2,2, 2,2,2, 0,0,0,0, 0, 2, 0, 2, 2
+        .byte 0, 0,0,0,0,0, 1,0,0, 1,1,1,1,1, 1,2, 2,2,2,2, 2,2,2, 0,0,0,0, 0, 2, 0, 2, 2, 1
 act_xl:
         .byte 0, <52,<122,<138,<34,<226, <252,<268,<302, <40,<115,<170,<196,<222, <278,<228
-        .byte <108,<100,<120,<154, <188,<228,<228, <160,0,0,<300, <226, <266, 0, <62, <62
+        .byte <108,<100,<120,<154, <188,<228,<228, <160,0,0,<300, <226, <266, 0, <62, <62, <177
 act_xh:
         .byte 0, >52,>122,>138,>34,>226, >252,>268,>302, >40,>115,>170,>196,>222, >278,>228
-        .byte >108,>100,>120,>154, >188,>228,>228, >160,0,0,>300, >226, >266, 0, >62, >62
+        .byte >108,>100,>120,>154, >188,>228,>228, >160,0,0,>300, >226, >266, 0, >62, >62, >177
 act_face:
-        .byte 0, 0,1,1,0,0, 1,1,1, 0,0,0,1,1, 1,1, 0,0,0,0, 1,1,1, 0,0,0,0, 0, 1, 0, 0, 0
+        .byte 0, 0,1,1,0,0, 1,1,1, 0,0,0,1,1, 1,1, 0,0,0,0, 1,1,1, 0,0,0,0, 0, 1, 0, 0, 0, 0
 
 act_start_tbl:
         .word st_none, st_fridge, st_meal, st_drink, st_feeddog, st_phone, st_read, st_fire
         .word st_goout, st_sleep, st_exercise, st_brush, st_wc, st_bath, st_computer
         .word st_letter, st_tv, st_record, st_dance, st_piano, st_change, st_pool
-        .word st_cards, st_knock, st_idle, st_petdog, st_arrive, st_readchair, st_files, st_chat, st_tvswitch, st_tvswitch
+        .word st_cards, st_knock, st_idle, st_petdog, st_arrive, st_readchair, st_files, st_chat, st_tvswitch, st_tvswitch, st_wash
 act_tick_tbl:
         .word tk_none, tk_none, tk_meal, tk_none, tk_none, tk_phone, tk_none, tk_none
         .word tk_goout, tk_sleep, tk_none, tk_brush, tk_none, tk_bath, tk_computer
         .word tk_typing, tk_none, tk_record, tk_none, tk_piano, tk_none, tk_pool
-        .word tk_none, tk_knock, tk_none, tk_none, tk_arrive, tk_readchair, tk_files, tk_none, tk_none, tk_none
+        .word tk_none, tk_knock, tk_none, tk_none, tk_arrive, tk_readchair, tk_files, tk_none, tk_none, tk_none, tk_none
 act_end_tbl:
         .word en_none, en_fridge, en_meal, en_drink, en_feeddog, en_phone, en_read, en_fire
         .word en_goout, en_sleep, en_exercise, en_brush, en_wc, en_bath, en_computer
         .word en_letter, en_tv, en_record, en_dance, en_piano, en_change, en_pool
-        .word en_cards, en_knock, en_none, en_petdog, en_arrive, en_readchair, en_files, en_chat, en_tvon, en_tvoff
+        .word en_cards, en_knock, en_none, en_petdog, en_arrive, en_readchair, en_files, en_chat, en_tvon, en_tvoff, en_wash
 
 act_names:
         .word nm_none, nm_fridge, nm_meal, nm_drink, nm_feeddog, nm_phone, nm_read, nm_fire
         .word nm_goout, nm_sleep, nm_exercise, nm_brush, nm_wc, nm_bath, nm_computer
         .word nm_letter, nm_tv, nm_record, nm_dance, nm_piano, nm_change, nm_pool
-        .word nm_cards, nm_knock, nm_none, nm_petdog, nm_arrive, nm_readchair, nm_files, nm_chat, nm_tv, nm_tvoff
+        .word nm_cards, nm_knock, nm_none, nm_petdog, nm_arrive, nm_readchair, nm_files, nm_chat, nm_tv, nm_tvoff, nm_wash
 nm_none:     .null " is pottering about."
 nm_fridge:   .null " is getting some food."
 nm_meal:     .null " is eating."
@@ -730,6 +732,7 @@ nm_readchair: .null " is reading a book."
 nm_files:    .null " is rummaging in the filing cabinet."
 nm_chat:     .null " is talking to you."
 nm_tvoff:    .null " is switching off the TV."
+nm_wash:     .null " is washing his hands."
 nm_fire:     .null " is lighting a fire."
 nm_goout:    .null " has gone out."
 nm_sleep:    .null " is asleep. Zzz..."
@@ -2558,8 +2561,40 @@ st_wc:
         lda #4
         jmp set_timer_secs
 en_wc:
+        lda #A_WASH             ; then wash his hands
+        sta p_pending
         lda #SFX_FLUSH
         jmp sfx_play
+
+; Washing his hands at the sink: back to you, elbows working, water running.
+st_wash:
+        lda #PM_WASH
+        sta p_mode
+        sec                     ; hands at his sides, over the basin
+        lda p_x
+        sbc #7
+        sta fx_hands_x
+        lda p_x+1
+        sbc #0
+        sta fx_hands_x+1
+        lda p_y
+        sec
+        sbc #13
+        sta fx_hands_y
+        lda #7
+        sta fx_kind
+        lda #$90                ; tap water: softer and lower than the shower
+        sta shower_pitch
+        lda #1
+        sta shower_on
+        lda #4
+        jmp set_timer_secs
+en_wash:
+        lda #0
+        sta shower_on
+        lda #$C0
+        sta shower_pitch
+        rts
 ; Shower: he steps behind the curtain, it slides shut (right to left, like an
 ; accordion) over the tub, the water runs, then it slides open and he steps
 ; out -- undressed, so he heads for the closet with a mosaic over him.
@@ -2674,9 +2709,17 @@ DESK_POSE_Y     = 38
 
 HANDS_X         = 216           ; his hands on the typewriter keys
 HANDS_Y         = 47
+fx_hands_x:        .word HANDS_X   ; where the little-hands effect is drawn
+fx_hands_y:        .byte HANDS_Y
 
 st_letter:
         #POSE SPR_SITDESK, DESK_POSE_X, DESK_POSE_Y
+        lda #<HANDS_X
+        sta fx_hands_x
+        lda #>HANDS_X
+        sta fx_hands_x+1
+        lda #HANDS_Y
+        sta fx_hands_y
         lda #7                  ; hands on the keys
         sta fx_kind
         lda #6
@@ -3283,6 +3326,12 @@ l_ab_front_xy:
         sta act_y+0
         jmp l_ab_person_done
 l_ab_notdown:
+        cmp #PM_WASH
+        bne l_ab_notwash
+        ; at the sink, back to you, standing still (hands drawn as an effect)
+        #SETACT 0, SPR_BACKSTAND
+        jmp l_ab_back_xy
+l_ab_notwash:
         cmp #PM_CLIMB
         bne +
         ; back view going up: knees bend in turn
@@ -3292,6 +3341,7 @@ l_ab_notdown:
         beq l_ab_cl1
         #SETACT 0, SPR_CLIMBSTEP1
 l_ab_cl1:
+l_ab_back_xy:
         sec
         lda p_x
         sbc #10
@@ -3509,11 +3559,11 @@ l_ab_notfist:
         and #8
         beq +
         #SETACT 2, SPR_HANDS1
-+       lda #<HANDS_X
++       lda fx_hands_x
         sta act_xl2+2
-        lda #>HANDS_X
+        lda fx_hands_x+1
         sta act_xh2+2
-        lda #HANDS_Y
+        lda fx_hands_y
         sta act_y+2
         jmp l_ab_fx_done
 l_ab_nothands:

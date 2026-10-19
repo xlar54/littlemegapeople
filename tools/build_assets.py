@@ -934,6 +934,20 @@ def build_sprites():
                 fr[y] = fr[y][::-1]
         sprites.append(('climbstep%d' % i, fr))
     sprites.append(('bend', bend_back_frame(dict(sprites)['climb'])))
+    # Standing still with his back to you, arms forward (into the sink): the
+    # back-view head on a plain torso, both feet planted.
+    climb = dict(sprites)['climb']
+    torso = art(['......kTTTTTTk......',
+                 '.....kTTTTTTTTk.....',
+                 '....kTTTTTTTTTTk....',
+                 '....kTTTTTTTTTTk....',
+                 '....kTTTTTTTTTTk....',
+                 '....kTTTTTTTTTTk....',
+                 '....kTTTTTTTTTTk....',
+                 '.....kTTTTTTTTk.....',
+                 '......kPPPPPPk......'])
+    back = [r[:] for r in climb[:10]] + torso + [r[:] for r in climb[19:]]
+    sprites.append(('backstand', step_frames(back, 19, 7, 10, 28, bent=None)[0]))
     # second bent frame with the arms mirrored: busy hands (laying the fire)
     bend2 = [r[:] for r in dict(sprites)['bend']]
     for y in range(14, 19):
