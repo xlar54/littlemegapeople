@@ -38,13 +38,21 @@ SFX_BRUSH       = 16
 ;---------------------------------------------------------------------------------------
 ; His voice and the other digital sounds live in Attic RAM; sample_play DMAs
 ; one into the chip-RAM buffer SND_BUF and starts audio DMA channel 0 on it.
-snd_ofs_l:  .byte <SND_TALK_OFS, <SND_FLUSH_OFS, <SND_BELL_OFS
-snd_ofs_h:  .byte >SND_TALK_OFS, >SND_FLUSH_OFS, >SND_BELL_OFS
-snd_len_l:  .byte <SND_TALK_LEN, <SND_FLUSH_LEN, <SND_BELL_LEN
-snd_len_h:  .byte >SND_TALK_LEN, >SND_FLUSH_LEN, >SND_BELL_LEN
+snd_ofs_l:  .byte <SND_TALK_OFS, <SND_FLUSH_OFS, <SND_BELL_OFS, <SND_BARK_OFS
+snd_ofs_h:  .byte >SND_TALK_OFS, >SND_FLUSH_OFS, >SND_BELL_OFS, >SND_BARK_OFS
+snd_len_l:  .byte <SND_TALK_LEN, <SND_FLUSH_LEN, <SND_BELL_LEN, <SND_BARK_LEN
+snd_len_h:  .byte >SND_TALK_LEN, >SND_FLUSH_LEN, >SND_BELL_LEN, >SND_BARK_LEN
 
 talk_play:
         ldx #SND_TALK
+        jmp sample_play
+; A little dog's bark -- unless another sample (his voice, the bell...) is
+; playing: that isn't cut off.
+bark_play:
+        jsr talk_level
+        bcc +
+        rts
++       ldx #SND_BARK
         jmp sample_play
 doorbell_play:
         ldx #SND_BELL

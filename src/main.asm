@@ -69,6 +69,7 @@ main_entry:
         .if AUTOTEST != 0
         lda #AUTOTEST           ; test build: skip the arrival, go straight to it
         sta p_pending
+        jsr dog_arrive          ; (the dog comes in with him)
         .weak
 AUTOHOUR = 8
         .endweak

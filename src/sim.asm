@@ -76,7 +76,8 @@ A_STOVEON       = 37        ;   ...the pot onto the stove
 A_STOVEOFF      = 38        ;   ...and off again when it's done
 A_SERVE         = 39        ;   ...dishing up at the counter (then A_MEAL)
 A_FRIDGEGET     = 40        ;   ...sometimes something from the fridge too
-A_COUNT         = 41
+A_DOGFOOD       = 41        ; a can from the dog-food cupboard (then A_FEEDDOG)
+A_COUNT         = 42
 
 REQ_EAT         = A_FRIDGE
 REQ_DRINK       = A_DRINK
@@ -558,6 +559,7 @@ l_mod9:
 next_day:
         lda #0
         sta meals_done
+        sta dog_meals
         inc date_day
         ldx date_month
         lda month_days-1,x
@@ -934,41 +936,41 @@ l_fire_b: .byte 0,0,0
 ;---------------------------------------------------------------------------------------
 ;               floor  x     face(1=right)
 act_floor:
-        .byte 0, 0,0,0,0,0, 1,0,0, 1,1,1,1,1, 1,2, 2,2,2,2, 1,0,0, 0,0,0,0, 0, 2, 0, 2, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0
+        .byte 0, 0,0,0,0,0, 1,0,0, 1,1,1,1,1, 1,2, 2,2,2,2, 1,0,0, 0,0,0,0, 0, 2, 0, 2, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0
 act_xl:
-        .byte 0, <52,<122,<138,<34,<226, <252,<268,<302, <40,<113,<170,<196,<222, <278,<228
-        .byte <108,<73,<76,<154, <83,<122,<122, <160,0,0,<300, <226, <266, 0, <62, <62, <177, <294, 0, <78, <58, <28, <28, <58, <52
+        .byte 0, <52,<122,<138,<28,<226, <252,<268,<302, <40,<113,<170,<196,<222, <278,<228
+        .byte <108,<73,<76,<154, <83,<122,<122, <160,0,0,<300, <226, <266, 0, <62, <62, <177, <294, 0, <78, <58, <28, <28, <58, <52, <56
 act_xh:
-        .byte 0, >52,>122,>138,>34,>226, >252,>268,>302, >40,>113,>170,>196,>222, >278,>228
-        .byte >108,>73,>76,>154, >83,>122,>122, >160,0,0,>300, >226, >266, 0, >62, >62, >177, >294, 0, >78, >58, >28, >28, >58, >52
+        .byte 0, >52,>122,>138,>28,>226, >252,>268,>302, >40,>113,>170,>196,>222, >278,>228
+        .byte >108,>73,>76,>154, >83,>122,>122, >160,0,0,>300, >226, >266, 0, >62, >62, >177, >294, 0, >78, >58, >28, >28, >58, >52, >56
 act_face:
-        .byte 0, 0,1,1,0,0, 1,1,1, 0,0,0,1,1, 1,1, 0,0,0,0, 0,1,1, 0,0,0,0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0
+        .byte 0, 0,1,1,0,0, 1,1,1, 0,0,0,1,1, 1,1, 0,0,0,0, 0,1,1, 0,0,0,0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0
 
 act_start_tbl:
         .word st_none, st_fridge, st_meal, st_drink, st_feeddog, st_phone, st_read, st_fire
         .word st_goout, st_sleep, st_exercise, st_brush, st_wc, st_bath, st_computer
         .word st_letter, st_tv, st_record, st_dance, st_piano, st_change, st_pool
         .word st_cards, st_knock, st_idle, st_petdog, st_arrive, st_readchair, st_files, st_chat, st_tvswitch, st_tvswitch, st_wash, st_delivery, st_stow
-        .word st_getfood, st_prep, st_stoveon, st_stoveoff, st_serve, st_fridgeget
+        .word st_getfood, st_prep, st_stoveon, st_stoveoff, st_serve, st_fridgeget, st_dogfood
 act_tick_tbl:
-        .word tk_none, tk_none, tk_meal, tk_none, tk_none, tk_phone, tk_none, tk_none
+        .word tk_none, tk_none, tk_meal, tk_none, tk_feeddog, tk_phone, tk_none, tk_none
         .word tk_goout, tk_sleep, tk_none, tk_brush, tk_wc, tk_bath, tk_computer
         .word tk_typing, tk_none, tk_record, tk_none, tk_piano, tk_change, tk_pool
         .word tk_none, tk_knock, tk_none, tk_none, tk_arrive, tk_readchair, tk_files, tk_none, tk_none, tk_none, tk_none, tk_delivery, tk_stow
-        .word tk_getfood, tk_prep, tk_stoveon, tk_stoveoff, tk_prep, tk_fridgeget
+        .word tk_getfood, tk_prep, tk_stoveon, tk_stoveoff, tk_prep, tk_fridgeget, tk_dogfood
 act_end_tbl:
         .word en_none, en_fridge, en_meal, en_drink, en_feeddog, en_phone, en_read, en_fire
         .word en_goout, en_sleep, en_exercise, en_brush, en_wc, en_bath, en_computer
         .word en_letter, en_tv, en_record, en_dance, en_piano, en_change, en_pool
         .word en_cards, en_knock, en_none, en_petdog, en_arrive, en_readchair, en_files, en_chat, en_tvon, en_tvoff, en_wash, en_delivery, en_stow
-        .word en_getfood, en_prep, en_stoveon, en_stoveoff, en_serve, en_fridgeget
+        .word en_getfood, en_prep, en_stoveon, en_stoveoff, en_serve, en_fridgeget, en_dogfood
 
 act_names:
         .word nm_none, nm_fridge, nm_meal, nm_drink, nm_feeddog, nm_phone, nm_read, nm_fire
         .word nm_goout, nm_sleep, nm_exercise, nm_brush, nm_wc, nm_bath, nm_computer
         .word nm_letter, nm_tv, nm_record, nm_dance, nm_piano, nm_change, nm_pool
         .word nm_cards, nm_knock, nm_none, nm_petdog, nm_arrive, nm_readchair, nm_files, nm_chat, nm_tv, nm_tvoff, nm_wash, nm_delivery, nm_stow
-        .word nm_getfood, nm_prep, nm_cook, nm_stoveoff, nm_serve, nm_getfood
+        .word nm_getfood, nm_prep, nm_cook, nm_stoveoff, nm_serve, nm_getfood, nm_feeddog
 nm_none:     .null " is pottering about."
 nm_fridge:   .null " is getting some food."
 nm_meal:     .null " is eating."
@@ -1158,14 +1160,18 @@ l_ai_brush:
         lda #A_BRUSH
         rts
 l_ai_dog:
-        lda dog_hunger
-        cmp #60
-        bcc l_ai_lonely
+        lda dog_beg             ; the dog's begging: feed it
+        beq l_ai_lonely
         lda bowl_full
         bne l_ai_lonely
+        lda #A_FEEDDOG          ; a can already in his hands
+        ldx held
+        cpx #HELD_CAN
+        beq l_ai_feed
         lda dogfood
         beq +
-        lda #A_FEEDDOG
+        lda #A_DOGFOOD
+l_ai_feed:
         rts
 +       jsr complain_dogfood
 l_ai_lonely:
@@ -2202,15 +2208,97 @@ en_drink:
         lda #1
         sta ui_dirty
         rts
-st_feeddog:
-        lda #2
+; Feeding the dog: a can from the dog-food cupboard (one fewer on the shelf),
+; then beside the stove he leans down and fills the bowl.
+st_dogfood:
+        lda #PM_BACKSTAND
+        sta p_mode
+        lda #0
+        sta ck_t
+        lda #1
+        sta cb_which
+        lda #3
         jmp set_timer_secs
-en_feeddog:
+tk_dogfood:
+        inc ck_t
+        lda ck_t
+        cmp #2
+        bne +
+        lda #SFX_DOOR
+        jsr sfx_play
+        jmp cupboard_show
++       cmp #60
+        bne +
+        lda dogfood
+        beq l_tkdf_out
+        dec dogfood
+        lda #1
+        sta ui_dirty
+        lda #HELD_CAN
+        sta held
+        jmp cupboard_show
++       cmp #110
+        bne l_tkdf_out
+        lda #SFX_DOOR
+        jsr sfx_play
+        jmp cupboard_close
+l_tkdf_out:
+        rts
+en_dogfood:
+        jsr cupboard_close
+        lda held
+        cmp #HELD_CAN
+        bne +
+        lda #A_FEEDDOG
+        sta p_pending
++       rts
+
+st_feeddog:
+        lda #0
+        sta ck_t
+        sta p_flip              ; facing the bowl
+        lda held                ; (asked to feed it with no can in hand: one
+        cmp #HELD_CAN           ;  from the cupboard, unseen)
+        beq +
         lda dogfood
         beq +
         dec dogfood
+        lda #HELD_CAN
+        sta held
+        lda #1
+        sta ui_dirty
++       lda #3
+        jmp set_timer_secs
+tk_feeddog:
+        inc ck_t
+        lda ck_t
+        cmp #20                 ; down to the bowl
+        bne +
+        lda #PM_BENDSIDE
+        sta p_mode
+        rts
++       cmp #60                 ; tip it in
+        bne +
+        lda held
+        cmp #HELD_CAN
+        bne l_tkfd_out
+        lda #0
+        sta held
         lda #1
         sta bowl_full
+        lda #SFX_CLACK
+        jmp sfx_play
++       cmp #100
+        bne l_tkfd_out
+        lda #PM_STAND
+        sta p_mode
+l_tkfd_out:
+        rts
+en_feeddog:
+        lda #PM_STAND
+        sta p_mode
+        lda bowl_full
+        beq +
         #SAY l_say_goodboy
 +       rts
 
@@ -2777,8 +2865,7 @@ st_petdog:
 en_petdog:
         lda #3
         jsr mood_up
-        lda #SFX_BARK
-        jmp sfx_play
+        jmp bark_play
 
 ; --- middle floor ----------------------------------------------------------------------
 st_sleep:
@@ -3175,8 +3262,9 @@ held:           .byte 0     ; in his hands: 0 nothing, 1 jar, 2 pot, 3 plate
 HELD_JAR        = 1
 HELD_POT        = 2
 HELD_PLATE      = 3
-held_l:         .byte <SPR_HELDJAR, <SPR_HELDPOT, <SPR_HELDPLATE
-held_h:         .byte >SPR_HELDJAR, >SPR_HELDPOT, >SPR_HELDPLATE
+HELD_CAN        = 4
+held_l:         .byte <SPR_HELDJAR, <SPR_HELDPOT, <SPR_HELDPLATE, <SPR_HELDCAN
+held_h:         .byte >SPR_HELDJAR, >SPR_HELDPOT, >SPR_HELDPLATE, >SPR_HELDCAN
 COUNTER_HANDS_Y = 174         ; just above his waist
 
 ; C = 1 if it's time for a meal he hasn't had today (and marks it had):
@@ -3951,12 +4039,94 @@ l_say_clean:   .null "Ahh, squeaky clean!"
 dog_x:          .word 290
 dog_tx:         .word 290
 dog_flip:       .byte 0
-dog_state:      .byte 0     ; 0 hidden, 1 walk, 2 rest, 3 eat
+dog_state:      .byte 0     ; 0 hidden, 1 walk, 2 rest, 3 eat, 4 beg
+DOG_EAT_X       = 9         ; eating: sprite left edge, nose in the bowl
+DOG_EAT_TIME    = 250       ; frames
+dog_beg:        .byte 0     ; 1 = hungry: going to him to beg
+dog_meals:      .byte 0     ; today: bit 0 morning, bit 1 evening
 dog_timer:      .byte 0
 
 dog_init:
         lda #0
         sta dog_state
+        sta dog_beg
+        rts
+
+; C = 1 at the dog's mealtime (8-10am, 5-7pm) if it hasn't been fed then
+; (and marks it).
+dog_meal_due:
+        lda clock_hour
+        ldx #1
+        cmp #8
+        bcc l_dmd_no
+        cmp #10
+        bcc l_dmd_check
+        ldx #2
+        cmp #17
+        bcc l_dmd_no
+        cmp #19
+        bcs l_dmd_no
+l_dmd_check:
+        txa
+        and dog_meals
+        bne l_dmd_no
+        txa
+        ora dog_meals
+        sta dog_meals
+        sec
+        rts
+l_dmd_no:
+        clc
+        rts
+
+; Where to beg: beside him on the ground floor (whichever side the dog is
+; on), else at the foot of the stairs.
+dog_beg_target:
+        lda p_floor
+        beq +
+        lda #<190
+        sta dog_tx
+        lda #>190
+        sta dog_tx+1
+        rts
++       lda dog_x
+        cmp p_x
+        lda dog_x+1
+        sbc p_x+1
+        bcc +
+        clc                     ; dog to his right
+        lda p_x
+        adc #20
+        sta dog_tx
+        lda p_x+1
+        adc #0
+        sta dog_tx+1
+        lda dog_tx+1            ; (not off the right of the house)
+        beq l_dbt_out
+        lda dog_tx
+        cmp #<296
+        bcc l_dbt_out
+        lda #<296
+        sta dog_tx
+        rts
++       sec                     ; dog to his left
+        lda p_x
+        sbc #20
+        sta dog_tx
+        lda p_x+1
+        sbc #0
+        sta dog_tx+1
+        bcs +
+        lda #0
+        sta dog_tx+1
++       lda dog_tx+1
+        bne l_dbt_out
+        lda dog_tx
+        cmp #30
+        bcs l_dbt_out
+        lda #30
+        sta dog_tx
+l_dbt_out:
         rts
 
 dog_arrive:
@@ -3968,8 +4138,7 @@ dog_arrive:
         sta dog_state
         lda #50
         sta dog_timer
-        lda #SFX_BARK
-        jmp sfx_play
+        jmp bark_play
 
 dog_update:
         lda dog_state
@@ -3977,8 +4146,30 @@ dog_update:
         rts
 +       cmp #1
         beq l_dg_walk
-        ; resting or eating: count down
+        cmp #4
+        bne +
+        ; begging: until the bowl's filled; every so often a bark, and
+        ; after him if he's moved off
+        lda bowl_full
+        beq l_dg_begon
+        lda #0
+        sta dog_beg
+        jmp l_dg_choose
+l_dg_begon:
         dec dog_timer
+        bne l_dg_out
+        jsr bark_play
+        jmp l_dg_choose
++
+        ; resting or eating: count down (chomp, chomp)
+        cmp #3
+        bne +
+        lda dog_timer
+        and #15
+        bne +
+        lda #SFX_STEP
+        jsr sfx_play
++       dec dog_timer
         bne l_dg_out
         lda dog_state
         cmp #3
@@ -3987,7 +4178,25 @@ dog_update:
         sta bowl_full
         sta dog_hunger
 l_dg_choose:
-        ; hungry and food in the bowl?
+        ; hungry (or its mealtime) and nothing in the bowl: go and beg
+        lda bowl_full
+        bne l_dg_bowl
+        lda dog_beg
+        bne l_dg_begto
+        jsr dog_meal_due
+        bcs +
+        lda dog_hunger
+        cmp #60
+        bcc l_dg_bowl
++       lda #1
+        sta dog_beg
+l_dg_begto:
+        jsr dog_beg_target
+        lda #1
+        sta dog_state
+        rts
+l_dg_bowl:
+        ; food in the bowl?
         lda bowl_full
         beq +
         lda #<30
@@ -4021,8 +4230,7 @@ l_dg_go:
         lda #10
         jsr rnd_range
         bne l_dg_out
-        lda #SFX_BARK
-        jsr sfx_play
+        jsr bark_play
 l_dg_out:
         rts
 l_dg_walk:
@@ -4036,6 +4244,27 @@ l_dg_walk:
         cmp dog_tx
         bne l_dg_move
         ; arrived
+        lda dog_beg             ; at his feet: sit up and beg
+        beq l_dg_nobeg
+        lda bowl_full
+        bne l_dg_nobeg
+        lda #4
+        sta dog_state
+        lda #90
+        sta dog_timer
+        lda #0                  ; face him
+        sta dog_flip
+        lda p_floor
+        bne +
+        lda dog_x
+        cmp p_x
+        lda dog_x+1
+        sbc p_x+1
+        bcs +
+        lda #1
+        sta dog_flip
++       jmp bark_play
+l_dg_nobeg:
         lda bowl_full
         beq +
         lda dog_x
@@ -4043,7 +4272,7 @@ l_dg_walk:
         bcs +
         lda #3
         sta dog_state
-        lda #150
+        lda #DOG_EAT_TIME
         sta dog_timer
         lda #0
         sta dog_flip
@@ -4592,6 +4821,33 @@ l_ab_nomosaic:
         sta act_y+1
         bra l_ab_dog_done
 l_ab_dog_rest:
+        cmp #3
+        bne l_ab_dog_noeat
+        #SETACT 1, SPR_DOGEAT0  ; nose in the bowl, chewing
+        lda p_anim
+        and #8
+        beq +
+        #SETACT 1, SPR_DOGEAT1
++       lda #DOG_EAT_X          ; standing right at the bowl
+        sta act_xl2+1
+        lda #0
+        sta act_xh2+1
+        sta act_flip+1
+        lda #DOG_Y - 14
+        sta act_y+1
+        bra l_ab_dog_done
+l_ab_dog_noeat:
+        cmp #4
+        bne l_ab_dog_sit
+        #SETACT 1, SPR_DOGBEG0  ; sitting up, paws bobbing, tail wagging
+        lda p_anim
+        and #8
+        beq +
+        #SETACT 1, SPR_DOGBEG1
++       lda #DOG_Y - 20
+        sta act_y+1
+        bra l_ab_dog_done
+l_ab_dog_sit:
         #SETACT 1, SPR_DOG3
         lda #DOG_Y - 12
         sta act_y+1
@@ -4750,6 +5006,14 @@ l_ab_fx_done:
         lda bowl_full
         sta act_vis+3
         #SETACT 3, SPR_DOGFOOD
+        lda dog_state
+        cmp #3
+        bne +
+        lda dog_timer
+        cmp #DOG_EAT_TIME / 2
+        bcs +
+        #SETACT 3, SPR_DOGFOOD2
++
         lda #10
         sta act_xl2+3
         lda #0

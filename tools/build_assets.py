@@ -1036,6 +1036,7 @@ ASCII_SPRITES = {
     'note': ['..kk', '..kw', '..k.', '..k.', 'kkk.', 'kkk.'],
     'heart': ['.RR.RR.', 'RRRRRRR', 'RRRRRRR', '.RRRRR.', '..RRR..', '...R...'],
     'dogfood': ['.nnnn.', 'nnnnnn'],
+    'dogfood2': ['......', '.nnnn.'],       # half eaten
     'bubble': ['.www.', 'w...w', '.www.'],
     # solitaire laid out on the kitchen table, either side of his hands; the
     # second frame has turned a card over
@@ -1043,6 +1044,93 @@ ASCII_SPRITES = {
     'heldjar': ['.lll.', 'kRRRk', 'kwwwk', 'kRRRk', 'kRRRk', '.kkk.'],
     'heldpot': ['.kkkkkkk.', 'kklllllkk', '.kdddddk.', '.kdddddk.', '..kkkkk..'],
     'heldplate': ['..OvRO...', '.OnOvRO..', 'kwwwwwwwk', '.kkkkkkk.'],
+    'heldcan': ['.lll.', 'kOOOk', 'kwnwk', 'kOOOk', 'kOOOk', '.kkk.'],
+    # the dog sitting up on its haunches, begging, side-on: long ear hanging
+    # behind its head, front legs bent forward with the paws curled down,
+    # bobbing; tail wagging
+    'dogbeg0': [
+        '.......kkkk.kkk.....',
+        '.....kknnnnkknnk....',
+        '...kknnnnnnnknnnk...',
+        'kkknnnnnknnnknnnk...',
+        'kkkknnnnnnnnknnnk...',
+        'kkknnnnnnnnnknnnk...',
+        '.kkkkknnnnnnknnnk...',
+        '......knnnnnnknnk...',
+        '......knnnnnnkkk....',
+        '......knnnnnnnk.....',
+        '....kkknnnnnnnk.....',
+        '...knnnnnnnnnnnk....',
+        '..knnkkknnnnnnnk....',
+        '..knnk.knnnnnnnk...k',
+        '...kk..knnnnnnnnk.kn',
+        '......knnnnnnnnnkknk',
+        '.....knnnnnnnnnnknk.',
+        '....knnnnnnkknnnkk..',
+        '....knnnnnnnnknnk...',
+        '..kknnnnnnnnnknnk...',
+        '.knnnnnnnnnnnnnnk...',
+        '.kkkkkkkkkkkkkkkk...',
+],
+    'dogbeg1': [
+        '.......kkkk.kkk.....',
+        '.....kknnnnkknnk....',
+        '...kknnnnnnnknnnk...',
+        'kkknnnnnknnnknnnk...',
+        'kkkknnnnnnnnknnnk...',
+        'kkknnnnnnnnnknnnk...',
+        '.kkkkknnnnnnknnnk...',
+        '......knnnnnnknnk...',
+        '......knnnnnnkkk....',
+        '......knnnnnnnk.....',
+        '....kkknnnnnnnk.....',
+        '...knnnnnnnnnnnk....',
+        '..kkkkkknnnnnnnk....',
+        '..knnk.knnnnnnnk....',
+        '..knnk.knnnnnnnnk...',
+        '...kk.knnnnnnnnnk...',
+        '.....knnnnnnnnnnkkk.',
+        '....knnnnnnkknnnknnk',
+        '....knnnnnnnnknnkkkn',
+        '..kknnnnnnnnnknnk..k',
+        '.knnnnnnnnnnnnnnk...',
+        '.kkkkkkkkkkkkkkkk...',
+],
+    # the dog eating at its bowl, side-on, head down (and up a pixel: chewing)
+    'dogeat0': [
+        '.....................kk.',
+        '....................knk.',
+        '.........kkkkkkkkkkknk..',
+        '......kkknnnnnnnnnnnnk..',
+        '.....knnnnnnnnnnnnnnnk..',
+        '....knnknnnnnnnnnnnnnk..',
+        '...knnnknnnnnnnnnnnnnk..',
+        '..knnnnknnnnnnnnnnnnk...',
+        '.knnknnkknnnnnnnnnnnk...',
+        'knnnnnkknnkkkkkknnnk....',
+        'kkknnnk.knnk....knnk....',
+        'kkkkkk..knnk....knnk....',
+        '........knnk....knnk....',
+        '.......kknnk...kknnk....',
+        '.......kkkkk...kkkkk....',
+],
+    'dogeat1': [
+        '.....................kk.',
+        '....................knk.',
+        '.........kkkkkkkkkkknk..',
+        '......kkknnnnnnnnnnnnk..',
+        '.....knnnnnnnnnnnnnnnk..',
+        '...knnnknnnnnnnnnnnnnk..',
+        '..knnnnknnnnnnnnnnnnnk..',
+        '.knnknnknnnnnnnnnnnnk...',
+        'knnnnnkkknnnnnnnnnnnk...',
+        'kkknnnk.nnkkkkkknnnk....',
+        'kkkkkk..knnk....knnk....',
+        '........knnk....knnk....',
+        '........knnk....knnk....',
+        '.......kknnk...kknnk....',
+        '.......kkkkk...kkkkk....',
+],
     'tablecards0': ['wRw.wkw.www.wRw..........wkw.www',
                     'www.www.www.www..........www.www'],
     'tablecards1': ['wRw.wkw.wkw.wRw..........wkw.wRw',
@@ -1374,7 +1462,8 @@ def main():
     # (audio DMA can only read chip RAM), then starts audio DMA on it.
     sounds = [('talk', 'phone_talk.wav'),          # his voice (the Amiga original)
               ('flush', 'flush.wav'),              # public domain, Wikimedia Commons
-              ('bell', 'doorbell.wav')]            # public domain, Wikimedia Commons
+              ('bell', 'doorbell.wav'),            # CC0, Wikimedia Commons
+              ('bark', 'bark.wav')]                # CC BY-SA 3.0, Amada44, Wikimedia Commons
     sblob = bytearray()
     lines.append('SND_BUF                 = $%05X   ; chip-RAM play buffer (bank 1)' % SND_BASE)
     lines.append('SND_FREQ                = $%06X   ; audio DMA step: rate * 2^24 / 40.5 MHz' % round(SND_RATE * 16777216 / 40500000))
