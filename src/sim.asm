@@ -8,7 +8,7 @@
 
 FLOOR0_Y        = 190         ; mid-floor, behind the kitchen table's front legs
 FLOOR1_Y        = 128         ; mid-floor
-FLOOR2_Y        = 63
+FLOOR2_Y        = 66          ; mid-floor
 DOG_Y           = 194         ; the dog trots nearer the viewer than him
 
 TICKS_PER_MIN   = 25        ; fast forward (F5): sim ticks per game minute
@@ -263,6 +263,7 @@ sim_tick:
 l_st_real:
         jsr realtime_tick
 l_st_go:
+        jsr record_tick
         jsr person_update
         jsr dog_update
         jsr fx_update
@@ -656,6 +657,110 @@ outfit_rgb:     ; shirt, shirt shade, pants, far trouser leg, shirt dots, pants 
         .byte 51,85,221, 34,51,153, 51,85,221, 34,51,153, 255,136,204, 255,136,204      ; pyjamas
         .byte 255,204,153, 230,170,120, 255,204,153, 221,160,110, 255,204,153, 255,204,153 ; nothing
 
+; The stereo while a record plays: tone-arm shimmer, panel lights, power.
+stereo_animate:
+        lda record_left
+        ora record_left+1
+        bne l_sa_on
+        ldx #C_SPIN_A           ; off: their house colours
+-       jsr pal_own
+        inx
+        cpx #C_LED + 1
+        bne -
+        rts
+l_sa_on:
+        lda frame_count
+        lsr
+        lsr
+        and #1
+        sta l_sa_tg             ; 0/1: which shimmer entry is bright
+        ldx #C_SPIN_A
+        jsr l_sa_spin
+        lda l_sa_tg
+        eor #1
+        sta l_sa_tg
+        ldx #C_SPIN_B
+        jsr l_sa_spin
+        lda frame_count         ; panel lights: new levels a few times a second
+        and #7
+        bne l_sa_led
+        jsr rnd
+        sta l_sa_lv
+        ldx #C_VU_R1
+        lda #255
+        sta l_sa_r
+        lda #60
+        sta pe_g
+        sta pe_b
+        lda l_sa_lv
+        and #1
+        jsr l_sa_light
+        ldx #C_VU_R2
+        lda l_sa_lv
+        and #2
+        jsr l_sa_light
+        ldx #C_VU_B
+        lda #60
+        sta l_sa_r
+        lda #140
+        sta pe_g
+        lda #255
+        sta pe_b
+        lda l_sa_lv
+        and #4
+        jsr l_sa_light
+l_sa_led:
+        lda #34
+        sta pe_g                ; (set below)
+        lda #0
+        sta pe_b
+        lda #238
+        sta pe_g
+        lda #34
+        ldx #C_LED
+        jmp pal_set
+; l_sa_tg = 1: bright
+l_sa_spin:
+        lda #255
+        sta pe_g
+        sta pe_b
+        ldy l_sa_tg
+        bne +
+        lda #119
+        sta pe_g
+        sta pe_b
++       jmp pal_set
+; A != 0: lit, else dim (colour l_sa_r / pe_g / pe_b)
+l_sa_light:
+        bne +
+        lsr pe_g
+        lsr pe_g
+        lsr pe_b
+        lsr pe_b
+        lda l_sa_r
+        lsr
+        lsr
+        jsr pal_set
+        asl pe_g                ; (restore for the next light)
+        asl pe_g
+        asl pe_b
+        asl pe_b
+        rts
++       lda l_sa_r
+        jmp pal_set
+l_sa_lv:    .byte 0
+l_sa_tg:    .byte 0
+l_sa_r:     .byte 0
+
+; Palette entry X back to its own colour from the palette tables.
+pal_own:
+        lda pal_g,x
+        sta pe_g
+        lda pal_b,x
+        sta pe_b
+        lda pal_r,x
+        jmp pal_set
+
 palette_animate:
         ; sky
         lda #<sky_rgb
@@ -705,6 +810,7 @@ palette_animate:
         tay
         ldx #C_DOTS_PANTS
         jsr pal_set_from
+        jsr stereo_animate
         ; skin: green when sick
         lda #204
         sta pe_g
@@ -822,10 +928,10 @@ act_floor:
         .byte 0, 0,0,0,0,0, 1,0,0, 1,1,1,1,1, 1,2, 2,2,2,2, 1,0,0, 0,0,0,0, 0, 2, 0, 2, 2, 1, 0, 0
 act_xl:
         .byte 0, <52,<122,<138,<34,<226, <252,<268,<302, <40,<113,<170,<196,<222, <278,<228
-        .byte <108,<100,<120,<154, <83,<122,<122, <160,0,0,<300, <226, <266, 0, <62, <62, <177, <294, 0
+        .byte <108,<73,<76,<154, <83,<122,<122, <160,0,0,<300, <226, <266, 0, <62, <62, <177, <294, 0
 act_xh:
         .byte 0, >52,>122,>138,>34,>226, >252,>268,>302, >40,>113,>170,>196,>222, >278,>228
-        .byte >108,>100,>120,>154, >83,>122,>122, >160,0,0,>300, >226, >266, 0, >62, >62, >177, >294, 0
+        .byte >108,>73,>76,>154, >83,>122,>122, >160,0,0,>300, >226, >266, 0, >62, >62, >177, >294, 0
 act_face:
         .byte 0, 0,1,1,0,0, 1,1,1, 0,0,0,1,1, 1,1, 0,0,0,0, 0,1,1, 0,0,0,0, 0, 1, 0, 0, 0, 0, 1, 0
 
@@ -1069,7 +1175,14 @@ l_ai_fun:
         jsr rnd_range
         tax
         lda l_fun_list,x
-        rts
+        cmp #A_DANCE
+        bne +
+        ldx record_left
+        bne +
+        ldx record_left+1
+        bne +
+        lda #A_RECORD
++       rts
 l_fun_list:
         .byte A_TV, A_TV, A_RECORD, A_PIANO, A_PIANO, A_READ, A_READ, A_COMPUTER
         .byte A_EXERCISE, A_POOL, A_BATH, A_WC, A_IDLE, A_IDLE, A_IDLE, A_PETDOG
@@ -2139,6 +2252,8 @@ book_page:      .byte 0     ; ticks left showing the page turning over
 st_read:
         lda #PM_BEND            ; bent over the shelf, looking for a good one
         sta p_mode
+        lda #114                ; hands along the bottom shelf
+        jsr hands_rummage
         lda #3
         jmp set_timer_secs
 en_read:
@@ -2202,6 +2317,10 @@ tk_files:
         bne +
         lda #2
         jmp drawer_set
++       cmp #34                 ; hands into the open drawer
+        bne +
+        lda #49
+        jmp hands_rummage
 +       cmp #60
         bcc l_tkf_end
         lda p_anim              ; rummaging: paper rustles
@@ -2216,6 +2335,8 @@ l_tkf_end:
         lda act_timer
         cmp #50
         bne +
+        lda #0                  ; hands out, drawer in
+        sta fx_kind
         lda #1
         jmp drawer_set
 +       cmp #42
@@ -3206,39 +3327,137 @@ en_tvoff:
         sta tv_on
         lda #SFX_CLACK
         jmp sfx_play
+; Records: facing the stereo he bends to pick one from the shelf underneath,
+; straightens up and puts it on. It plays for a few minutes whatever he does
+; next (the tone arm shimmers, the panel lights dance); often he dances to it.
+RECORD_FRAMES   = 9000          ; about 3 minutes
+record_left:    .word 0         ; frames of music left (0 = not playing)
+record_tune:    .byte 0
+rec_t:          .byte 0
+
+; A = height: his little hands working away at either side of him, bent
+; over a shelf or drawer (the effect is cleared when the activity ends).
+hands_rummage:
+        sta fx_hands_y
+        sec
+        lda p_x
+        sbc #7
+        sta fx_hands_x
+        lda p_x+1
+        sbc #0
+        sta fx_hands_x+1
+        lda #7
+        sta fx_kind
+        rts
+
+REC_CLOSE       = 4             ; he steps up this close to the stereo
 st_record:
-        lda #TUNE_RECORD
-        jsr tune_play
-        lda #16
+        lda #PM_BEND            ; rummaging through the records
+        sta p_mode
+        lda p_y
+        sec
+        sbc #REC_CLOSE
+        sta p_y
+        lda #51                 ; his hands in the record shelf
+        jsr hands_rummage
+        lda #0
+        sta rec_t
+        lda #4
         jmp set_timer_secs
 tk_record:
-        ; put the record on, then dance
-        lda p_anim
-        and #63
+        inc rec_t
+        lda rec_t
+        cmp #70                 ; this one: stand up with it
         bne +
-        jsr fx_note_on_person
-+       lda act_timer+1
-        cmp #3
-        bcs +
-        lda #PM_DANCE
+        lda #PM_BACKSTAND
         sta p_mode
+        lda #0
+        sta fx_kind
+        rts
++       cmp #110                ; on it goes
+        bne +
+        jmp record_start
++       bcs +
+        and #15                 ; rummaging: sleeves rustle
+        bne +
+        lda #SFX_STEP
+        jmp sfx_play
 +       rts
 en_record:
-        lda #TUNE_NONE
-        jsr tune_play
+        lda p_y                 ; back out to the middle of the floor
+        clc
+        adc #REC_CLOSE
+        sta p_y
+        lda rec_t
+        cmp #110
+        bcc +                   ; (interrupted before it went on)
         lda #6
-        jmp mood_up
+        jsr mood_up
+        lda #3                  ; and two times in three, a dance
+        jsr rnd_range
+        beq +
+        lda #A_DANCE
+        sta p_pending
++       rts
+
+record_start:
+        lda #<RECORD_FRAMES
+        sta record_left
+        lda #>RECORD_FRAMES
+        sta record_left+1
+        lda #TUNE_RECORD        ; one of the two records
+        sta record_tune
+        jsr rnd
+        and #1
+        beq +
+        lda #TUNE_DANCE
+        sta record_tune
++       lda record_tune
+        jmp tune_play
+record_stop:
+        lda record_left
+        ora record_left+1
+        beq +
+        lda #0
+        sta record_left
+        sta record_left+1
+        lda #TUNE_NONE
+        jmp tune_play
++       rts
+; every sim tick: the record runs down
+record_tick:
+        lda record_left
+        ora record_left+1
+        beq l_rk_out
+        lda record_left
+        bne +
+        dec record_left+1
++       dec record_left
+        lda record_left
+        ora record_left+1
+        bne l_rk_out
+        lda #TUNE_NONE          ; the end of the side
+        jmp tune_play
+l_rk_out:
+        rts
+
 st_dance:
         lda #PM_DANCE
         sta p_mode
-        lda #TUNE_DANCE
+        lda record_left
+        ora record_left+1
+        bne +                   ; dancing to the record
+        lda #TUNE_DANCE         ; (asked to dance with no record on: hum along)
         jsr tune_play
-        lda #8
++       lda #8
         jmp set_timer_secs
 en_dance:
+        lda record_left
+        ora record_left+1
+        bne +
         lda #TUNE_NONE
         jsr tune_play
-        lda energy
++       lda energy
         sec
         sbc #3
         bcs +
@@ -3247,6 +3466,7 @@ en_dance:
         lda #5
         jmp mood_up
 st_piano:
+        jsr record_stop         ; can't hear himself play over it
         #POSE SPR_PIANO, POSE_PIANO_X, POSE_PIANO_Y
         lda #TUNE_PIANO
         jsr tune_play

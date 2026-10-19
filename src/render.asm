@@ -352,7 +352,7 @@ pal_dimmed:
         bcc l_pd_yes
         cpx #C_DOTS_SHIRT
         bcc l_pd_no
-        cpx #C_DOTS_PANTS+1
+        cpx #C_DIM2_LAST+1
         bcc l_pd_yes
 l_pd_no:
         clc

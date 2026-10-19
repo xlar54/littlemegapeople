@@ -38,6 +38,9 @@ SKIN, HAIR, SHIRT, SHIRT2, PANTS, SHOES, PANTS2 = range(25, 32)
 # Polka dots: sprinkled over his shirt and trousers in their own palette
 # entries, the cloth's colour by day (invisible), pink on his pyjamas.
 DOTS_SHIRT, DOTS_PANTS = 48, 49
+# The attic stereo while a record plays: the tone-arm bar shimmers (two
+# alternating entries), the front-panel lights flicker, a green power light.
+SPIN_A, SPIN_B, VU_R1, VU_R2, VU_B, LED = range(50, 56)
 UI = 32                     # 32..47 UI colours
 TITLE0 = 64                 # 64..71 guestbook colours
 LOGO0 = 80                  # 80..143 logo gradient x antialias
@@ -295,6 +298,14 @@ def house_index(x, y, v, sky, fire=False):
         return BOTTLE
     if fire and 258 <= x <= 280 and 170 <= y <= 184 and v in (14, 3, 10, 15, 4):
         return (FIRE_A, FIRE_B, FIRE_C)[(x * 7 + y * 3) % 3]
+    if y == 42 and 70 <= x <= 83 and v == 3:
+        return (SPIN_A, SPIN_B)[x % 2]
+    if y == 47 and 64 <= x <= 81 and v == 14:
+        return (VU_R1, VU_R2)[(x // 2) % 2]
+    if y == 47 and 64 <= x <= 81 and v == 1:
+        return VU_B
+    if (x, y) == (78, 43):
+        return LED
     return HOUSE0 + v
 
 
@@ -335,6 +346,8 @@ def build_house():
                for y in range(cy * 8, (cy + ch) * 8)]
         patches[name] = (cx, cy, cw, ch, pix)
     img = [[house_index(x, y, bg[y][x], sky) for x in range(320)] for y in range(200)]
+    for slot, v in ((SPIN_A, 3), (SPIN_B, 3), (VU_R1, 14), (VU_R2, 14), (VU_B, 1), (LED, 6)):
+        PAL[slot] = PAL[HOUSE0 + v]
     return img, patches
 
 
