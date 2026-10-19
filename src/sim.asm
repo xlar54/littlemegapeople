@@ -58,7 +58,8 @@ A_KNOCK         = 23
 A_IDLE          = 24
 A_PETDOG        = 25
 A_ARRIVE        = 26
-A_COUNT         = 27
+A_READCHAIR     = 27        ; reading in the armchair (after the bookshelf)
+A_COUNT         = 28
 
 REQ_EAT         = A_FRIDGE
 REQ_DRINK       = A_DRINK
@@ -680,44 +681,45 @@ l_fire_b: .byte 0,0,0
 ;---------------------------------------------------------------------------------------
 ;               floor  x     face(1=right)
 act_floor:
-        .byte 0, 0,0,0,0,0, 0,0,0, 1,1,1,1,1, 1,2, 2,2,2,2, 2,2,2, 0,0,0,0
+        .byte 0, 0,0,0,0,0, 1,0,0, 1,1,1,1,1, 1,2, 2,2,2,2, 2,2,2, 0,0,0,0, 0
 act_xl:
-        .byte 0, <52,<122,<138,<34,<213, <226,<248,<302, <40,<115,<170,<196,<222, <278,<228
-        .byte <80,<100,<120,<154, <188,<228,<228, <160,0,0,<300
+        .byte 0, <52,<122,<138,<34,<213, <252,<248,<302, <40,<115,<170,<196,<222, <278,<228
+        .byte <80,<100,<120,<154, <188,<228,<228, <160,0,0,<300, <226
 act_xh:
-        .byte 0, >52,>122,>138,>34,>213, >226,>248,>302, >40,>115,>170,>196,>222, >278,>228
-        .byte >80,>100,>120,>154, >188,>228,>228, >160,0,0,>300
+        .byte 0, >52,>122,>138,>34,>213, >252,>248,>302, >40,>115,>170,>196,>222, >278,>228
+        .byte >80,>100,>120,>154, >188,>228,>228, >160,0,0,>300, >226
 act_face:
-        .byte 0, 0,1,1,0,0, 0,1,1, 0,0,0,1,1, 1,1, 0,0,0,0, 1,1,1, 0,0,0,0
+        .byte 0, 0,1,1,0,0, 0,1,1, 0,0,0,1,1, 1,1, 0,0,0,0, 1,1,1, 0,0,0,0, 0
 
 act_start_tbl:
         .word st_none, st_fridge, st_meal, st_drink, st_feeddog, st_phone, st_read, st_fire
         .word st_goout, st_sleep, st_exercise, st_brush, st_wc, st_bath, st_computer
         .word st_letter, st_tv, st_record, st_dance, st_piano, st_change, st_pool
-        .word st_cards, st_knock, st_idle, st_petdog, st_arrive
+        .word st_cards, st_knock, st_idle, st_petdog, st_arrive, st_readchair
 act_tick_tbl:
         .word tk_none, tk_none, tk_none, tk_none, tk_none, tk_phone, tk_none, tk_none
         .word tk_goout, tk_sleep, tk_none, tk_none, tk_none, tk_bath, tk_computer
         .word tk_pool, tk_none, tk_record, tk_none, tk_piano, tk_none, tk_pool
-        .word tk_none, tk_knock, tk_none, tk_none, tk_arrive
+        .word tk_none, tk_knock, tk_none, tk_none, tk_arrive, tk_readchair
 act_end_tbl:
         .word en_none, en_fridge, en_meal, en_drink, en_feeddog, en_phone, en_read, en_fire
         .word en_goout, en_sleep, en_exercise, en_brush, en_wc, en_bath, en_computer
         .word en_letter, en_tv, en_record, en_dance, en_piano, en_change, en_pool
-        .word en_cards, en_knock, en_none, en_petdog, en_arrive
+        .word en_cards, en_knock, en_none, en_petdog, en_arrive, en_readchair
 
 act_names:
         .word nm_none, nm_fridge, nm_meal, nm_drink, nm_feeddog, nm_phone, nm_read, nm_fire
         .word nm_goout, nm_sleep, nm_exercise, nm_brush, nm_wc, nm_bath, nm_computer
         .word nm_letter, nm_tv, nm_record, nm_dance, nm_piano, nm_change, nm_pool
-        .word nm_cards, nm_knock, nm_none, nm_petdog, nm_arrive
+        .word nm_cards, nm_knock, nm_none, nm_petdog, nm_arrive, nm_readchair
 nm_none:     .null " is pottering about."
 nm_fridge:   .null " is getting some food."
 nm_meal:     .null " is eating."
 nm_drink:    .null " is having a drink."
 nm_feeddog:  .null " is feeding the dog."
 nm_phone:    .null " is on the phone."
-nm_read:     .null " is reading a book."
+nm_read:     .null " is picking out a book."
+nm_readchair: .null " is reading a book."
 nm_fire:     .null " is lighting a fire."
 nm_goout:    .null " has gone out."
 nm_sleep:    .null " is asleep. Zzz..."
@@ -1220,7 +1222,7 @@ gift_book:
         jsr sfx_play
         jsr person_sleeping
         bcs +
-        lda #A_READ
+        lda #A_READCHAIR        ; he has the book already: straight to the armchair
         jsr request_pending
 +       ldx #<l_say_gbook
         ldy #>l_say_gbook
@@ -1250,7 +1252,7 @@ pet_him:
         beq l_ph_out
         lda #3
         ldx p_act
-        cpx #A_READ
+        cpx #A_READCHAIR
         bne +
         lda #7
 +       jsr mood_up
@@ -1882,11 +1884,48 @@ en_phone:
         lda #0
         sta lonely
         rts
+; Reading: pick a book off the study shelf (facing it), then down to the
+; armchair with it, turning a page every few seconds.
+BOOK_X          = POSE_CHAIR_X + 1
+BOOK_Y          = POSE_CHAIR_Y + 10
+book_page:      .byte 0     ; ticks left showing the page turning over
+
 st_read:
-        #POSE SPR_CHAIR, POSE_CHAIR_X, POSE_CHAIR_Y
-        lda #20
+        lda #PM_CLIMB           ; back view: facing the bookshelf
+        sta p_mode
+        lda #2
         jmp set_timer_secs
 en_read:
+        lda #SFX_CLACK
+        jsr sfx_play
+        lda #A_READCHAIR
+        sta p_pending
+        rts
+st_readchair:
+        #POSE SPR_READING, POSE_CHAIR_X, POSE_CHAIR_Y
+        lda #5                  ; the open book
+        sta fx_kind
+        lda #0
+        sta book_page
+        lda #20
+        jmp set_timer_secs
+tk_readchair:
+        lda book_page
+        beq +
+        dec book_page
+        rts
++       lda p_anim
+        and #127
+        bne +
+        lda #4
+        jsr rnd_range
+        beq +                   ; now and then he lingers on a page
+        lda #10
+        sta book_page
+        lda #SFX_STEP           ; soft paper flick
+        jsr sfx_play
++       rts
+en_readchair:
         lda #4
         jmp mood_up
 st_fire:
@@ -2705,8 +2744,8 @@ l_fx_set:
 fx_update:
         lda fx_kind
         beq l_fu_out
-        cmp #4                  ; the knocking fist is driven by tk_knock
-        beq l_fu_out
+        cmp #4                  ; the knocking fist and the book stay put
+        bcs l_fu_out
         inc fx_t
         lda fx_t
         and #3
@@ -3057,6 +3096,21 @@ l_ab_dog_done:
         sta act_y+2
         bra l_ab_fx_done
 l_ab_notfist:
+        cmp #5
+        bne l_ab_notbook
+        ; the book in his hands, open or turning a page
+        #SETACT 2, SPR_BOOKOPEN
+        lda book_page
+        beq +
+        #SETACT 2, SPR_BOOKTURN
++       lda #<BOOK_X
+        sta act_xl2+2
+        lda #>BOOK_X
+        sta act_xh2+2
+        lda #BOOK_Y
+        sta act_y+2
+        bra l_ab_fx_done
+l_ab_notbook:
         cmp #1
         bne +
         #SETACT 2, SPR_ZZ

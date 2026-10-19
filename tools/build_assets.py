@@ -500,6 +500,29 @@ FRONT_KNOCK_ART[15] = '..kTTktTTTTtk.....'
 FRONT_KNOCK_ART[16] = '..kTTktTTTTtk.....'
 FRONT_KNOCK_ART[17] = '..kSSkTTTTTTk.....'
 FRONT_KNOCK_ART[18] = '...kk.kTTTTk......'
+# An open book held in both hands, and the same with a page turning over.
+BOOK_OPEN = [
+    '.................',
+    '.................',
+    '..kkkkkk.kkkkkk..',
+    '.kwwwwwwkwwwwwwk.',
+    '.kwlllwwkwllllwk.',
+    '.kwwwwwwkwwwwwwk.',
+    '.kwllllwkwlllwwk.',
+    'SkwwwwwwkwwwwwwkS',
+    'SSkkkkkkkkkkkkkSS',
+]
+BOOK_TURN = [
+    '........kk.......',
+    '.......kwwk......',
+    '..kkkkkkwwk.kkk..',
+    '.kwwwwwkwwkwwwwk.',
+    '.kwlllwkwwkwlllk.',
+    '.kwwwwwkwwkwwwwk.',
+    '.kwllllkwkwwlllk.',
+    'SkwwwwwwkwwwwwwkS',
+    'SSkkkkkkkkkkkkkSS',
+]
 PERSON_LETTERS = {'S': SKIN, 'H': HAIR, 'T': SHIRT, 't': SHIRT2, 'P': PANTS, 'Z': SHOES}
 
 
@@ -645,6 +668,18 @@ def build_sprites():
     for n, rows in ASCII_SPRITES.items():
         sprites.append((n, remap(A.from_ascii(rows), lambda x, y, v: amiga(v))))
     sprites.append(('front', art(FRONT_ART)))
+    # Reading in the armchair: the relaxing pose with his raised elbows taken
+    # out; the book sprite (held in both hands) covers his chest.
+    chair = dict(sprites)['chair']
+    reading = [r[:] for r in chair]
+    for y, ln in ((8, '....kkkkkSSSSSk....'),
+                  (9, '..kkTkSSSSSSSkTkk..'),
+                  (10, '.kTTTTkSSSSSkTTTTk.'),
+                  (11, '.kTTTTTttSSttTTTTk.')):
+        reading[y] = art([ln])[0]
+    sprites.append(('reading', reading))
+    sprites.append(('bookopen', art(BOOK_OPEN)))
+    sprites.append(('bookturn', art(BOOK_TURN)))
     sprites.append(('frontknock', art(FRONT_KNOCK_ART)))
     # Seated behind the attic desk facing you: just head and shoulders, so the
     # desk and typewriter stay in front of him.
