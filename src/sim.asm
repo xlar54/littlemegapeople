@@ -70,7 +70,13 @@ A_TVOFF         = 31        ; ...and off again
 A_WASH          = 32        ; washes his hands at the bathroom sink
 A_DELIVERY      = 33        ; answers the door and picks up a delivery
 A_STOW          = 34        ; puts the delivery away
-A_COUNT         = 35
+A_GETFOOD       = 35        ; cooking: a jar from the food cupboard
+A_PREP          = 36        ;   ...preparing it at the counter
+A_STOVEON       = 37        ;   ...the pot onto the stove
+A_STOVEOFF      = 38        ;   ...and off again when it's done
+A_SERVE         = 39        ;   ...dishing up at the counter (then A_MEAL)
+A_FRIDGEGET     = 40        ;   ...sometimes something from the fridge too
+A_COUNT         = 41
 
 REQ_EAT         = A_FRIDGE
 REQ_DRINK       = A_DRINK
@@ -264,6 +270,7 @@ l_st_real:
         jsr realtime_tick
 l_st_go:
         jsr record_tick
+        jsr cook_tick
         jsr person_update
         jsr dog_update
         jsr fx_update
@@ -549,6 +556,8 @@ l_mod9:
 
 ; Midnight: the calendar moves on.
 next_day:
+        lda #0
+        sta meals_done
         inc date_day
         ldx date_month
         lda month_days-1,x
@@ -925,37 +934,41 @@ l_fire_b: .byte 0,0,0
 ;---------------------------------------------------------------------------------------
 ;               floor  x     face(1=right)
 act_floor:
-        .byte 0, 0,0,0,0,0, 1,0,0, 1,1,1,1,1, 1,2, 2,2,2,2, 1,0,0, 0,0,0,0, 0, 2, 0, 2, 2, 1, 0, 0
+        .byte 0, 0,0,0,0,0, 1,0,0, 1,1,1,1,1, 1,2, 2,2,2,2, 1,0,0, 0,0,0,0, 0, 2, 0, 2, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0
 act_xl:
         .byte 0, <52,<122,<138,<34,<226, <252,<268,<302, <40,<113,<170,<196,<222, <278,<228
-        .byte <108,<73,<76,<154, <83,<122,<122, <160,0,0,<300, <226, <266, 0, <62, <62, <177, <294, 0
+        .byte <108,<73,<76,<154, <83,<122,<122, <160,0,0,<300, <226, <266, 0, <62, <62, <177, <294, 0, <78, <58, <28, <28, <58, <52
 act_xh:
         .byte 0, >52,>122,>138,>34,>226, >252,>268,>302, >40,>113,>170,>196,>222, >278,>228
-        .byte >108,>73,>76,>154, >83,>122,>122, >160,0,0,>300, >226, >266, 0, >62, >62, >177, >294, 0
+        .byte >108,>73,>76,>154, >83,>122,>122, >160,0,0,>300, >226, >266, 0, >62, >62, >177, >294, 0, >78, >58, >28, >28, >58, >52
 act_face:
-        .byte 0, 0,1,1,0,0, 1,1,1, 0,0,0,1,1, 1,1, 0,0,0,0, 0,1,1, 0,0,0,0, 0, 1, 0, 0, 0, 0, 1, 0
+        .byte 0, 0,1,1,0,0, 1,1,1, 0,0,0,1,1, 1,1, 0,0,0,0, 0,1,1, 0,0,0,0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0
 
 act_start_tbl:
         .word st_none, st_fridge, st_meal, st_drink, st_feeddog, st_phone, st_read, st_fire
         .word st_goout, st_sleep, st_exercise, st_brush, st_wc, st_bath, st_computer
         .word st_letter, st_tv, st_record, st_dance, st_piano, st_change, st_pool
         .word st_cards, st_knock, st_idle, st_petdog, st_arrive, st_readchair, st_files, st_chat, st_tvswitch, st_tvswitch, st_wash, st_delivery, st_stow
+        .word st_getfood, st_prep, st_stoveon, st_stoveoff, st_serve, st_fridgeget
 act_tick_tbl:
         .word tk_none, tk_none, tk_meal, tk_none, tk_none, tk_phone, tk_none, tk_none
         .word tk_goout, tk_sleep, tk_none, tk_brush, tk_wc, tk_bath, tk_computer
         .word tk_typing, tk_none, tk_record, tk_none, tk_piano, tk_change, tk_pool
         .word tk_none, tk_knock, tk_none, tk_none, tk_arrive, tk_readchair, tk_files, tk_none, tk_none, tk_none, tk_none, tk_delivery, tk_stow
+        .word tk_getfood, tk_prep, tk_stoveon, tk_stoveoff, tk_prep, tk_fridgeget
 act_end_tbl:
         .word en_none, en_fridge, en_meal, en_drink, en_feeddog, en_phone, en_read, en_fire
         .word en_goout, en_sleep, en_exercise, en_brush, en_wc, en_bath, en_computer
         .word en_letter, en_tv, en_record, en_dance, en_piano, en_change, en_pool
         .word en_cards, en_knock, en_none, en_petdog, en_arrive, en_readchair, en_files, en_chat, en_tvon, en_tvoff, en_wash, en_delivery, en_stow
+        .word en_getfood, en_prep, en_stoveon, en_stoveoff, en_serve, en_fridgeget
 
 act_names:
         .word nm_none, nm_fridge, nm_meal, nm_drink, nm_feeddog, nm_phone, nm_read, nm_fire
         .word nm_goout, nm_sleep, nm_exercise, nm_brush, nm_wc, nm_bath, nm_computer
         .word nm_letter, nm_tv, nm_record, nm_dance, nm_piano, nm_change, nm_pool
         .word nm_cards, nm_knock, nm_none, nm_petdog, nm_arrive, nm_readchair, nm_files, nm_chat, nm_tv, nm_tvoff, nm_wash, nm_delivery, nm_stow
+        .word nm_getfood, nm_prep, nm_cook, nm_stoveoff, nm_serve, nm_getfood
 nm_none:     .null " is pottering about."
 nm_fridge:   .null " is getting some food."
 nm_meal:     .null " is eating."
@@ -970,6 +983,11 @@ nm_tvoff:    .null " is switching off the TV."
 nm_wash:     .null " is washing his hands."
 nm_delivery: .null " is answering the door."
 nm_stow:     .null " is putting the delivery away."
+nm_getfood:  .null " is fetching something to cook."
+nm_prep:     .null " is getting a meal ready."
+nm_cook:     .null " is cooking."
+nm_stoveoff: .null " is taking the pot off the stove."
+nm_serve:    .null " is dishing up."
 nm_fire:     .null " is lighting a fire."
 nm_goout:    .null " has gone out."
 nm_sleep:    .null " is asleep. Zzz..."
@@ -1028,7 +1046,9 @@ ai_choose:
         beq +
         lda #A_DRINK
         rts
-+       lda hunger
++       lda cook_stage          ; (a meal on the way: no snacking)
+        bne +
+        lda hunger
         cmp #75
         bcc +
         lda food
@@ -1043,6 +1063,11 @@ ai_choose:
         bne l_pc_dlv
         lda #A_DELIVERY
 l_pc_dlv:
+        rts
++       ; cooking: carry on with the next step
+        ldx cook_stage
+        lda cook_act,x
+        beq +
         rts
 +       ; fresh out of the shower: get dressed before anything else
         lda outfit
@@ -1097,6 +1122,15 @@ l_ai_bed:
         lda #0
         sta dress_todo
         lda #A_CHANGE
+        rts
++       ; breakfast, lunch, dinner: cook a meal
+        jsr meal_due
+        bcc +
+        lda food
+        beq +
+        lda #1
+        sta cook_stage
+        lda #A_GETFOOD
         rts
 +       ; thirst
         lda thirst
@@ -2113,7 +2147,14 @@ en_fridge:
         sta p_pending
 +       rts
 st_meal:
-        #POSE SPR_EAT, POSE_EAT_X, POSE_EAT_Y
+        lda #0                  ; the plate is on the table
+        sta held
+        lda cook_stage
+        cmp #7
+        bne +
+        lda #0
+        sta cook_stage
++       #POSE SPR_EAT, POSE_EAT_X, POSE_EAT_Y
         lda #7
         jmp set_timer_secs
 ; chew (mouth open/shut), and every couple of seconds a bite: hand to mouth
@@ -3117,6 +3158,280 @@ l_da_dog:
         lda #A_RECORD
         sta p_pending
         rts
+
+; Cooking. At mealtimes he takes a jar from the food cupboard, prepares it at
+; the counter, puts the pot on the stove (a flame under it) and goes off while
+; it cooks; then the pot comes off, he dishes up at the counter and carries
+; the plate to the table. cook_stage says which step is next, so he picks up
+; where he left off if something interrupts him.
+cook_stage:     .byte 0     ; 0 none, 1 get food, 2 prep, 3 stove on,
+                            ; 4 cooking, 5 stove off, 6 serve, 7 eat
+cook_act:       .byte 0, A_GETFOOD, A_PREP, A_STOVEON, 0, A_STOVEOFF, A_SERVE, A_MEAL
+cook_left:      .word 0     ; frames until it's done
+COOK_FRAMES     = 1500      ; about half a minute
+meals_done:     .byte 0     ; today: bit 0 breakfast, 1 lunch, 2 dinner
+ck_t:           .byte 0
+held:           .byte 0     ; in his hands: 0 nothing, 1 jar, 2 pot, 3 plate
+HELD_JAR        = 1
+HELD_POT        = 2
+HELD_PLATE      = 3
+held_l:         .byte <SPR_HELDJAR, <SPR_HELDPOT, <SPR_HELDPLATE
+held_h:         .byte >SPR_HELDJAR, >SPR_HELDPOT, >SPR_HELDPLATE
+COUNTER_HANDS_Y = 174         ; just above his waist
+
+; C = 1 if it's time for a meal he hasn't had today (and marks it had):
+; breakfast until 10, lunch 12-2, dinner 6-8.
+meal_due:
+        lda clock_hour
+        ldx #1
+        cmp #10
+        bcc l_md_check
+        ldx #2
+        cmp #12
+        bcc l_md_no
+        cmp #14
+        bcc l_md_check
+        ldx #4
+        cmp #18
+        bcc l_md_no
+        cmp #20
+        bcs l_md_no
+l_md_check:
+        txa
+        and meals_done
+        bne l_md_no
+        txa
+        ora meals_done
+        sta meals_done
+        sec
+        rts
+l_md_no:
+        clc
+        rts
+
+; every sim tick: the pot cooks
+cook_tick:
+        lda cook_left
+        ora cook_left+1
+        beq l_ckt_out
+        lda cook_left
+        bne +
+        dec cook_left+1
++       dec cook_left
+        lda cook_left
+        ora cook_left+1
+        bne l_ckt_out
+        lda cook_stage          ; done: time to take it off
+        cmp #4
+        bne l_ckt_out
+        lda #5
+        sta cook_stage
+l_ckt_out:
+        rts
+
+; 1: a jar from the food cupboard (one fewer on the shelf)
+st_getfood:
+        lda #PM_BACKSTAND
+        sta p_mode
+        lda #0
+        sta ck_t
+        sta cb_which
+        lda #3
+        jmp set_timer_secs
+tk_getfood:
+        inc ck_t
+        lda ck_t
+        cmp #2
+        bne +
+        lda #SFX_DOOR
+        jsr sfx_play
+        jmp cupboard_show
++       cmp #60
+        bne +
+        lda food                ; take one
+        beq l_tkg_out
+        dec food
+        lda #1
+        sta ui_dirty
+        lda #HELD_JAR
+        sta held
+        lda #2
+        sta cook_stage
+        jmp cupboard_show
++       cmp #110
+        bne l_tkg_out
+        lda #SFX_DOOR
+        jsr sfx_play
+        jmp cupboard_close
+l_tkg_out:
+        rts
+en_getfood:
+        jsr cupboard_close
+        lda cook_stage
+        cmp #1
+        bne +
+        lda #0                  ; nothing in the cupboard after all
+        sta cook_stage
+        jmp complain_food
++       jsr rnd                 ; half the time: something from the fridge too
+        and #1
+        beq +
+        lda #A_FRIDGEGET
+        sta p_pending
++       rts
+
+; the fridge door opens, he reaches in, it shuts
+st_fridgeget:
+        ldx #PATCH_FRIDGE
+        jsr patch_apply
+        lda #SFX_DOOR
+        jsr sfx_play
+        lda #0
+        sta ck_t
+        lda #2
+        jmp set_timer_secs
+tk_fridgeget:
+        inc ck_t
+        lda ck_t
+        cmp #30                 ; reaching in
+        bne +
+        lda #PM_BENDSIDE
+        sta p_mode
+        rts
++       cmp #65
+        bne +
+        lda #PM_STAND
+        sta p_mode
+        rts
++       cmp #80
+        bne +
+        ldx #PATCH_FRIDGE
+        jsr patch_remove
+        lda #SFX_DOOR
+        jmp sfx_play
++       rts
+en_fridgeget:
+        ldx #PATCH_FRIDGE
+        jmp patch_remove
+
+; 2 and 6: at the counter, his hands busy (chopping, then dishing up)
+st_prep:
+        lda #PM_BACKSTAND
+        sta p_mode
+        lda #0
+        sta held                ; (it's on the counter now)
+        sta ck_t
+        lda #COUNTER_HANDS_Y
+        jsr hands_rummage
+        lda #3
+        jmp set_timer_secs
+tk_prep:
+        inc ck_t
+        lda ck_t
+        and #15
+        bne +
+        lda #SFX_CLACK          ; chop, chop
+        jmp sfx_play
++       rts
+en_prep:
+        lda ck_t
+        cmp #140
+        bcc +
+        lda #HELD_POT           ; ready for the stove
+        sta held
+        lda #3
+        sta cook_stage
+        lda #A_STOVEON
+        sta p_pending
+        rts
++       lda #HELD_JAR           ; (interrupted: still to do)
+        sta held
+        rts
+st_serve:
+        lda #PM_BACKSTAND
+        sta p_mode
+        lda #0
+        sta held
+        sta ck_t
+        lda #COUNTER_HANDS_Y
+        jsr hands_rummage
+        lda #3
+        jmp set_timer_secs
+en_serve:
+        lda ck_t
+        cmp #140
+        bcc +
+        lda #HELD_PLATE         ; dinner is served
+        sta held
+        lda #7
+        sta cook_stage
+        lda #A_MEAL
+        sta p_pending
+        rts
++       lda #HELD_POT
+        sta held
+        rts
+
+; 3: the pot onto the stove, flame lit; off he goes while it cooks
+st_stoveon:
+        lda #0
+        sta ck_t
+        sta p_flip              ; facing the stove
+        lda #2
+        jmp set_timer_secs
+tk_stoveon:
+        inc ck_t
+        lda ck_t
+        cmp #30
+        bne +
+        lda #0
+        sta held
+        ldx #PATCH_POT
+        jsr patch_apply
+        lda #4
+        sta cook_stage
+        lda #<COOK_FRAMES
+        sta cook_left
+        lda #>COOK_FRAMES
+        sta cook_left+1
+        lda #SFX_CLACK
+        jmp sfx_play
++       rts
+en_stoveon:
+        lda #PM_STAND
+        sta p_mode
+        rts
+
+; 5: done: the pot off the stove, to the counter
+st_stoveoff:
+        lda #0
+        sta ck_t
+        sta p_flip
+        lda #2
+        jmp set_timer_secs
+tk_stoveoff:
+        inc ck_t
+        lda ck_t
+        cmp #30
+        bne +
+        ldx #PATCH_POT
+        jsr patch_remove
+        lda #HELD_POT
+        sta held
+        lda #6
+        sta cook_stage
+        lda #SFX_CLACK
+        jmp sfx_play
++       rts
+en_stoveoff:
+        lda #PM_STAND
+        sta p_mode
+        lda cook_stage
+        cmp #6
+        bne +
+        lda #A_SERVE
+        sta p_pending
++       rts
 
 ; Washing his hands at the sink: back to you, elbows working, water running.
 st_wash:
@@ -4285,6 +4600,29 @@ l_ab_dog_done:
         lda #0
         sta act_vis+2
         sta act_flip+2
+        ; something he's carrying while cooking (hidden when his back is to you)
+        lda held
+        beq l_ab_noheld
+        lda p_mode
+        cmp #PM_BACKSTAND
+        beq l_ab_noheld
+        cmp #PM_BEND
+        beq l_ab_noheld
+        cmp #PM_POSE
+        beq l_ab_noheld
+        cmp #PM_HIDDEN
+        beq l_ab_noheld
+        ldx held
+        lda held_l-1,x
+        sta act_sprl+2
+        lda held_h-1,x
+        sta act_sprh+2
+        lda #`SPR_HELDJAR
+        sta act_sprb+2
+        lda #1
+        sta act_vis+2
+        jmp l_abp_hands
+l_ab_noheld:
         ; the delivery, while it's on the step, in his hands or being put away
         lda delivery
         beq l_ab_nopkg

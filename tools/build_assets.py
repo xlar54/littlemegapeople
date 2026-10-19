@@ -116,6 +116,8 @@ PATCHES = {
     'fridge_open': (3, 19, 3, 5, 'stairs'),
     # bedroom closet door open on his clothes (from the Amiga 'cards' frame)
     'closet_open': (9, 11, 3, 4, ('BEDCLOSET', 0)),
+    # a pot on the stove's right burner, a flame under it
+    'pot_on': (0, 20, 3, 2, ('POT', 0)),
     'fire_lit': (32, 21, 3, 2, 'cards'),
     # living-room phone with the handset lifted off (empty cradle)
     'phone_off': (24, 21, 3, 1, ('PHONE', 0)),
@@ -230,6 +232,32 @@ def draw_bedcloset(img, _):
             img[y][x] = f[y][x]
 
 
+POT = ['...kk...',
+       '.kllllk.',
+       'kkkkkkkk',
+       'kddddddk',
+       'kddddddk',
+       '.kkkkkk.']
+
+
+def draw_pot(img, _):
+    """The cooking pot on the stove's right burner (x 13-20, in reach from
+    beside the stove), a little flame
+    licking up under it. Flame pixels are marked -1..-3: the fireplace's
+    flickering palette entries."""
+    C = {ch: i for i, ch in enumerate(A.AMIGA_CH)}
+    for dy, row in enumerate(POT):
+        for dx, ch in enumerate(row):
+            if ch != '.':
+                img[166 + dy][13 + dx] = C[ch]
+    for x in range(14, 20):
+        img[172][x] = -1 - (x % 3)
+        if x % 2:
+            img[171][x] = -1 - ((x + 1) % 3) if img[171][x] == C['k'] else img[171][x]
+    for x in range(15, 20):                     # the burner glows
+        img[174][x] = -1 - ((x + 2) % 3)
+
+
 def draw_phone_off(img, _):
     """The phone on the side table (handset on rows 172-173, x 196-207) with
     the handset lifted: wall shows through, the cradle hooks remain, and the
@@ -288,6 +316,8 @@ DOOR_CLOSED_FROM = 'house_a'
 def house_index(x, y, v, sky, fire=False):
     """Map an Amiga colour at (x, y) to the game palette, giving the props
     that the runtime animates their own palette entries."""
+    if v < 0:                                   # drawn flame: -1..-3
+        return (FIRE_A, FIRE_B, FIRE_C)[-v - 1]
     if sky[y][x]:
         return SKY
     if 42 <= x <= 50 and 48 <= y <= 57 and v == 3:
@@ -339,7 +369,8 @@ def build_house():
             f = [r[:] for r in bg]
             {'CURTAIN': draw_curtain, 'DRAWER': draw_drawer, 'PHONE': draw_phone_off,
              'WCDOOR': draw_wcdoor, 'CUPBOARD': draw_cupboard,
-             'DOGCAB': draw_dogcab, 'BEDCLOSET': draw_bedcloset}[src[0]](f, src[1])
+             'DOGCAB': draw_dogcab, 'BEDCLOSET': draw_bedcloset,
+             'POT': draw_pot}[src[0]](f, src[1])
         else:
             f = open_rows if src is None else A.frame(src)
         pix = [[house_index(x, y, f[y][x], sky, name == 'fire_lit') for x in range(cx * 8, (cx + cw) * 8)]
@@ -1008,6 +1039,10 @@ ASCII_SPRITES = {
     'bubble': ['.www.', 'w...w', '.www.'],
     # solitaire laid out on the kitchen table, either side of his hands; the
     # second frame has turned a card over
+    # things he carries while cooking: a jar of food, the pot, a full plate
+    'heldjar': ['.lll.', 'kRRRk', 'kwwwk', 'kRRRk', 'kRRRk', '.kkk.'],
+    'heldpot': ['.kkkkkkk.', 'kklllllkk', '.kdddddk.', '.kdddddk.', '..kkkkk..'],
+    'heldplate': ['..OvRO...', '.OnOvRO..', 'kwwwwwwwk', '.kkkkkkk.'],
     'tablecards0': ['wRw.wkw.www.wRw..........wkw.www',
                     'www.www.www.www..........www.www'],
     'tablecards1': ['wRw.wkw.wkw.wRw..........wkw.wRw',
