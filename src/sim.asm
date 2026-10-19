@@ -32,6 +32,7 @@ PM_DOWNSTEP     = 8         ; coming down a front step block, facing you
 PM_BEND         = 9         ; back to you, bent down looking for something
 PM_BENDSIDE     = 10        ; side view, leaning forward (switching the TV)
 PM_WASH         = 11        ; back to you at the sink, elbows working
+PM_BACKSTAND    = 12        ; back to you, standing (putting things away)
 
 ; activities (also request ids)
 A_NONE          = 0
@@ -67,7 +68,9 @@ A_CHAT          = 29        ; comes to the front and talks to you
 A_TVON          = 30        ; walks to the attic TV and switches it on
 A_TVOFF         = 31        ; ...and off again
 A_WASH          = 32        ; washes his hands at the bathroom sink
-A_COUNT         = 33
+A_DELIVERY      = 33        ; answers the door and picks up a delivery
+A_STOW          = 34        ; puts the delivery away
+A_COUNT         = 35
 
 REQ_EAT         = A_FRIDGE
 REQ_DRINK       = A_DRINK
@@ -690,37 +693,37 @@ l_fire_b: .byte 0,0,0
 ;---------------------------------------------------------------------------------------
 ;               floor  x     face(1=right)
 act_floor:
-        .byte 0, 0,0,0,0,0, 1,0,0, 1,1,1,1,1, 1,2, 2,2,2,2, 2,2,2, 0,0,0,0, 0, 2, 0, 2, 2, 1
+        .byte 0, 0,0,0,0,0, 1,0,0, 1,1,1,1,1, 1,2, 2,2,2,2, 2,2,2, 0,0,0,0, 0, 2, 0, 2, 2, 1, 0, 0
 act_xl:
         .byte 0, <52,<122,<138,<34,<226, <252,<268,<302, <40,<115,<170,<196,<222, <278,<228
-        .byte <108,<100,<120,<154, <188,<228,<228, <160,0,0,<300, <226, <266, 0, <62, <62, <177
+        .byte <108,<100,<120,<154, <188,<228,<228, <160,0,0,<300, <226, <266, 0, <62, <62, <177, <294, 0
 act_xh:
         .byte 0, >52,>122,>138,>34,>226, >252,>268,>302, >40,>115,>170,>196,>222, >278,>228
-        .byte >108,>100,>120,>154, >188,>228,>228, >160,0,0,>300, >226, >266, 0, >62, >62, >177
+        .byte >108,>100,>120,>154, >188,>228,>228, >160,0,0,>300, >226, >266, 0, >62, >62, >177, >294, 0
 act_face:
-        .byte 0, 0,1,1,0,0, 1,1,1, 0,0,0,1,1, 1,1, 0,0,0,0, 1,1,1, 0,0,0,0, 0, 1, 0, 0, 0, 0
+        .byte 0, 0,1,1,0,0, 1,1,1, 0,0,0,1,1, 1,1, 0,0,0,0, 1,1,1, 0,0,0,0, 0, 1, 0, 0, 0, 0, 1, 0
 
 act_start_tbl:
         .word st_none, st_fridge, st_meal, st_drink, st_feeddog, st_phone, st_read, st_fire
         .word st_goout, st_sleep, st_exercise, st_brush, st_wc, st_bath, st_computer
         .word st_letter, st_tv, st_record, st_dance, st_piano, st_change, st_pool
-        .word st_cards, st_knock, st_idle, st_petdog, st_arrive, st_readchair, st_files, st_chat, st_tvswitch, st_tvswitch, st_wash
+        .word st_cards, st_knock, st_idle, st_petdog, st_arrive, st_readchair, st_files, st_chat, st_tvswitch, st_tvswitch, st_wash, st_delivery, st_stow
 act_tick_tbl:
         .word tk_none, tk_none, tk_meal, tk_none, tk_none, tk_phone, tk_none, tk_none
         .word tk_goout, tk_sleep, tk_none, tk_brush, tk_wc, tk_bath, tk_computer
         .word tk_typing, tk_none, tk_record, tk_none, tk_piano, tk_none, tk_pool
-        .word tk_none, tk_knock, tk_none, tk_none, tk_arrive, tk_readchair, tk_files, tk_none, tk_none, tk_none, tk_none
+        .word tk_none, tk_knock, tk_none, tk_none, tk_arrive, tk_readchair, tk_files, tk_none, tk_none, tk_none, tk_none, tk_delivery, tk_none
 act_end_tbl:
         .word en_none, en_fridge, en_meal, en_drink, en_feeddog, en_phone, en_read, en_fire
         .word en_goout, en_sleep, en_exercise, en_brush, en_wc, en_bath, en_computer
         .word en_letter, en_tv, en_record, en_dance, en_piano, en_change, en_pool
-        .word en_cards, en_knock, en_none, en_petdog, en_arrive, en_readchair, en_files, en_chat, en_tvon, en_tvoff, en_wash
+        .word en_cards, en_knock, en_none, en_petdog, en_arrive, en_readchair, en_files, en_chat, en_tvon, en_tvoff, en_wash, en_delivery, en_stow
 
 act_names:
         .word nm_none, nm_fridge, nm_meal, nm_drink, nm_feeddog, nm_phone, nm_read, nm_fire
         .word nm_goout, nm_sleep, nm_exercise, nm_brush, nm_wc, nm_bath, nm_computer
         .word nm_letter, nm_tv, nm_record, nm_dance, nm_piano, nm_change, nm_pool
-        .word nm_cards, nm_knock, nm_none, nm_petdog, nm_arrive, nm_readchair, nm_files, nm_chat, nm_tv, nm_tvoff, nm_wash
+        .word nm_cards, nm_knock, nm_none, nm_petdog, nm_arrive, nm_readchair, nm_files, nm_chat, nm_tv, nm_tvoff, nm_wash, nm_delivery, nm_stow
 nm_none:     .null " is pottering about."
 nm_fridge:   .null " is getting some food."
 nm_meal:     .null " is eating."
@@ -733,6 +736,8 @@ nm_files:    .null " is rummaging in the filing cabinet."
 nm_chat:     .null " is talking to you."
 nm_tvoff:    .null " is switching off the TV."
 nm_wash:     .null " is washing his hands."
+nm_delivery: .null " is answering the door."
+nm_stow:     .null " is putting the delivery away."
 nm_fire:     .null " is lighting a fire."
 nm_goout:    .null " has gone out."
 nm_sleep:    .null " is asleep. Zzz..."
@@ -797,6 +802,15 @@ ai_choose:
         lda food
         beq +
         lda #A_FRIDGE
+        rts
++       ; a delivery on the doorstep?
+        lda delivery
+        beq +
+        lda #A_STOW             ; in his hands: put it away
+        ldx carrying
+        bne l_pc_dlv
+        lda #A_DELIVERY
+l_pc_dlv:
         rts
 +       ; fresh out of the shower: get dressed before anything else
         lda outfit
@@ -1178,23 +1192,10 @@ person_interrupt:
 ; Gifts and CTRL actions
 ;---------------------------------------------------------------------------------------
 gift_food:
-        lda food
-        clc
-        adc #3
-        cmp #10
-        bcc +
-        lda #9
-+       sta food
-        lda gift_flags
-        ora #4
-        sta gift_flags
-        lda #SFX_CHIME
-        jsr sfx_play
-        lda #3
-        jsr mood_up
+        lda #DLV_FOOD
         ldx #<l_say_gfood
         ldy #>l_say_gfood
-        jmp ui_note
+        jmp deliver
 gift_water:
         lda water
         cmp #9
@@ -1211,50 +1212,43 @@ gift_water:
         ldy #>l_say_gwater
         jmp ui_note
 gift_dogfood:
-        lda dogfood
-        clc
-        adc #3
-        cmp #10
-        bcc +
-        lda #9
-+       sta dogfood
-        lda #SFX_CHIME
-        jsr sfx_play
-        lda #1
-        sta ui_dirty
+        lda #DLV_DOG
         ldx #<l_say_gdog
         ldy #>l_say_gdog
-        jmp ui_note
+        jmp deliver
 gift_book:
-        lda gift_flags
-        ora #1
-        sta gift_flags
-        lda #8
-        jsr mood_up
-        lda #SFX_CHIME
-        jsr sfx_play
-        jsr person_sleeping
-        bcs +
-        lda #A_READCHAIR        ; he has the book already: straight to the armchair
-        jsr request_pending
-+       ldx #<l_say_gbook
+        lda #DLV_BOOK
+        ldx #<l_say_gbook
         ldy #>l_say_gbook
-        jmp ui_say
+        jmp deliver
 gift_record:
-        lda gift_flags
-        ora #2
-        sta gift_flags
-        lda #8
-        jsr mood_up
-        lda #SFX_CHIME
-        jsr sfx_play
-        jsr person_sleeping
-        bcs +
-        lda #A_RECORD
-        jsr request_pending
-+       ldx #<l_say_grecord
+        lda #DLV_RECORD
+        ldx #<l_say_grecord
         ldy #>l_say_grecord
-        jmp ui_say
+        jmp deliver
+
+; A = what arrived, X/Y = the message. Ding dong: he goes to the door unless
+; he's asleep (then it waits on the step). One package at a time; anything
+; else arriving meanwhile goes straight into the cupboard.
+deliver:
+        stx l_dv_msg
+        sty l_dv_msg+1
+        ldx delivery
+        beq +
+        jsr delivery_apply      ; already one waiting: just add this one
+        bra l_dv_note
++       sta delivery
+        jsr doorbell_play
+        jsr person_sleeping
+        bcs l_dv_note
+        lda #A_DELIVERY
+        jsr request_pending
+l_dv_note:
+        ldx l_dv_msg
+        ldy l_dv_msg+1
+        jmp ui_note
+l_dv_msg: .word 0
+
 pet_him:
         lda #0
         sta lonely
@@ -1314,11 +1308,11 @@ alarm_ring:
         ldy #>l_say_morning
         jmp ui_say
 
-l_say_gfood:   .null "A box of groceries arrived!"
+l_say_gfood:   .null "Ding dong! Groceries at the door."
 l_say_gwater:  .null "You topped up the water bottle."
-l_say_gdog:    .null "A bag of dog food arrived!"
-l_say_gbook:   .null "A new book! Thank you!"
-l_say_grecord: .null "A new record! Let's give it a spin!"
+l_say_gdog:    .null "Ding dong! Dog food at the door."
+l_say_gbook:   .null "Ding dong! A parcel at the door."
+l_say_grecord: .null "Ding dong! A parcel at the door."
 l_say_pet:     .null "Hee hee, that tickles!"
 l_say_ring:    .null "Ring ring! The phone is ringing."
 l_say_ring2:   .null "Ring ring... he sleeps right through it."
@@ -1384,6 +1378,16 @@ person_choose:
         jsr rnd_range
         clc
         adc #60
+        sta goal_x
+        lda #0
+        sta goal_x+1
+        bra l_pc_go
++       cpx #A_STOW
+        bne +
+        ldy delivery
+        lda stow_floor-1,y
+        sta goal_floor
+        lda stow_x-1,y
         sta goal_x
         lda #0
         sta goal_x+1
@@ -2618,6 +2622,138 @@ en_wc:
         sta p_pending
         rts
 
+; Deliveries. He opens the front door, bends to pick the package up off the
+; step, carries it in front of him, and puts it where it belongs (facing it:
+; cupboard, low cabinet, bookshelf, record player). Food and dog food go into
+; the supplies then; a book gets read, a record played.
+DLV_FOOD        = 1
+DLV_DOG         = 2
+DLV_BOOK        = 3
+DLV_RECORD      = 4
+delivery:       .byte 0     ; what's on the step / in his hands (0 = nothing)
+carrying:       .byte 0     ; 1 = in his hands
+dlv_t:          .byte 0
+;                 food  dog   book  record
+stow_floor:     .byte 0,    0,    1,    2
+stow_x:         .byte 78,   62,   252,  74
+stow_bend:      .byte 0,    1,    0,    1
+stow_px:        .byte 74,   58,   248,  70     ; where the package sits as he puts it away
+stow_py:        .byte 150,  175,  104,  45
+pkg_l:          .byte <SPR_PKGFOOD, <SPR_PKGDOG, <SPR_PKGBOOK, <SPR_PKGRECORD
+pkg_h:          .byte >SPR_PKGFOOD, >SPR_PKGDOG, >SPR_PKGBOOK, >SPR_PKGRECORD
+
+st_delivery:
+        ldx #PATCH_DOOR
+        jsr patch_apply
+        lda #SFX_DOOR
+        jsr sfx_play
+        lda #0
+        sta dlv_t
+        lda #1
+        sta p_flip              ; facing out of the door
+        lda #3
+        jmp set_timer_secs
+tk_delivery:
+        inc dlv_t
+        lda dlv_t
+        cmp #30                 ; bend down for it
+        bne +
+        lda #PM_BENDSIDE
+        sta p_mode
+        rts
++       cmp #80                 ; picked up: straighten, in his hands
+        bne +
+        lda #PM_STAND
+        sta p_mode
+        lda #1
+        sta carrying
+        rts
++       cmp #110
+        bne +
+        ldx #PATCH_DOOR         ; shut the door
+        jsr patch_remove
+        lda #SFX_DOOR
+        jmp sfx_play
++       rts
+en_delivery:
+        ldx #PATCH_DOOR
+        jsr patch_remove
+        lda #1
+        sta carrying
+        lda #A_STOW
+        sta p_pending
+        rts
+
+st_stow:
+        lda #PM_BACKSTAND
+        ldx delivery
+        ldy stow_bend-1,x
+        beq +
+        lda #PM_BEND
++       sta p_mode
+        lda #0
+        sta carrying            ; now on the shelf / in the cupboard
+        lda #2
+        jmp set_timer_secs
+en_stow:
+        lda delivery
+        jsr delivery_apply
+        lda #0
+        sta delivery
+        sta carrying
+        rts
+
+; A = delivery type: it's in the house now
+delivery_apply:
+        cmp #DLV_FOOD
+        bne +
+        lda food
+        clc
+        adc #3
+        cmp #10
+        bcc l_da_food
+        lda #9
+l_da_food:
+        sta food
+        lda gift_flags
+        ora #4
+        sta gift_flags
+        lda #1
+        sta ui_dirty
+        lda #3
+        jmp mood_up
++       cmp #DLV_DOG
+        bne +
+        lda dogfood
+        clc
+        adc #3
+        cmp #10
+        bcc l_da_dog
+        lda #9
+l_da_dog:
+        sta dogfood
+        lda #1
+        sta ui_dirty
+        rts
++       cmp #DLV_BOOK
+        bne +
+        lda gift_flags
+        ora #1
+        sta gift_flags
+        lda #8
+        jsr mood_up
+        lda #A_READCHAIR        ; a new book: read it
+        sta p_pending
+        rts
++       lda gift_flags          ; a record: play it
+        ora #2
+        sta gift_flags
+        lda #8
+        jsr mood_up
+        lda #A_RECORD
+        sta p_pending
+        rts
+
 ; Washing his hands at the sink: back to you, elbows working, water running.
 st_wash:
         lda #PM_WASH
@@ -3378,7 +3514,11 @@ l_ab_front_xy:
         sta act_y+0
         jmp l_ab_person_done
 l_ab_notdown:
-        cmp #PM_WASH
+        cmp #PM_BACKSTAND
+        bne +
+        #SETACT 0, SPR_BACKSTAND
+        jmp l_ab_back_xy
++       cmp #PM_WASH
         bne l_ab_notwash
         ; at the sink, back to you, standing still (hands drawn as an effect)
         #SETACT 0, SPR_BACKSTAND
@@ -3565,6 +3705,25 @@ l_ab_dog_done:
         ; --- effect ---
         lda #0
         sta act_vis+2
+        sta act_flip+2
+        ; the delivery, while it's on the step, in his hands or being put away
+        lda delivery
+        beq l_ab_nopkg
+        lda carrying
+        bne l_ab_pkg
+        lda p_state
+        cmp #PS_ACT
+        bne l_ab_nopkg
+        lda p_act
+        cmp #A_DELIVERY
+        beq l_ab_pkg
+        cmp #A_STOW
+        bne l_ab_nopkg
+l_ab_pkg:
+        lda #1
+        sta act_vis+2
+        jmp ab_package
+l_ab_nopkg:
         lda fx_kind
         beq l_ab_fx_done
         lda #1
@@ -3667,6 +3826,94 @@ l_ab_fx_done:
         lda #187
         sta act_y+3
         rts
+
+; The delivery: on the step, in his hands (in front of him, the side he's
+; facing), or where he is putting it. Hidden while his back is to you on
+; the stairs.
+ab_package:
+        ldx delivery
+        lda pkg_l-1,x
+        sta act_sprl+2
+        lda pkg_h-1,x
+        sta act_sprh+2
+        lda #`SPR_PKGFOOD
+        sta act_sprb+2
+        lda p_act
+        cmp #A_STOW
+        bne l_abp_notstow
+        lda p_state
+        cmp #PS_ACT
+        bne l_abp_notstow
+        lda stow_px-1,x         ; being put away
+        sta act_xl2+2
+        lda #0
+        sta act_xh2+2
+        lda stow_py-1,x
+        sta act_y+2
+        jmp l_ab_fx_done
+l_abp_notstow:
+        lda carrying
+        bne l_abp_hands
+        ; on the doorstep, just outside his feet
+        clc
+        lda p_x
+        adc #5
+        sta act_xl2+2
+        lda p_x+1
+        adc #0
+        sta act_xh2+2
+        lda p_y
+        sec
+        sbc #6
+        sta act_y+2
+        jmp l_ab_fx_done
+l_abp_hands:
+        lda p_mode
+        cmp #PM_CLIMB
+        beq l_abp_hide
+        cmp #PM_HIDDEN
+        bne +
+l_abp_hide:
+        lda #0
+        sta act_vis+2
+        jmp l_ab_fx_done
++       lda p_y                 ; chest height, in front
+        sec
+        sbc #17
+        sta act_y+2
+        lda p_mode
+        cmp #PM_DOWNSTEP
+        beq l_abp_mid
+        cmp #PM_FRONT
+        beq l_abp_mid
+        lda p_flip
+        bne l_abp_right
+        sec                     ; facing left
+        lda p_x
+        sbc #11
+        sta act_xl2+2
+        lda p_x+1
+        sbc #0
+        sta act_xh2+2
+        jmp l_ab_fx_done
+l_abp_right:
+        clc
+        lda p_x
+        adc #4
+        sta act_xl2+2
+        lda p_x+1
+        adc #0
+        sta act_xh2+2
+        jmp l_ab_fx_done
+l_abp_mid:
+        sec
+        lda p_x
+        sbc #4
+        sta act_xl2+2
+        lda p_x+1
+        sbc #0
+        sta act_xh2+2
+        jmp l_ab_fx_done
 
 actors_render:
         ; erase

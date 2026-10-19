@@ -75,6 +75,13 @@ AUTOHOUR = 8
         lda #AUTOHOUR
         sta clock_hour
         .weak
+AUTODLV = 1                     ; with AUTOTEST=A_DELIVERY: what's on the step
+        .endweak
+        .if AUTOTEST == A_DELIVERY
+        lda #AUTODLV
+        sta delivery
+        .endif
+        .weak
 AUTOFLOOR = 0
         .endweak
         .if AUTOFLOOR == 2      ; start in the attic, by the stairs

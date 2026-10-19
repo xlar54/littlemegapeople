@@ -827,6 +827,14 @@ def fist(size):
     return out
 
 
+# Deliveries (Amiga palette letters): groceries, dog food, a book, a record.
+PACKAGES = {
+    'pkgfood': ['.vOOv..', 'vOOvOv.', 'nnnnnnn', 'nOnnnOn', 'nnnnnnn', 'nnnnnnn', 'nnnnnnn'],
+    'pkgdog': ['kkkkkkkk', 'kOOOOOOk', 'kOwwwwOk', 'kOwnnwOk', 'kOwwwwOk', 'kOOOOOOk', 'kkkkkkkk'],
+    'pkgbook': ['kkkkkkk', 'kBBBBBw', 'kBRRRBw', 'kBBBBBw', 'kBBBBBw', 'kkkkkkw'],
+    'pkgrecord': ['kkkkkkkk', 'kRRRRRRk', 'kRkkkkRk', 'kRkwwkRk', 'kRkkkkRk', 'kRRRRRRk', 'kkkkkkkk'],
+}
+
 ASCII_SPRITES = {
     'zz': ['wwww.', '..w..', '.w...', 'wwww.'],
     'note': ['..kk', '..kw', '..k.', '..k.', 'kkk.', 'kkk.'],
@@ -913,6 +921,8 @@ def build_sprites():
             for i, fr in enumerate(dog_walk_frames(rows)):
                 sprites.append(('dogw%d' % i, fr))
     for n, rows in ASCII_SPRITES.items():
+        sprites.append((n, remap(A.from_ascii(rows), lambda x, y, v: amiga(v))))
+    for n, rows in PACKAGES.items():
         sprites.append((n, remap(A.from_ascii(rows), lambda x, y, v: amiga(v))))
     sprites.append(('front', art(FRONT_ART)))
     # Eating: the Amiga frame has his mouth wide open; add a chewing (shut)
@@ -1152,7 +1162,8 @@ def main():
     # To play one the game DMAs it into the chip-RAM play buffer SND_BUF
     # (audio DMA can only read chip RAM), then starts audio DMA on it.
     sounds = [('talk', 'phone_talk.wav'),          # his voice (the Amiga original)
-              ('flush', 'flush.wav')]              # public domain, Wikimedia Commons
+              ('flush', 'flush.wav'),              # public domain, Wikimedia Commons
+              ('bell', 'doorbell.wav')]            # public domain, Wikimedia Commons
     sblob = bytearray()
     lines.append('SND_BUF                 = $%05X   ; chip-RAM play buffer (bank 1)' % SND_BASE)
     lines.append('SND_FREQ                = $%06X   ; audio DMA step: rate * 2^24 / 40.5 MHz' % round(SND_RATE * 16777216 / 40500000))

@@ -38,13 +38,16 @@ SFX_BRUSH       = 16
 ;---------------------------------------------------------------------------------------
 ; His voice and the other digital sounds live in Attic RAM; sample_play DMAs
 ; one into the chip-RAM buffer SND_BUF and starts audio DMA channel 0 on it.
-snd_ofs_l:  .byte <SND_TALK_OFS, <SND_FLUSH_OFS
-snd_ofs_h:  .byte >SND_TALK_OFS, >SND_FLUSH_OFS
-snd_len_l:  .byte <SND_TALK_LEN, <SND_FLUSH_LEN
-snd_len_h:  .byte >SND_TALK_LEN, >SND_FLUSH_LEN
+snd_ofs_l:  .byte <SND_TALK_OFS, <SND_FLUSH_OFS, <SND_BELL_OFS
+snd_ofs_h:  .byte >SND_TALK_OFS, >SND_FLUSH_OFS, >SND_BELL_OFS
+snd_len_l:  .byte <SND_TALK_LEN, <SND_FLUSH_LEN, <SND_BELL_LEN
+snd_len_h:  .byte >SND_TALK_LEN, >SND_FLUSH_LEN, >SND_BELL_LEN
 
 talk_play:
         ldx #SND_TALK
+        jmp sample_play
+doorbell_play:
+        ldx #SND_BELL
         jmp sample_play
 flush_play:
         ldx #SND_FLUSH

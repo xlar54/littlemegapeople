@@ -40,11 +40,11 @@ bed, go out*. You can also just say *hello*, *how are you* or *thank you*.
 
 | Key      | Effect                                              |
 |----------|-----------------------------------------------------|
-| CTRL-F   | send groceries (food supply +3)                     |
+| CTRL-F   | deliver groceries (food supply +3)                  |
 | CTRL-W   | top up his water bottle                             |
-| CTRL-D   | send dog food                                       |
-| CTRL-B   | send a book (he goes to read it)                    |
-| CTRL-R   | send a record (he puts it on and dances)            |
+| CTRL-D   | deliver dog food                                    |
+| CTRL-B   | deliver a book (he shelves it, then reads it)       |
+| CTRL-R   | deliver a record (he puts it on and dances)         |
 | CTRL-P   | pet him (best while he sits in his armchair)        |
 | CTRL-C   | phone him                                           |
 | CTRL-A   | ring his alarm clock (wakes him — grumpily at night)|
@@ -158,7 +158,8 @@ Credits
 Amiga version 1987. This is an unofficial fan tribute for the
 MEGA65. His voice on the phone is sampled from the Amiga original (a gameplay
 recording on YouTube) and played through MEGA65 audio DMA; the toilet flush is
-"Flushing the toilet" by gradha (public domain, Wikimedia Commons). Digital
+"Flushing the toilet" by gradha (public domain, Wikimedia Commons) and the
+doorbell is "Sound Effect - Door Bell" (CC0, Wikimedia Commons). Digital
 sounds live in Attic RAM and are DMA'd into a chip-RAM buffer to play. Reference
 screenshots of the Amiga version came from dazeland.com,
 mastertronic.co.uk and habr.com; gameplay details from ST-News' review and the
