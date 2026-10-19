@@ -11,7 +11,7 @@ FLOOR1_Y        = 128         ; mid-floor
 FLOOR2_Y        = 63
 DOG_Y           = 194         ; the dog trots nearer the viewer than him
 
-TICKS_PER_MIN   = 25        ; sim ticks per game minute (50 ticks per second)
+TICKS_PER_MIN   = 25        ; fast forward (F5): sim ticks per game minute
 
 ; person states
 PS_IDLE         = 0
@@ -114,6 +114,10 @@ clock_hour:     .byte 8
 clock_min:      .byte 0
 clock_tick:     .byte 0
 minute_count:   .byte 0     ; free-running game-minute counter
+rt_last:        .byte $FF   ; last RTC seconds byte seen ($FF = none yet)
+rt_frames:      .byte 0     ; frames since it last changed
+rt_secs:        .byte 0     ; seconds into the current minute
+sleep_min:      .byte 0     ; minutes asleep this time (cap 255)
 
 food:           .byte 5
 water:          .byte 5
@@ -242,17 +246,122 @@ sim_init:
         jsr dog_init
         rts
 
+; The clock runs in real time, paced by the real-time clock's seconds (or,
+; if the RTC isn't ticking, by counting 50 frames a second). Fast forward
+; (F5) runs a game minute every TICKS_PER_MIN ticks instead.
 sim_tick:
+        lda fast_forward
+        beq l_st_real
         inc clock_tick
         lda clock_tick
         cmp #TICKS_PER_MIN
-        bcc +
+        bcc l_st_go
         lda #0
         sta clock_tick
         jsr game_minute
-+       jsr person_update
+        bra l_st_go
+l_st_real:
+        jsr realtime_tick
+l_st_go:
+        jsr person_update
         jsr dog_update
         jsr fx_update
+        rts
+
+realtime_tick:
+        lda #<RTC_BASE
+        sta ZSRC
+        lda #>RTC_BASE
+        sta ZSRC+1
+        lda #`RTC_BASE
+        sta ZSRC+2
+        lda #RTC_BASE >> 24
+        sta ZSRC+3
+        ldz #0
+        lda [ZSRC],z
+        ldx rt_last
+        cpx #$FF
+        bne +
+        sta rt_last             ; first look: just remember it
+        rts
++       cmp rt_last
+        beq l_rt_same
+        sta rt_last
+        lda #0
+        sta rt_frames
+        bra l_rt_sec
+l_rt_same:
+        inc rt_frames
+        lda rt_frames
+        cmp #75                 ; no RTC tick for 1.5 s: count frames instead
+        bcc l_rt_out
+        lda #25
+        sta rt_frames
+l_rt_sec:
+        inc rt_secs
+        lda rt_secs
+        cmp #60
+        bcc l_rt_out
+        lda #0
+        sta rt_secs
+        jmp game_minute
+l_rt_out:
+        rts
+
+; A = day of the week for the current date, 0 = Sunday .. 6 = Saturday
+; (Sakamoto's method, years 2000-2099: the century terms come to 0 mod 7).
+day_of_week:
+        lda date_year
+        ldx date_month
+        cpx #3
+        bcs +
+        cmp #0
+        beq +
+        dec a                   ; January / February count with last year
++       sta l_dw_y
+        lsr
+        lsr
+        clc
+        adc l_dw_y
+        adc dow_month-1,x
+        adc date_day
+-       cmp #7
+        bcc +
+        sbc #7
+        bra -
++       rts
+l_dw_y:     .byte 0
+dow_month:  .byte 0, 3, 2, 5, 0, 3, 5, 1, 4, 6, 2, 4
+
+; A = the hour he goes to bed tonight: 21, or 23 on Friday and Saturday.
+bedtime_hour:
+        jsr day_of_week
+        cmp #5
+        bcc +
+        lda #23
+        rts
++       lda #21
+        rts
+; A = the hour he gets up: 7, or 8 at the weekend.
+wake_hour:
+        jsr day_of_week
+        cmp #0
+        beq +
+        cmp #6
+        beq +
+        lda #7
+        rts
++       lda #8
+        rts
+; C = 1 on a Friday or Saturday evening (from 19:00): a late night in.
+weekend_evening:
+        lda clock_hour
+        cmp #19
+        bcc +
+        jsr day_of_week
+        cmp #5
+        rts                     ; C = 1 for 5 (Fri) and 6 (Sat)
++       clc
         rts
 
 game_minute:
@@ -300,7 +409,11 @@ l_gm_needs:
         ; asleep: hunger and thirst creep up slowly (every 16 minutes)
         jsr person_sleeping
         bcc l_gm_needs_awake
-        lda minute_count
+        lda sleep_min
+        cmp #255
+        beq +
+        inc sleep_min
++       lda minute_count
         and #15
         bne l_gm_dog
         lda #thirst - hunger
@@ -818,15 +931,30 @@ l_pc_dlv:
         bne +
         lda #A_CHANGE
         rts
-+       ; bedtime
-        lda clock_hour
-        cmp #22
-        bcs l_ai_sleep
-        cmp #6
++       ; bedtime: 9pm, 11pm on Friday and Saturday; up at 7 (8 at weekends)
+        jsr bedtime_hour
+        cmp clock_hour
+        beq l_ai_sleep
         bcc l_ai_sleep
-        lda energy
+        jsr wake_hour
+        cmp clock_hour
+        beq +
+        bcs l_ai_sleep
++       lda energy
         cmp #12
+        bcc l_ai_sleep
+        ; an afternoon nap now and then when he's tired
+        lda clock_hour
+        cmp #13
+        bcc +
+        cmp #17
         bcs +
+        lda energy
+        cmp #50
+        bcs +
+        lda #6
+        jsr rnd_range
+        bne +
 l_ai_sleep:
         lda #A_SLEEP
         rts
@@ -911,7 +1039,14 @@ l_ai_fire:
         lda #A_FIRE
         rts
 l_ai_fun:
-        lda #l_fun_count
+        jsr weekend_evening     ; Friday / Saturday night: often the TV
+        bcc +
+        lda #2
+        jsr rnd_range
+        bne +
+        lda #A_TV
+        rts
++       lda #l_fun_count
         jsr rnd_range
         tax
         lda l_fun_list,x
@@ -2466,6 +2601,8 @@ en_petdog:
 
 ; --- middle floor ----------------------------------------------------------------------
 st_sleep:
+        lda #0
+        sta sleep_min
         lda #PM_HIDDEN
         sta p_mode
         lda #1
@@ -2488,12 +2625,19 @@ tk_sleep:
         bcc +
         lda food
         bne l_tks_wake
-+       ; otherwise wake when rested in the daytime
-        lda clock_hour
-        cmp #7
-        bcc l_tks_out
-        cmp #21
++       ; otherwise wake in the daytime: in the morning, or after a nap of an
+        ; hour (or once rested)
+        jsr wake_hour
+        cmp clock_hour
+        beq +
         bcs l_tks_out
++       jsr bedtime_hour
+        cmp clock_hour
+        beq l_tks_out
+        bcc l_tks_out
+        lda sleep_min
+        cmp #60
+        bcs l_tks_wake
         lda energy
         cmp #70
         bcc l_tks_out

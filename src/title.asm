@@ -196,6 +196,8 @@ l_rtc_24:
 +       sta l_tt_hour12
         lda l_rtc+1
         sta clock_min
+        lda l_rtc               ; seconds: the game's minutes turn with the RTC's
+        sta rt_secs
         lda l_rtc+3
         sta date_day
         lda l_rtc+4

@@ -49,7 +49,7 @@ bed, go out*. You can also just say *hello*, *how are you* or *thank you*.
 | CTRL-C   | phone him                                           |
 | CTRL-A   | ring his alarm clock (wakes him — grumpily at night)|
 | F1       | help                                                |
-| F5       | fast-forward time (x4)                              |
+| F5       | fast-forward time (a game minute every half second) |
 | F7       | quit to BASIC                                       |
 
 The top bar shows what he is saying or doing, and the time, food, water, dog
@@ -71,11 +71,15 @@ Life in the house
 -----------------
 
 * **Needs:** hunger, thirst, energy, mood and health. He eats from the fridge,
-  drinks from the water cooler and sleeps at night (lights go down, pyjamas on).
+  drinks from the water cooler and sleeps at night (lights go down, pyjamas on):
+  bed at 9pm, up at 7 � or 11pm and 8 at the weekend, when Friday and Saturday
+  evenings often mean TV. He may take an afternoon nap when tired.
   Starve him or let the water run dry and his health falls — he turns green and
   spends more time in bed. Supplies only come from you.
 * **Routines:** gets dressed in the morning (closet in the attic), brushes his
   teeth after meals, lights the fire in the evening, sometimes goes out.
+* **Time:** the clock runs in real time, set from and paced by the MEGA65's
+  real-time clock, and the day of the week follows the date.
 * **The house:** the clock drives the sky colour through the day; the fire,
   TV, computer monitor and water bottle are animated through their own palette
   entries; the fridge, closet, front door and fireplace swap in cell patches.
