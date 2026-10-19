@@ -2889,19 +2889,20 @@ l_ab_front_xy:
         jmp l_ab_person_done
 +       cmp #PM_DOWNSTEP
         bne l_ab_notdown
-        ; facing you, stepping down: tiny sway and bob per step
-        #SETACT 0, SPR_FRONT
-        sec
+        ; facing you, stepping down: knees bend in turn, slight bob
+        #SETACT 0, SPR_DOWNSTEP0
+        lda p_y
+        and #4
+        beq +
+        #SETACT 0, SPR_DOWNSTEP1
++       sec
         lda p_x
         sbc #9
         sta act_xl2+0
         lda p_x+1
         sbc #0
         sta act_xh2+0
-        lda p_y
-        lsr
-        lsr
-        and #1
+        lda #0
         sta act_flip+0
         lda p_y
         and #2
@@ -2913,7 +2914,13 @@ l_ab_front_xy:
 l_ab_notdown:
         cmp #PM_CLIMB
         bne +
-        #SETACT 0, SPR_CLIMB
+        ; back view going up: knees bend in turn
+        #SETACT 0, SPR_CLIMBSTEP0
+        lda p_y
+        and #4
+        beq l_ab_cl1
+        #SETACT 0, SPR_CLIMBSTEP1
+l_ab_cl1:
         sec
         lda p_x
         sbc #10
@@ -2922,10 +2929,7 @@ l_ab_notdown:
         sec
         sbc #28
         sta act_y+0
-        lda p_y
-        lsr
-        lsr
-        and #1
+        lda #0
         sta act_flip+0
         jmp l_ab_person_done
 +       ; jumping / dancing: alternate frames and bounce

@@ -407,6 +407,44 @@ def dog_walk_frames(dog):
     return frames
 
 
+def step_frames(base, hip, lx, rx, foot):
+    """Stair-stepping legs seen from the back or front: two frames, each with
+    one knee bent out to the side as that foot lifts onto the next step while
+    the other leg stays straight. hip = first leg row, lx/rx = left column of
+    each 2px leg, foot = shoe row of a planted foot."""
+    k = HOUSE0 + 9
+    w = len(base[0])
+    frames = []
+    for bent in (0, 1):
+        rows = [r[:] for r in base[:hip]] + [[None] * w for _ in range(foot + 1 - hip)]
+        for i, x0 in enumerate((lx, rx)):
+            out = -1 if i == 0 else 1                  # knees bend outwards
+            if i == bent:
+                knee = hip + (foot - hip) // 2 - 1
+                lift = foot - 3
+                pts = [(hip, x0), (knee, x0 + 2 * out), (lift, x0 + out)]
+            else:
+                pts = [(hip, x0), (foot - 1, x0)]
+            for (y0, a), (y1, b) in zip(pts, pts[1:]):
+                for y in range(y0, y1 + 1):
+                    t = (y - y0) / max(1, y1 - y0)
+                    x = round(a + (b - a) * t)
+                    rows[y][x] = PANTS
+                    rows[y][x + 1] = PANTS
+                    for px in (x - 1, x + 2):
+                        if 0 <= px < w and rows[y][px] is None:
+                            rows[y][px] = k
+            fy, fx = pts[-1][0] + 1, pts[-1][1]
+            for px in range(fx - 1, fx + 3):          # shoe
+                if 0 <= px < w:
+                    rows[fy][px] = SHOES
+            for px in (fx - 2, fx + 3):
+                if 0 <= px < w and rows[fy][px] is None:
+                    rows[fy][px] = k
+        frames.append(rows)
+    return frames
+
+
 def walk_frames(stand):
     """Side-view walk cycle (facing left): keep the stand torso (rows 0..18) and
     redraw the legs as hip -> knee -> ankle polylines so the knees bend. The
@@ -668,6 +706,10 @@ def build_sprites():
     for n, rows in ASCII_SPRITES.items():
         sprites.append((n, remap(A.from_ascii(rows), lambda x, y, v: amiga(v))))
     sprites.append(('front', art(FRONT_ART)))
+    for i, fr in enumerate(step_frames(dict(sprites)['climb'], 19, 7, 10, 28)):
+        sprites.append(('climbstep%d' % i, fr))
+    for i, fr in enumerate(step_frames(art(FRONT_ART), 20, 7, 10, 28)):
+        sprites.append(('downstep%d' % i, fr))
     # Reading in the armchair: the relaxing pose with his raised elbows taken
     # out; the book sprite (held in both hands) covers his chest.
     chair = dict(sprites)['chair']
