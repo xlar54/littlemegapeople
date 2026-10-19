@@ -1,0 +1,573 @@
+"""Build every binary asset for Little Mega People.
+
+    python tools/build_assets.py
+
+Inputs : art/source/*.png    Amiga Little Computer People screenshots
+         C128 character ROM  (8x8 font; path below, optional fallback)
+Outputs: assets/bg.prg       64000-byte FCM char image of the empty house
+         assets/title.prg    64000-byte FCM char image of the guestbook title
+         assets/gfx.prg      font + software sprites + cell patches (bank 5)
+         src/gen/palette.asm 256-entry palette + nibble-swap table
+         src/gen/assets.asm  sprite/patch addresses, pose anchors
+         art/preview_*.png   visual checks of the generated data
+
+Every image is FCM: 40x25 cells of 8x8 bytes, one byte = one palette index,
+cells stored row-major (cell n = row n/40, column n%40), 64 bytes per cell.
+"""
+import os
+import sys
+from PIL import Image, ImageDraw, ImageFont
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import lmp_art as A  # noqa: E402
+
+ROOT = A.ROOT
+CHARGEN = r'C:\Users\scott\repos\c128-emu-m65\src\chargen-390059-01.bin'
+CHARGEN_LOCAL = os.path.join(ROOT, 'art', 'chargen.bin')
+LOGO_FONT = r'C:\Windows\Fonts\ROCKEB.TTF'
+GFX_BASE = 0x50002          # gfx.prg body lands at $50000 + 2-byte PRG header
+
+# ---------------------------------------------------------------------------
+# Palette layout (see README / src/platform.asm for the same list)
+# ---------------------------------------------------------------------------
+HOUSE0 = 1                  # 1..17 = Amiga house colours (AMIGA_PAL + 1)
+SKY, TVSCR, MONITOR, BOTTLE, FIRE_A, FIRE_B, FIRE_C = range(18, 25)
+SKIN, HAIR, SHIRT, SHIRT2, PANTS, SHOES, PANTS2 = range(25, 32)
+UI = 32                     # 32..47 UI colours
+TITLE0 = 64                 # 64..71 guestbook colours
+LOGO0 = 80                  # 80..143 logo gradient x antialias
+
+PAL = [(0, 0, 0)] * 256
+for i, c in enumerate(A.AMIGA_PAL):
+    PAL[HOUSE0 + i] = c
+PAL[SKY] = (0, 0, 221)
+PAL[TVSCR] = (255, 255, 255)
+PAL[MONITOR] = (0, 0, 0)
+PAL[BOTTLE] = (0, 0, 221)
+PAL[FIRE_A] = (255, 0, 0)
+PAL[FIRE_B] = (238, 119, 0)
+PAL[FIRE_C] = (255, 221, 0)
+PAL[SKIN] = (255, 204, 153)
+PAL[HAIR] = (238, 119, 0)
+PAL[SHIRT] = (34, 102, 255)
+PAL[SHIRT2] = (17, 51, 170)
+PAL[PANTS] = (255, 255, 255)
+PAL[SHOES] = (85, 34, 0)
+PAL[PANTS2] = (170, 170, 170)
+UI_COLS = [
+    (153, 153, 153),  # 32 bar background
+    (0, 0, 0),        # 33 text
+    (136, 0, 0),      # 34 dark red text
+    (255, 255, 255),  # 35 white
+    (51, 204, 85),    # 36 green
+    (255, 221, 0),    # 37 yellow
+    (238, 34, 0),     # 38 red
+    (255, 244, 214),  # 39 letter paper
+    (17, 34, 119),    # 40 letter ink
+    (204, 0, 0),      # 41 card red
+    (17, 17, 17),     # 42 card black
+    (34, 68, 204),    # 43 card back
+    (17, 102, 51),    # 44 card table felt
+    (85, 85, 85),     # 45 dark grey
+    (255, 187, 85),   # 46 highlight / cursor
+    (230, 214, 170),  # 47 paper shadow
+]
+for i, c in enumerate(UI_COLS):
+    PAL[UI + i] = c
+GUEST_COLS = [(0, 0, 0), (85, 0, 0), (85, 85, 85), (153, 153, 153), (170, 68, 0),
+              (204, 204, 204), (238, 119, 0), (255, 255, 255)]
+for i, c in enumerate(GUEST_COLS):
+    PAL[TITLE0 + i] = c
+# Logo: 16 vertical gradient steps (deep red -> orange -> gold), 4 coverage levels
+# blended over the logo box grey.
+BOX_GREY = (204, 204, 204)
+GRAD = [(119, 0, 0), (170, 17, 0), (221, 51, 0), (255, 102, 0), (255, 153, 17), (255, 204, 51)]
+
+
+def grad(t):
+    t = max(0.0, min(1.0, t)) * (len(GRAD) - 1)
+    i = min(int(t), len(GRAD) - 2)
+    f = t - i
+    return tuple(int(GRAD[i][k] + (GRAD[i + 1][k] - GRAD[i][k]) * f) for k in range(3))
+
+
+for g in range(16):
+    base = grad(g / 15)
+    for a in range(4):
+        al = (a + 1) / 4
+        PAL[LOGO0 + g * 4 + a] = tuple(int(BOX_GREY[k] + (base[k] - BOX_GREY[k]) * al) for k in range(3))
+
+# ---------------------------------------------------------------------------
+# House image
+# ---------------------------------------------------------------------------
+# Cell rectangles (cx, cy, cw, ch) and the frame each patch's pixels come from.
+PATCHES = {
+    'door_open': (36, 18, 3, 6, None),        # the majority vote has the front door open
+    'fridge_open': (3, 19, 3, 5, 'stairs'),
+    'closet_open': (22, 3, 3, 5, 'piano'),
+    'fire_lit': (32, 21, 3, 2, 'cards'),
+}
+DOOR_CLOSED_FROM = 'house_a'
+
+
+def house_index(x, y, v, sky, fire=False):
+    """Map an Amiga colour at (x, y) to the game palette, giving the props
+    that the runtime animates their own palette entries."""
+    if sky[y][x]:
+        return SKY
+    if 42 <= x <= 50 and 48 <= y <= 57 and v == 3:
+        return TVSCR
+    if 291 <= x <= 307 and 97 <= y <= 108 and v == 9:
+        return MONITOR
+    if 146 <= x <= 159 and 165 <= y <= 175 and v == 1:
+        return BOTTLE
+    if fire and 258 <= x <= 280 and 170 <= y <= 184 and v in (14, 3, 10, 15, 4):
+        return (FIRE_A, FIRE_B, FIRE_C)[(x * 7 + y * 3) % 3]
+    return HOUSE0 + v
+
+
+def sky_mask(img):
+    m = [[False] * 320 for _ in range(200)]
+    stack = [(0, 0), (319, 0), (0, 20), (319, 20)]
+    while stack:
+        x, y = stack.pop()
+        if 0 <= x < 320 and 0 <= y < 200 and not m[y][x] and img[y][x] == 1:
+            m[y][x] = True
+            stack += [(x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)]
+    return m
+
+
+def build_house():
+    bg = [r[:] for r in A.empty_house()]
+    bg[0] = bg[1][:]                    # a source frame is one row short
+    bg[199] = bg[198][:]
+    patches = {}
+    # Front door: majority vote shows it open; default the house to closed.
+    door_src = A.frame(DOOR_CLOSED_FROM)
+    open_rows = [r[:] for r in bg]
+    cx, cy, cw, ch, _ = PATCHES['door_open']
+    for y in range(cy * 8, (cy + ch) * 8):
+        for x in range(cx * 8, (cx + cw) * 8):
+            bg[y][x] = door_src[y][x]
+    sky = sky_mask(bg)
+    for name, (cx, cy, cw, ch, src) in PATCHES.items():
+        f = open_rows if src is None else A.frame(src)
+        pix = [[house_index(x, y, f[y][x], sky, name == 'fire_lit') for x in range(cx * 8, (cx + cw) * 8)]
+               for y in range(cy * 8, (cy + ch) * 8)]
+        patches[name] = (cx, cy, cw, ch, pix)
+    img = [[house_index(x, y, bg[y][x], sky) for x in range(320)] for y in range(200)]
+    return img, patches
+
+
+def to_cells(img):
+    out = bytearray()
+    for cy in range(25):
+        for cx in range(40):
+            for y in range(8):
+                out += bytes(img[cy * 8 + y][cx * 8:cx * 8 + 8])
+    return out
+
+
+def patch_cells(cw, ch, pix):
+    out = bytearray()
+    for cy in range(ch):
+        for cx in range(cw):
+            for y in range(8):
+                out += bytes(pix[cy * 8 + y][cx * 8:cx * 8 + 8])
+    return out
+
+
+# ---------------------------------------------------------------------------
+# Title (guestbook) image
+# ---------------------------------------------------------------------------
+def build_title():
+    f = A.raw_frame('guestbook')
+    idx = {c: TITLE0 + i for i, c in enumerate(GUEST_COLS)}
+    img = [[idx[min(GUEST_COLS, key=lambda g: sum((a - b) ** 2 for a, b in zip(g, c)))] for c in r] for r in f]
+    page = TITLE0 + 4
+    # Clear the field values/labels and footer; the runtime draws them on the
+    # 8x8 grid.
+    for y in range(92, 178):
+        for x in range(66, 281):
+            img[y][x] = page
+    # Replace HOUSE-ON-A-DISK with the logo.
+    for y in range(41, 72):
+        for x in range(81, 264):
+            img[y][x] = TITLE0 + 5
+    logo_rows = render_logo(181, 29)
+    for y, row in enumerate(logo_rows):
+        for x, v in enumerate(row):
+            if v is not None:
+                img[42 + y][82 + x] = v
+    return img
+
+
+def render_logo(w, h):
+    lines = ['LITTLE MEGA', 'PEOPLE']
+    scale = 4
+    W, H = w * scale, h * scale
+    size = 10
+    font = None
+    while True:
+        cand = ImageFont.truetype(LOGO_FONT, size * scale)
+        lh = cand.getbbox('LITTLE MEGA')[3]
+        widths = [cand.getbbox(t)[2] for t in lines]
+        if max(widths) > W - 4 * scale or lh * 2 > H:
+            break
+        font = cand
+        size += 1
+    im = Image.new('L', (W, H), 0)
+    d = ImageDraw.Draw(im)
+    tops = []
+    asc = font.getbbox('L')
+    lh = asc[3] - asc[1]
+    gap = (H - 2 * lh) // 3
+    for i, t in enumerate(lines):
+        bx = font.getbbox(t)
+        x = (W - (bx[2] - bx[0])) // 2 - bx[0]
+        y = gap + i * (lh + gap) - asc[1]
+        d.text((x, y), t, fill=255, font=font)
+        tops.append(gap + i * (lh + gap))
+    small = im.resize((w, h), Image.LANCZOS)
+    rows = []
+    for y in range(h):
+        # gradient restarts on each line of text
+        line_top = max(t for t in tops if t <= max(y * scale, tops[0])) // scale
+        t = (y - line_top) / max(1, lh // scale)
+        g = max(0, min(15, int(t * 15 + 0.5)))
+        row = []
+        for x in range(w):
+            a = small.getpixel((x, y))
+            if a < 40:
+                row.append(None)
+            else:
+                row.append(LOGO0 + g * 4 + min(3, (a - 40) * 4 // 216))
+        rows.append(row)
+    # 1px drop shadow, bottom-right, in the box's dark grey.
+    shadow = TITLE0 + 2
+    out = [r[:] for r in rows]
+    for y in range(h):
+        for x in range(w):
+            if rows[y][x] is None and x > 0 and y > 0 and rows[y - 1][x - 1] is not None \
+                    and rows[y - 1][x - 1] >= LOGO0 + 2:
+                out[y][x] = shadow
+    return out
+
+
+# ---------------------------------------------------------------------------
+# Sprites
+# ---------------------------------------------------------------------------
+N = None
+
+
+def remap(rows, fn):
+    return [[None if v is None else fn(x, y, v) for x, v in enumerate(r)] for y, r in enumerate(rows)]
+
+
+def amiga(v):
+    return HOUSE0 + v
+
+
+def person_colours(hair, shirt, shirt2=(), pants=(), shoes=(), hair_rows=99, extra=None):
+    def fn(x, y, v):
+        if extra:
+            r = extra(x, y, v)
+            if r is not None:
+                return r
+        if v == 16:
+            return SKIN
+        if v in hair and y < hair_rows:
+            return HAIR
+        if v in shirt:
+            return SHIRT
+        if v in shirt2:
+            return SHIRT2
+        if v in pants:
+            return PANTS
+        if v in shoes:
+            return SHOES
+        return amiga(v)
+    return fn
+
+
+C = {ch: i for i, ch in enumerate(A.AMIGA_CH)}
+
+
+def pose(name, frame, x, y, w, h, fn, crop=None):
+    dx, dy, rows = A.trim(A.extract(frame, x, y, w, h))
+    ax, ay = x + dx, y + dy
+    if crop:
+        cx0, cy0, cx1, cy1 = crop
+        rows = [r[cx0:len(r) - cx1] for r in rows[cy0:len(rows) - cy1]]
+        ax += cx0
+        ay += cy0
+    return name, remap(rows, fn), ax, ay
+
+
+def walk_frames(stand):
+    """Side-view walk cycle (facing left): keep the stand torso (rows 0..18) and
+    redraw the legs as hip -> knee -> ankle polylines so the knees bend. The
+    far leg is drawn first in a darker shade."""
+    torso = [r[:] for r in stand[:19]]
+    w = len(stand[0])
+    k = HOUSE0 + 9
+    # Each leg: [(row, x), ...] keypoints for the left column of a 2px leg.
+    reach = [(19, 6), (24, 4), (29, 4)]          # front leg planted, knee soft
+    trail = [(19, 7), (24, 8), (28, 10)]         # back leg, heel lifting
+    support = [(19, 7), (24, 7), (29, 7)]        # straight under the body
+    swing = [(19, 6), (23, 4), (27, 6)]          # knee forward, foot lifted
+    support_n = [(19, 6), (24, 6), (29, 6)]
+    swing_f = [(19, 7), (23, 5), (27, 7)]
+    phases = [(trail, reach), (support, swing), (reach, trail), (swing_f, support_n)]
+    frames = []
+    for far, near in phases:
+        rows = [r[:] for r in torso] + [[N] * w for _ in range(11)]
+
+        def leg(pts, colour):
+            for (y0, x0), (y1, x1) in zip(pts, pts[1:]):
+                for yy in range(y0, y1 + 1):
+                    t = (yy - y0) / max(1, y1 - y0)
+                    xx = round(x0 + (x1 - x0) * t)
+                    rows[yy][xx] = colour
+                    rows[yy][xx + 1] = colour
+                    for px in (xx - 1, xx + 2):
+                        if 0 <= px < w and rows[yy][px] in (None, k):
+                            rows[yy][px] = k
+            fy, fx = pts[-1]
+            for px in range(fx - 2, fx + 2):     # shoe, toe pointing left
+                if 0 <= px < w:
+                    rows[fy][px] = SHOES
+            for px in (fx - 3, fx + 2):
+                if 0 <= px < w and rows[fy][px] is None:
+                    rows[fy][px] = k
+        leg(far, PANTS2)
+        leg(near, PANTS)
+        for px in range(4, 12):                   # waistband
+            if rows[19][px] is None or rows[19][px] == k:
+                rows[19][px] = PANTS if 5 <= px <= 10 else k
+        frames.append(rows)
+    return frames
+
+
+ASCII_SPRITES = {
+    'zz': ['wwww.', '..w..', '.w...', 'wwww.'],
+    'note': ['..kk', '..kw', '..k.', '..k.', 'kkk.', 'kkk.'],
+    'heart': ['.RR.RR.', 'RRRRRRR', 'RRRRRRR', '.RRRRR.', '..RRR..', '...R...'],
+    'dogfood': ['.nnnn.', 'nnnnnn'],
+    'bubble': ['.www.', 'w...w', '.www.'],
+}
+
+
+def build_sprites():
+    stand_fn = person_colours(hair=(15,), shirt=(4,), pants=(3,), shoes=())
+    name, stand, sx, sy = pose('stand', 'kitchen', 44, 155, 20, 34, stand_fn)
+    # clean the kitchen junk that touches the right edge of the extraction
+    for y in range(len(stand)):
+        for x in range(14, len(stand[0])):
+            stand[y][x] = None
+    stand = [r[:14] for r in stand]
+    for y in (2, 3, 4, 5):
+        stand[y][13] = HOUSE0 + 9
+    # feet: replace the source's odd feet with simple shoes
+    stand[28] = [N, N, N, N, HOUSE0 + 9, SHOES, SHOES, HOUSE0 + 9, HOUSE0 + 9, SHOES, SHOES, HOUSE0 + 9, N, N]
+    stand[29] = [N, N, HOUSE0 + 9, SHOES, SHOES, SHOES, SHOES, HOUSE0 + 9, SHOES, SHOES, SHOES, SHOES, HOUSE0 + 9, N]
+    for y in range(19, 28):
+        stand[y] = [N, N, N, N, HOUSE0 + 9, PANTS, PANTS, HOUSE0 + 9, HOUSE0 + 9, PANTS, PANTS, HOUSE0 + 9, N, N]
+    sprites = [('stand', stand)]
+    for i, fr in enumerate(walk_frames(stand)):
+        sprites.append(('walk%d' % i, fr))
+    anchors = {}
+
+    def add(p):
+        n, rows, ax, ay = p
+        sprites.append((n, rows))
+        anchors[n] = (ax, ay)
+
+    climb_fn = person_colours(hair=(15,), shirt=(2, 0), pants=(3,),
+                              extra=lambda x, y, v: SHOES if v == 2 and y >= 26 else None)
+    add(pose('climb', 'stairs', 166, 138, 24, 33, climb_fn))
+    add(pose('brush', 'brushing', 159, 93, 21, 33,
+             person_colours(hair=(15,), shirt=(4, 8), pants=(3,), hair_rows=8)))
+    add(pose('chair', 'armchair', 215, 160, 23, 30,
+             person_colours(hair=(5,), shirt=(10,), shirt2=(1,), hair_rows=9)))
+    add(pose('eat', 'eating', 111, 160, 22, 25,
+             person_colours(hair=(15,), shirt=(4,), hair_rows=9,
+                            extra=lambda x, y, v: HAIR if v == 15 and 5 <= y <= 7 else None)))
+    add(pose('piano', 'piano', 144, 32, 20, 24,
+             person_colours(hair=(5,), shirt=(4,), pants=(14,), hair_rows=7)))
+    add(pose('computer', 'computer', 266, 91, 23, 28,
+             person_colours(hair=(5,), shirt=(10,), pants=(3,), hair_rows=11),
+             crop=(0, 4, 0, 0)))
+    # Computer: drop the stray pixels of the shelf ornament above his head.
+    comp = sprites[-1][1]
+    for y in range(len(comp)):
+        for x in range(len(comp[0])):
+            if x >= 13 and y < 1:
+                comp[y][x] = None
+    # Sleeping head: the front-facing head from the eating pose.
+    eat = dict(sprites)['eat']
+    head = [r[2:16] for r in eat[0:9]]
+    sprites.append(('sleephead', head))
+    for n, (f, x, y, w, h) in {'dog1': ('attic_dog', 153, 137, 26, 19),
+                               'dog2': ('kitchen', 245, 179, 27, 19),
+                               'dog3': ('brushing', 47, 46, 26, 17)}.items():
+        _, rows, ax, ay = pose(n, f, x, y, w, h, lambda x, y, v: amiga(9 if v in (0, 6) else v))
+        sprites.append((n, rows))
+    for n, art in ASCII_SPRITES.items():
+        sprites.append((n, remap(A.from_ascii(art), lambda x, y, v: amiga(v))))
+    return sprites, anchors
+
+
+# ---------------------------------------------------------------------------
+# Font: 128 glyphs x 8 bytes, ASCII-indexed. Codes 1..9 are game symbols.
+# ---------------------------------------------------------------------------
+CUSTOM_GLYPHS = {
+    5: [0x3C, 0x42, 0xA5, 0x81, 0xA5, 0x99, 0x42, 0x3C],   # happy face
+    6: [0x3C, 0x42, 0xA5, 0x81, 0x99, 0xA5, 0x42, 0x3C],   # sad face
+    7: [0x00, 0x66, 0xFF, 0xFF, 0x7E, 0x3C, 0x18, 0x00],   # heart
+    8: [0x0F, 0x09, 0x09, 0x09, 0x39, 0x79, 0x70, 0x00],   # note
+    9: [0xFF] * 8,                                          # block cursor
+    92: [0x00, 0x40, 0x20, 0x10, 0x08, 0x04, 0x02, 0x00],  # backslash
+    95: [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF],  # underscore
+    123: [0x0E, 0x18, 0x18, 0x70, 0x18, 0x18, 0x0E, 0x00],
+    124: [0x18] * 8,
+    125: [0x70, 0x18, 0x18, 0x0E, 0x18, 0x18, 0x70, 0x00],
+    126: [0x00, 0x00, 0x76, 0xDC, 0x00, 0x00, 0x00, 0x00],
+}
+
+
+def build_font():
+    path = CHARGEN if os.path.exists(CHARGEN) else CHARGEN_LOCAL
+    rom = open(path, 'rb').read()
+    upper = rom[0:0x800]
+    lower = rom[0x800:0x1000]
+    font = bytearray(128 * 8)
+
+    def put(code, src, sc):
+        font[code * 8:code * 8 + 8] = src[sc * 8:sc * 8 + 8]
+    for a in range(32, 128):
+        if 32 <= a <= 63:
+            put(a, lower, a)
+        elif a == 64:
+            put(a, lower, 0)
+        elif 65 <= a <= 90:
+            put(a, lower, a)
+        elif 97 <= a <= 122:
+            put(a, lower, a - 96)
+        elif a == 91:
+            put(a, lower, 27)
+        elif a == 93:
+            put(a, lower, 29)
+        elif a == 94:
+            put(a, lower, 30)
+        elif a == 96:
+            put(a, lower, 39)
+    # suits from the upper/graphics set: spade, heart, diamond, club
+    for code, sc in ((1, 65), (2, 83), (3, 90), (4, 88)):
+        put(code, upper, sc)
+    for code, g in CUSTOM_GLYPHS.items():
+        font[code * 8:code * 8 + 8] = bytes(g)
+    return font
+
+
+# ---------------------------------------------------------------------------
+# Output
+# ---------------------------------------------------------------------------
+def prg(data):
+    return bytes([0, 0]) + bytes(data)
+
+
+def write(path, data):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, 'wb') as fh:
+        fh.write(data)
+
+
+def preview(img, path, scale=3):
+    im = Image.new('RGB', (len(img[0]), len(img)))
+    im.putdata([PAL[v] if v is not None else (255, 0, 255) for r in img for v in r])
+    im.resize((im.size[0] * scale, im.size[1] * scale), Image.NEAREST).save(path)
+
+
+def main():
+    house, patches = build_house()
+    title = build_title()
+    sprites, anchors = build_sprites()
+    font = build_font()
+
+    write(os.path.join(ROOT, 'assets', 'bg.prg'), prg(to_cells(house)))
+    write(os.path.join(ROOT, 'assets', 'title.prg'), prg(to_cells(title)))
+
+    blob = bytearray(font)
+    lines = ['; Generated by tools/build_assets.py -- do not edit.', '',
+             'GFX_FONT                = $%05X' % GFX_BASE]
+    for n, rows in sprites:
+        addr = GFX_BASE + len(blob)
+        h = len(rows)
+        w = len(rows[0])
+        blob += bytes([w, h])
+        for r in rows:
+            blob += bytes(0 if v is None else v for v in r)
+        lines.append('SPR_%-20s= $%05X   ; %dx%d' % (n.upper(), addr, w, h))
+    lines.append('')
+    for n, (cx, cy, cw, ch, pix) in patches.items():
+        addr = GFX_BASE + len(blob)
+        blob += patch_cells(cw, ch, pix)
+        lines.append('PATCH_%-18s= $%05X' % (n.upper(), addr))
+        lines.append('PATCH_%-18s= %d' % (n.upper() + '_CX', cx))
+        lines.append('PATCH_%-18s= %d' % (n.upper() + '_CY', cy))
+        lines.append('PATCH_%-18s= %d' % (n.upper() + '_CW', cw))
+        lines.append('PATCH_%-18s= %d' % (n.upper() + '_CH', ch))
+    lines.append('')
+    for n, (x, y) in anchors.items():
+        lines.append('POSE_%-19s= %d' % (n.upper() + '_X', x))
+        lines.append('POSE_%-19s= %d' % (n.upper() + '_Y', y))
+    lines.append('')
+    lines.append('GFX_SIZE                = %d' % len(blob))
+    assert GFX_BASE + len(blob) < 0x60000, 'gfx blob overflows bank 5'
+    write(os.path.join(ROOT, 'assets', 'gfx.prg'), prg(blob))
+    write(os.path.join(ROOT, 'src', 'gen', 'assets.asm'), ('\n'.join(lines) + '\n').encode())
+
+    swap = lambda v: ((v & 15) << 4) | (v >> 4)  # noqa: E731
+    pl = ['; Generated by tools/build_assets.py -- do not edit.',
+          '; Raw 8-bit RGB per index; write nib_swap[v] to $D100/$D200/$D300.', '']
+    for ch, k in (('r', 0), ('g', 1), ('b', 2)):
+        pl.append('pal_%s:' % ch)
+        for i in range(0, 256, 16):
+            pl.append('        .byte ' + ','.join('$%02X' % PAL[j][k] for j in range(i, i + 16)))
+    pl.append('nib_swap:')
+    for i in range(0, 256, 16):
+        pl.append('        .byte ' + ','.join('$%02X' % swap(j) for j in range(i, i + 16)))
+    write(os.path.join(ROOT, 'src', 'gen', 'palette.asm'), ('\n'.join(pl) + '\n').encode())
+
+    # SID frequency table, MIDI notes 0..95 (PAL clock 985248 Hz). Index = note.
+    nl = ['; Generated by tools/build_assets.py -- do not edit.',
+          '; SID frequency words for MIDI note numbers 0..95 (PAL).', '']
+    freqs = [min(0xFFFF, round(440 * 2 ** ((n - 69) / 12) * 16777216 / 985248)) for n in range(96)]
+    nl.append('note_lo:')
+    for i in range(0, 96, 16):
+        nl.append('        .byte ' + ','.join('$%02X' % (f & 255) for f in freqs[i:i + 16]))
+    nl.append('note_hi:')
+    for i in range(0, 96, 16):
+        nl.append('        .byte ' + ','.join('$%02X' % (f >> 8) for f in freqs[i:i + 16]))
+    write(os.path.join(ROOT, 'src', 'gen', 'notes.asm'), ('\n'.join(nl) + '\n').encode())
+
+    preview(house, os.path.join(ROOT, 'art', 'preview_house.png'))
+    preview(title, os.path.join(ROOT, 'art', 'preview_title.png'))
+    # sprite sheet
+    W = sum(len(r[0]) + 4 for _, r in sprites)
+    H = max(len(r) for _, r in sprites)
+    sheet = [[None] * W for _ in range(H)]
+    x = 0
+    for _, rows in sprites:
+        for yy, r in enumerate(rows):
+            for xx, v in enumerate(r):
+                sheet[yy][x + xx] = v
+        x += len(rows[0]) + 4
+    preview(sheet, os.path.join(ROOT, 'art', 'preview_sprites.png'), 4)
+    print('bg %d, title %d, gfx %d bytes, %d sprites, %d patches' %
+          (64000, 64000, len(blob), len(sprites), len(patches)))
+
+
+if __name__ == '__main__':
+    main()
