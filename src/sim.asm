@@ -2357,7 +2357,7 @@ l_say_hello2:  .null "! Nice of you to call."
 l_say_cozy:    .null "Nice and cozy."
 l_say_back:    .null "I'm back! Lovely day out there."
 l_say_arr1:    .null "Hi "
-l_say_arr2:    .null "! Thanks for the house! I'm "
+l_say_arr2:    .null "! Nice house! I'm "
 l_say_knock:   .null "KNOCK KNOCK! Hello? Anybody out there?"
 l_say_clean:   .null "Ahh, squeaky clean!"
 
