@@ -31,7 +31,7 @@ if errorlevel 1 exit /b 1
 if errorlevel 1 exit /b 1
 ..\c1541.exe -attach littlemegapeople.d81 -write ..\assets\gfx.prg lmp-gfx
 if errorlevel 1 exit /b 1
-..\c1541.exe -attach littlemegapeople.d81 -write ..\assets\voice.prg lmp-voice
+..\c1541.exe -attach littlemegapeople.d81 -write ..\assets\sounds.prg lmp-sounds
 if errorlevel 1 exit /b 1
 cd ..
 

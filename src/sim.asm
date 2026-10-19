@@ -707,7 +707,7 @@ act_start_tbl:
         .word st_cards, st_knock, st_idle, st_petdog, st_arrive, st_readchair, st_files, st_chat, st_tvswitch, st_tvswitch, st_wash
 act_tick_tbl:
         .word tk_none, tk_none, tk_meal, tk_none, tk_none, tk_phone, tk_none, tk_none
-        .word tk_goout, tk_sleep, tk_none, tk_brush, tk_none, tk_bath, tk_computer
+        .word tk_goout, tk_sleep, tk_none, tk_brush, tk_wc, tk_bath, tk_computer
         .word tk_typing, tk_none, tk_record, tk_none, tk_piano, tk_none, tk_pool
         .word tk_none, tk_knock, tk_none, tk_none, tk_arrive, tk_readchair, tk_files, tk_none, tk_none, tk_none, tk_none
 act_end_tbl:
@@ -2555,16 +2555,68 @@ tk_brush:
 en_brush:
         lda #1
         jmp mood_up
+; The toilet: the WC door opens, he steps in behind it, it closes; a while
+; later (and a flush) it opens, he steps out, it closes; then he washes up.
+wc_t:           .byte 0
+
 st_wc:
+        ldx #PATCH_WC
+        jsr patch_apply
+        lda #SFX_DOOR
+        jsr sfx_play
+        lda #0
+        sta wc_t
+        lda #6
+        jmp set_timer_secs
+tk_wc:
+        lda wc_t
+        cmp #255
+        beq +
+        inc wc_t
++       lda wc_t
+        cmp #20                 ; steps in
+        bne +
         lda #PM_HIDDEN
         sta p_mode
-        lda #4
-        jmp set_timer_secs
+        rts
++       cmp #32                 ; door shut behind him
+        bne +
+        ldx #PATCH_WC
+        jsr patch_remove
+        lda #SFX_DOOR
+        jmp sfx_play
++       ; the way out, counted down from the end of the visit
+        lda act_timer+1
+        bne l_tkw_out
+        lda act_timer
+        cmp #140
+        bne +
+        jmp flush_play
++       cmp #50                 ; door opens
+        bne +
+        ldx #PATCH_WC
+        jsr patch_apply
+        lda #SFX_DOOR
+        jmp sfx_play
++       cmp #38                 ; he steps out
+        bne +
+        lda #PM_STAND
+        sta p_mode
+        rts
++       cmp #16                 ; and the door closes
+        bne l_tkw_out
+        ldx #PATCH_WC
+        jsr patch_remove
+        lda #SFX_DOOR
+        jmp sfx_play
+l_tkw_out:
+        rts
 en_wc:
+        ldx #PATCH_WC           ; (in case he was interrupted)
+        jsr patch_remove
         lda #A_WASH             ; then wash his hands
         sta p_pending
-        lda #SFX_FLUSH
-        jmp sfx_play
+        rts
 
 ; Washing his hands at the sink: back to you, elbows working, water running.
 st_wash:

@@ -197,9 +197,9 @@ boot_load:
         #LOAD_FILE fn_title, fn_title_end
         ldy #ATTIC_TITLE_BANK
         jsr stage_to_attic
-        ; his voice: stage -> chip RAM bank 1 (audio DMA plays only from chip RAM)
-        #LOAD_FILE fn_voice, fn_voice_end
-        jsr stage_to_voice
+        ; digital sounds: stage -> Attic (played via a chip-RAM buffer)
+        #LOAD_FILE fn_sounds, fn_sounds_end
+        jsr stage_to_sounds
         #LOAD_FILE fn_gfx, fn_gfx_end
         rts
 
@@ -278,13 +278,14 @@ fn_title:       .text "LMP-TITLE"
 fn_title_end:
 fn_gfx:         .text "LMP-GFX"
 fn_gfx_end:
-fn_voice:       .text "LMP-VOICE"
-fn_voice_end:
+fn_sounds:      .text "LMP-SOUNDS"
+fn_sounds_end:
 
-; copy the voice sample from the stage ($50002) to SND_TALK in bank 1
-stage_to_voice:
+; copy the sound bank from the stage ($50002) to Attic ($8030000)
+stage_to_sounds:
         lda #0
         sta dma_src_mb
+        lda #ATTIC_MB
         sta dma_dst_mb
         lda #<2
         sta dma_src
@@ -292,15 +293,14 @@ stage_to_voice:
         sta dma_src+1
         lda #STAGE_BANK
         sta dma_src_bank
-        lda #<SND_TALK
+        lda #0
         sta dma_dst
-        lda #>SND_TALK
         sta dma_dst+1
-        lda #`SND_TALK
+        lda #ATTIC_SOUNDS_BANK
         sta dma_dst_bank
-        lda #<SND_TALK_LEN
+        lda #<SOUNDS_SIZE
         sta dma_len
-        lda #>SND_TALK_LEN
+        lda #>SOUNDS_SIZE
         sta dma_len+1
         jmp dma_copy
 

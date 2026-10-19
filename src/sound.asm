@@ -36,20 +36,61 @@ SFX_BRUSH       = 16
 ; $D724-6 rate step, $D727-8 end address (low 16 bits), $D729 volume,
 ; $D72A-C current/start address. $D711 bit 7 enables audio DMA.
 ;---------------------------------------------------------------------------------------
+; His voice and the other digital sounds live in Attic RAM; sample_play DMAs
+; one into the chip-RAM buffer SND_BUF and starts audio DMA channel 0 on it.
+snd_ofs_l:  .byte <SND_TALK_OFS, <SND_FLUSH_OFS
+snd_ofs_h:  .byte >SND_TALK_OFS, >SND_FLUSH_OFS
+snd_len_l:  .byte <SND_TALK_LEN, <SND_FLUSH_LEN
+snd_len_h:  .byte >SND_TALK_LEN, >SND_FLUSH_LEN
+
 talk_play:
+        ldx #SND_TALK
+        jmp sample_play
+flush_play:
+        ldx #SND_FLUSH
+; X = sound number
+sample_play:
         lda #0
         sta $D720
+        ; Attic -> play buffer
+        lda #ATTIC_MB
+        sta dma_src_mb
+        lda #0
+        sta dma_dst_mb
+        lda snd_ofs_l,x
+        sta dma_src
+        lda snd_ofs_h,x
+        sta dma_src+1
+        lda #ATTIC_SOUNDS_BANK
+        sta dma_src_bank
+        lda #<SND_BUF
+        sta dma_dst
+        lda #>SND_BUF
+        sta dma_dst+1
+        lda #`SND_BUF
+        sta dma_dst_bank
+        lda snd_len_l,x
+        sta dma_len
+        lda snd_len_h,x
+        sta dma_len+1
+        phx
+        jsr dma_copy
+        plx
+        ; play it
         lda #$80
         sta $D711
-        lda #<SND_TALK
+        lda #<SND_BUF
         sta $D72A
-        lda #>SND_TALK
+        lda #>SND_BUF
         sta $D72B
-        lda #`SND_TALK
+        lda #`SND_BUF
         sta $D72C
-        lda #<SND_TALK_END
+        clc
+        lda #<SND_BUF
+        adc snd_len_l,x
         sta $D727
-        lda #>SND_TALK_END
+        lda #>SND_BUF
+        adc snd_len_h,x
         sta $D728
         lda #<SND_FREQ
         sta $D724

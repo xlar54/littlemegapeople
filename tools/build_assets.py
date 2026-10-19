@@ -110,6 +110,8 @@ PATCHES = {
     'fire_lit': (32, 21, 3, 2, 'cards'),
     # living-room phone with the handset lifted off (empty cradle)
     'phone_off': (24, 21, 3, 1, ('PHONE', 0)),
+    # bathroom WC door swung open (hinged on the left)
+    'wc_open': (23, 11, 3, 4, ('WCDOOR', 0)),
     # attic filing cabinet: top drawer pulled out towards you, two steps
     'drawer_1': (32, 5, 3, 3, ('DRAWER', 2)),
     'drawer_2': (32, 5, 3, 3, ('DRAWER', 4)),
@@ -118,6 +120,22 @@ PATCHES = {
     'curtain_2': (25, 11, 5, 4, ('CURTAIN', 214)),
     'curtain_3': (25, 11, 5, 4, ('CURTAIN', 208)),
 }
+
+
+def draw_wcdoor(img, _):
+    """The WC door (frame x 187-204, y 90-119, knob on the right) swung open
+    on its left hinge: the door seen edge-on as a narrow white strip at the
+    hinge, the dark little room behind."""
+    k, w, l, u, d = 9, 3, 8, 6, 6
+    for y in range(91, 120):
+        for x in range(188, 204):
+            img[y][x] = d                        # inside: dark
+        img[y][188] = w                          # door edge at the hinge
+        img[y][189] = w
+        img[y][190] = l
+        img[y][191] = k
+    for x in range(192, 204):                    # threshold
+        img[119][x] = k
 
 
 def draw_phone_off(img, _):
@@ -218,7 +236,8 @@ def build_house():
     for name, (cx, cy, cw, ch, src) in PATCHES.items():
         if isinstance(src, tuple):
             f = [r[:] for r in bg]
-            {'CURTAIN': draw_curtain, 'DRAWER': draw_drawer, 'PHONE': draw_phone_off}[src[0]](f, src[1])
+            {'CURTAIN': draw_curtain, 'DRAWER': draw_drawer, 'PHONE': draw_phone_off,
+             'WCDOOR': draw_wcdoor}[src[0]](f, src[1])
         else:
             f = open_rows if src is None else A.frame(src)
         pix = [[house_index(x, y, f[y][x], sky, name == 'fire_lit') for x in range(cx * 8, (cx + cw) * 8)]
@@ -1129,16 +1148,24 @@ def main():
     for n, (x, y) in anchors.items():
         lines.append('POSE_%-19s= %d' % (n.upper() + '_X', x))
         lines.append('POSE_%-19s= %d' % (n.upper() + '_Y', y))
-    # His voice (sampled from the Amiga original) is its own file, LMP-VOICE:
-    # audio DMA can only play from chip RAM, so the boot loader copies it to
-    # SND_BASE in bank 1 (above the screen RAM, below the colour RAM window).
-    snd = load_sound(os.path.join(ROOT, 'art', 'sound', 'phone_talk.wav'), SND_RATE)
-    lines.append('SND_TALK                = $%05X   ; %d bytes, unsigned 8-bit, %d Hz' % (SND_BASE, len(snd), SND_RATE))
-    lines.append('SND_TALK_LEN            = %d' % len(snd))
-    lines.append('SND_TALK_END            = $%05X' % (SND_BASE + len(snd)))
+    # Digital sounds: all in one file, LMP-SOUNDS, which boot copies to Attic.
+    # To play one the game DMAs it into the chip-RAM play buffer SND_BUF
+    # (audio DMA can only read chip RAM), then starts audio DMA on it.
+    sounds = [('talk', 'phone_talk.wav'),          # his voice (the Amiga original)
+              ('flush', 'flush.wav')]              # public domain, Wikimedia Commons
+    sblob = bytearray()
+    lines.append('SND_BUF                 = $%05X   ; chip-RAM play buffer (bank 1)' % SND_BASE)
     lines.append('SND_FREQ                = $%06X   ; audio DMA step: rate * 2^24 / 40.5 MHz' % round(SND_RATE * 16777216 / 40500000))
-    assert SND_BASE + len(snd) < 0x1F800, 'voice sample runs into the colour RAM window'
-    write(os.path.join(ROOT, 'assets', 'voice.prg'), prg(snd))
+    for i, (name, fn) in enumerate(sounds):
+        snd = load_sound(os.path.join(ROOT, 'art', 'sound', fn), SND_RATE)
+        assert SND_BASE + len(snd) < 0x1F800, name + ' sample is bigger than the play buffer'
+        lines.append('SND_%-20s= %d' % (name.upper(), i))
+        lines.append('SND_%-20s= $%05X   ; offset in Attic sound bank, %d bytes' % (name.upper() + '_OFS', len(sblob), len(snd)))
+        lines.append('SND_%-20s= %d' % (name.upper() + '_LEN', len(snd)))
+        sblob += snd
+    lines.append('SOUNDS_SIZE             = %d' % len(sblob))
+    assert len(sblob) < 0xFFFE, 'sound bank is bigger than the boot stage'
+    write(os.path.join(ROOT, 'assets', 'sounds.prg'), prg(sblob))
     lines.append('')
     lines.append('GFX_SIZE                = %d' % len(blob))
     assert GFX_BASE + len(blob) < 0x60000, 'gfx blob overflows bank 5'
