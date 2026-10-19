@@ -686,10 +686,10 @@ l_fire_b: .byte 0,0,0
 act_floor:
         .byte 0, 0,0,0,0,0, 1,0,0, 1,1,1,1,1, 1,2, 2,2,2,2, 2,2,2, 0,0,0,0, 0, 2
 act_xl:
-        .byte 0, <52,<122,<138,<34,<213, <252,<248,<302, <40,<115,<170,<196,<222, <278,<228
+        .byte 0, <52,<122,<138,<34,<226, <252,<248,<302, <40,<115,<170,<196,<222, <278,<228
         .byte <80,<100,<120,<154, <188,<228,<228, <160,0,0,<300, <226, <266
 act_xh:
-        .byte 0, >52,>122,>138,>34,>213, >252,>248,>302, >40,>115,>170,>196,>222, >278,>228
+        .byte 0, >52,>122,>138,>34,>226, >252,>248,>302, >40,>115,>170,>196,>222, >278,>228
         .byte >80,>100,>120,>154, >188,>228,>228, >160,0,0,>300, >226, >266
 act_face:
         .byte 0, 0,1,1,0,0, 1,1,1, 0,0,0,1,1, 1,1, 0,0,0,0, 1,1,1, 0,0,0,0, 0, 1
@@ -1864,10 +1864,48 @@ en_feeddog:
 +       rts
 
 ; --- living room -----------------------------------------------------------------------
+; On the phone: sit in the armchair, lift the handset to his ear (the phone
+; on the side table shows an empty cradle) and chat -- mouth moving with
+; mumbling, then quiet spells while he listens.
+phone_talk:     .byte 0     ; 1 = mouth open this moment
+
 st_phone:
-        lda #6
+        #POSE SPR_PHONE0, POSE_CHAIR_X, POSE_CHAIR_Y
+        ldx #PATCH_PHONE
+        jsr patch_apply
+        lda #0
+        sta phone_talk
+        lda #8
         jmp set_timer_secs
 tk_phone:
+        ; talk for ~2 s, listen for ~1 s, repeat
+        lda #0
+        sta phone_talk
+        lda p_anim
+        and #127
+        cmp #96
+        bcs l_tkp_pose
+        lda p_anim
+        and #8
+        beq +
+        lda #1
+        sta phone_talk
++       lda p_anim
+        and #31
+        bne l_tkp_pose
+        lda sfx_id
+        bne l_tkp_pose
+        lda #SFX_TALK
+        jsr sfx_play
+l_tkp_pose:
+        lda #<SPR_PHONE0
+        ldx #>SPR_PHONE0
+        ldy phone_talk
+        beq +
+        lda #<SPR_PHONE1
+        ldx #>SPR_PHONE1
++       sta pose_spr
+        stx pose_spr+1
         lda act_phase
         bne +
         inc act_phase
@@ -1883,6 +1921,8 @@ tk_phone:
         jmp ui_say_sb
 +       rts
 en_phone:
+        ldx #PATCH_PHONE        ; handset back on the phone
+        jsr patch_remove
         lda #8
         jsr mood_up
         lda #0

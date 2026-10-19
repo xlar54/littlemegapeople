@@ -106,6 +106,8 @@ PATCHES = {
     'fridge_open': (3, 19, 3, 5, 'stairs'),
     'closet_open': (22, 3, 3, 5, 'piano'),
     'fire_lit': (32, 21, 3, 2, 'cards'),
+    # living-room phone with the handset lifted off (empty cradle)
+    'phone_off': (24, 21, 3, 1, ('PHONE', 0)),
     # attic filing cabinet: top drawer pulled out towards you, two steps
     'drawer_1': (32, 5, 3, 3, ('DRAWER', 2)),
     'drawer_2': (32, 5, 3, 3, ('DRAWER', 4)),
@@ -114,6 +116,17 @@ PATCHES = {
     'curtain_2': (25, 11, 5, 4, ('CURTAIN', 214)),
     'curtain_3': (25, 11, 5, 4, ('CURTAIN', 208)),
 }
+
+
+def draw_phone_off(img, _):
+    """The phone on the side table (handset on rows 172-173, x 196-207) with
+    the handset lifted: wall shows through, the cradle hooks remain."""
+    g, w = 0, 3
+    for x in range(195, 209):
+        img[172][x] = g
+        img[173][x] = g
+    for x in (196, 197, 205, 206):
+        img[173][x] = w
 
 
 def draw_drawer(img, out):
@@ -200,7 +213,7 @@ def build_house():
     for name, (cx, cy, cw, ch, src) in PATCHES.items():
         if isinstance(src, tuple):
             f = [r[:] for r in bg]
-            (draw_curtain if src[0] == 'CURTAIN' else draw_drawer)(f, src[1])
+            {'CURTAIN': draw_curtain, 'DRAWER': draw_drawer, 'PHONE': draw_phone_off}[src[0]](f, src[1])
         else:
             f = open_rows if src is None else A.frame(src)
         pix = [[house_index(x, y, f[y][x], sky, name == 'fire_lit') for x in range(cx * 8, (cx + cw) * 8)]
@@ -505,6 +518,44 @@ def bend_back_frame(climb):
     return out
 
 
+def phone_frames(reading):
+    """In the armchair on the phone: handset from his ear (right side of his
+    head) down past his jaw, his hand holding it, sleeve up from the shoulder.
+    Frame 0 mouth shut, frame 1 mouth open (talking)."""
+    k, w, l = HOUSE0 + 9, HOUSE0 + 3, HOUSE0 + 8
+    base = [r[:] for r in reading]
+    hw = len(base[0])
+    # sleeve: shoulder (16, 10) up to the hand (15, 7)
+    for y, x in ((10, 15), (9, 15), (8, 15)):
+        base[y][x] = SHIRT
+        base[y][x + 1] = SHIRT
+        for px in (x - 1, x + 2):
+            if 0 <= px < hw and base[y][px] in (None, k):
+                base[y][px] = k
+    # handset: earpiece at the ear, down to the mouthpiece by his jaw
+    for y, x in ((3, 14), (4, 14), (5, 13), (6, 13), (7, 12), (8, 11), (9, 11)):
+        base[y][x] = w
+        base[y][x + 1] = l
+        for px in (x - 1, x + 2):
+            if 0 <= px < hw and base[y][px] is None:
+                base[y][px] = k
+    base[2][14] = k
+    base[2][15] = k
+    base[10][11] = k
+    base[10][12] = k
+    # hand round the handset
+    for y in (6, 7):
+        for x in (15, 16):
+            base[y][x] = SKIN
+        if base[y][17] is None:
+            base[y][17] = k
+    shut = [r[:] for r in base]
+    talk = [r[:] for r in base]
+    for x in (5, 6, 7):                       # open mouth under the mustache
+        talk[8][x] = HOUSE0 + 14
+    return [shut, talk]
+
+
 def walk_frames(stand):
     """Side-view walk cycle (facing left): keep the stand torso (rows 0..18) and
     redraw the legs as hip -> knee -> ankle polylines so the knees bend. The
@@ -782,6 +833,8 @@ def build_sprites():
         reading[y] = art([ln])[0]
     sprites.append(('reading', reading))
     sprites.append(('bookopen', art(BOOK_OPEN)))
+    for i, frame in enumerate(phone_frames(reading)):
+        sprites.append(('phone%d' % i, frame))
     sprites.append(('bookturn', art(BOOK_TURN)))
     sprites.append(('frontknock', art(FRONT_KNOCK_ART)))
     # Seated behind the attic desk facing you: just head and shoulders, so the
