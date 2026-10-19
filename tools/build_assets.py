@@ -26,6 +26,7 @@ CHARGEN = r'C:\Users\scott\repos\c128-emu-m65\src\chargen-390059-01.bin'
 CHARGEN_LOCAL = os.path.join(ROOT, 'art', 'chargen.bin')
 LOGO_FONT = r'C:\Windows\Fonts\ROCKEB.TTF'
 GFX_BASE = 0x50002          # gfx.prg body lands at $50000 + 2-byte PRG header
+SND_RATE = 5000             # phone voice sample rate
 
 # ---------------------------------------------------------------------------
 # Palette layout (see README / src/platform.asm for the same list)
@@ -120,13 +121,16 @@ PATCHES = {
 
 def draw_phone_off(img, _):
     """The phone on the side table (handset on rows 172-173, x 196-207) with
-    the handset lifted: wall shows through, the cradle hooks remain."""
+    the handset lifted: wall shows through, the cradle hooks remain, and the
+    coiled cord runs off towards the armchair."""
     g, w = 0, 3
     for x in range(195, 209):
         img[172][x] = g
         img[173][x] = g
     for x in (196, 197, 205, 206):
         img[173][x] = w
+    for x in range(207, 216, 2):                # dotted coiled cord
+        img[174 - (x - 207) * 3 // 9][x] = w
 
 
 def draw_drawer(img, out):
@@ -519,41 +523,60 @@ def bend_back_frame(climb):
 
 
 def phone_frames(reading):
-    """In the armchair on the phone: handset from his ear (right side of his
-    head) down past his jaw, his hand holding it, sleeve up from the shoulder.
-    Frame 0 mouth shut, frame 1 mouth open (talking)."""
+    """On the phone in the armchair, as in the Amiga original: facing you,
+    holding the handset to his ear on the side nearest the phone (screen
+    left), the coiled cord running down to the phone. Frame 0 mouth shut,
+    frame 1 mouth open."""
     k, w, l = HOUSE0 + 9, HOUSE0 + 3, HOUSE0 + 8
+    head = art(FRONT_ART[:10])                  # 18 wide
     base = [r[:] for r in reading]
     hw = len(base[0])
-    # sleeve: shoulder (16, 10) up to the hand (15, 7)
-    for y, x in ((10, 15), (9, 15), (8, 15)):
-        base[y][x] = SHIRT
-        base[y][x + 1] = SHIRT
-        for px in (x - 1, x + 2):
-            if 0 <= px < hw and base[y][px] in (None, k):
-                base[y][px] = k
-    # handset: earpiece at the ear, down to the mouthpiece by his jaw
-    for y, x in ((3, 14), (4, 14), (5, 13), (6, 13), (7, 12), (8, 11), (9, 11)):
-        base[y][x] = w
-        base[y][x + 1] = l
-        for px in (x - 1, x + 2):
-            if 0 <= px < hw and base[y][px] is None:
-                base[y][px] = k
-    base[2][14] = k
-    base[2][15] = k
-    base[10][11] = k
-    base[10][12] = k
-    # hand round the handset
-    for y in (6, 7):
-        for x in (15, 16):
-            base[y][x] = SKIN
-        if base[y][17] is None:
-            base[y][17] = k
+    for y in range(10):
+        base[y] = head[y] + [None] * (hw - len(head[y]))
+    # sleeve from the left shoulder up to the hand by his ear
+    for y in (8, 9, 10):
+        base[y][1] = SHIRT
+        base[y][2] = SHIRT
+        base[y][0] = k
+    # handset against his left ear, hand round it
+    for y in range(2, 8):
+        base[y][0] = k
+        base[y][1] = w
+        base[y][2] = l if y in (2, 7) else w
+    base[1][1] = k
+    base[1][2] = k
+    for y in (5, 6, 7):
+        base[y][2] = SKIN
+        base[y][3] = SKIN
+    base[8][0] = w                              # cord leaves the handset
+    base[10][0] = w
     shut = [r[:] for r in base]
     talk = [r[:] for r in base]
-    for x in (5, 6, 7):                       # open mouth under the mustache
-        talk[8][x] = HOUSE0 + 14
+    talk[7][8] = HOUSE0 + 14                     # open mouth
+    talk[7][9] = HOUSE0 + 14
+    talk[8][8] = k
+    talk[8][9] = k
     return [shut, talk]
+
+
+def load_sound(path, rate):
+    """16-bit mono WAV -> unsigned 8-bit at `rate`, normalised."""
+    import wave
+    import struct
+    wv = wave.open(path, 'rb')
+    src_rate = wv.getframerate()
+    n = wv.getnframes()
+    data = struct.unpack('<%dh' % n, wv.readframes(n))
+    peak = max(1, max(abs(v) for v in data))
+    out = bytearray()
+    step = src_rate / rate
+    i = 0.0
+    while int(i) < n:
+        j = int(i)
+        acc = sum(data[j:j + max(1, int(step))]) / max(1, len(data[j:j + max(1, int(step))]))
+        out.append(max(0, min(255, 128 + int(acc * 120 / peak))))
+        i += step
+    return out
 
 
 def walk_frames(stand):
@@ -959,6 +982,13 @@ def main():
     for n, (x, y) in anchors.items():
         lines.append('POSE_%-19s= %d' % (n.upper() + '_X', x))
         lines.append('POSE_%-19s= %d' % (n.upper() + '_Y', y))
+    # his voice on the phone (sampled from the Amiga original)
+    snd = load_sound(os.path.join(ROOT, 'art', 'sound', 'phone_talk.wav'), SND_RATE)
+    lines.append('SND_TALK                = $%05X   ; %d bytes, unsigned 8-bit, %d Hz' % (GFX_BASE + len(blob), len(snd), SND_RATE))
+    lines.append('SND_TALK_END            = $%05X' % (GFX_BASE + len(blob) + len(snd)))
+    lines.append('SND_FREQ                = $%06X   ; audio DMA step: rate * 2^24 / 40.5 MHz' % round(SND_RATE * 16777216 / 40500000))
+    assert ((GFX_BASE + len(blob)) >> 16) == ((GFX_BASE + len(blob) + len(snd)) >> 16), 'sample crosses a 64K bank'
+    blob += snd
     lines.append('')
     lines.append('GFX_SIZE                = %d' % len(blob))
     assert GFX_BASE + len(blob) < 0x60000, 'gfx blob overflows bank 5'

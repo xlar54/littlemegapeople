@@ -156,7 +156,9 @@ Credits
 
 *Little Computer People* © 1985 Activision, designed by David Crane and Rich Gold;
 Amiga version 1987. This is an unofficial fan tribute for the
-MEGA65. Reference screenshots of the Amiga version came from dazeland.com,
+MEGA65. His voice on the phone is sampled from the Amiga original (a gameplay
+recording on YouTube) and played through MEGA65 audio DMA. Reference
+screenshots of the Amiga version came from dazeland.com,
 mastertronic.co.uk and habr.com; gameplay details from ST-News' review and the
 C64 original. Code patterns (FCM setup, DMA, boot loading) follow the author's
 mega-simcity and fcmlib projects.

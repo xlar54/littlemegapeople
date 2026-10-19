@@ -1864,10 +1864,12 @@ en_feeddog:
 +       rts
 
 ; --- living room -----------------------------------------------------------------------
-; On the phone: sit in the armchair, lift the handset to his ear (the phone
-; on the side table shows an empty cradle) and chat -- mouth moving with
-; mumbling, then quiet spells while he listens.
+; On the phone (as in the Amiga original): in the armchair facing you, the
+; handset to his ear, the phone on the side table showing its empty cradle.
+; He chatters in his own language -- the sampled voice from the original --
+; mouth moving with it, pauses to listen, chatters again.
 phone_talk:     .byte 0     ; 1 = mouth open this moment
+phone_spells:   .byte 0
 
 st_phone:
         #POSE SPR_PHONE0, POSE_CHAIR_X, POSE_CHAIR_Y
@@ -1875,28 +1877,30 @@ st_phone:
         jsr patch_apply
         lda #0
         sta phone_talk
-        lda #8
+        sta phone_spells
+        lda #14
         jmp set_timer_secs
 tk_phone:
-        ; talk for ~2 s, listen for ~1 s, repeat
+        jsr talk_level
+        bcs l_tkp_talking
+        ; quiet: listen for a moment, then chatter again (twice per call)
         lda #0
         sta phone_talk
         lda p_anim
-        and #127
-        cmp #96
+        and #63
+        bne l_tkp_pose
+        lda phone_spells
+        cmp #2
         bcs l_tkp_pose
-        lda p_anim
-        and #8
-        beq +
-        lda #1
-        sta phone_talk
-+       lda p_anim
-        and #31
-        bne l_tkp_pose
-        lda sfx_id
-        bne l_tkp_pose
-        lda #SFX_TALK
-        jsr sfx_play
+        inc phone_spells
+        jsr talk_play
+        bra l_tkp_pose
+l_tkp_talking:
+        ldx #0                  ; lip sync: mouth open on the loud bits
+        cmp #24
+        bcc +
+        ldx #1
++       stx phone_talk
 l_tkp_pose:
         lda #<SPR_PHONE0
         ldx #>SPR_PHONE0
@@ -1921,6 +1925,7 @@ l_tkp_pose:
         jmp ui_say_sb
 +       rts
 en_phone:
+        jsr talk_stop
         ldx #PATCH_PHONE        ; handset back on the phone
         jsr patch_remove
         lda #8

@@ -109,5 +109,8 @@ POSE_PIANO_X            = 146
 POSE_PIANO_Y            = 34
 POSE_COMPUTER_X         = 268
 POSE_COMPUTER_Y         = 97
+SND_TALK                = $57BE1   ; 28500 bytes, unsigned 8-bit, 5000 Hz
+SND_TALK_END            = $5EB35
+SND_FREQ                = $000817   ; audio DMA step: rate * 2^24 / 40.5 MHz
 
-GFX_SIZE                = 31711
+GFX_SIZE                = 60211

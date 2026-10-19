@@ -29,6 +29,73 @@ SFX_STEP        = 13
 SFX_TINK        = 14
 SFX_TALK        = 15
 
+;---------------------------------------------------------------------------------------
+; Digital sample playback on audio DMA channel 0 (his voice on the phone).
+; $D720 control: bit7 enable, bit6 loop, bit5 unsigned, bits1-0 size (10 = 8-bit)
+; $D724-6 rate step, $D727-8 end address (low 16 bits), $D729 volume,
+; $D72A-C current/start address. $D711 bit 7 enables audio DMA.
+;---------------------------------------------------------------------------------------
+talk_play:
+        lda #0
+        sta $D720
+        lda #$80
+        sta $D711
+        lda #<SND_TALK
+        sta $D72A
+        lda #>SND_TALK
+        sta $D72B
+        lda #`SND_TALK
+        sta $D72C
+        lda #<SND_TALK_END
+        sta $D727
+        lda #>SND_TALK_END
+        sta $D728
+        lda #<SND_FREQ
+        sta $D724
+        lda #>SND_FREQ
+        sta $D725
+        lda #SND_FREQ >> 16
+        sta $D726
+        lda #$FF
+        sta $D729
+        sta $D71C               ; channel 0 to the right side as well
+        lda #%10100010          ; enable, unsigned, 8-bit
+        sta $D720
+        rts
+
+talk_stop:
+        lda #0
+        sta $D720
+        rts
+
+; C = 1 while the sample is still playing; A = how loud it is right now
+; (0..127), for lip sync.
+talk_level:
+        lda $D720
+        bpl l_tl_quiet
+        and #$08                ; stop flag
+        bne l_tl_quiet
+        lda $D72A
+        sta ZTMP
+        lda $D72B
+        sta ZTMP+1
+        lda $D72C
+        sta ZTMP+2
+        lda #0
+        sta ZTMP+3
+        ldz #0
+        lda [ZTMP],z
+        sec
+        sbc #128
+        bpl +
+        eor #$FF
++       sec
+        rts
+l_tl_quiet:
+        lda #0
+        clc
+        rts
+
 sound_init:
         ldx #$18
         lda #0
