@@ -196,24 +196,37 @@ l_pc_hit:
         lda (l_pc_tab),y
         jmp request_activity
 
-; Is the zero-terminated word at ZPTR2 a substring of input_buf? C = found.
+; Is the zero-terminated keyword at ZPTR2 a whole word (or phrase) in
+; input_buf? It must start and end on word boundaries, so "read" does not
+; match "bread" and "eat" does not match "great". C = found.
 find_word:
         ldx #0
 l_fw_start:
         lda input_buf,x
         beq l_fw_no
+        cpx #0
+        beq l_fw_try
+        lda input_buf-1,x       ; mid-word? not a candidate start
+        jsr is_letter
+        bcs l_fw_next
+l_fw_try:
         stx l_fw_pos
         ldy #0
 l_fw_cmp:
         lda (ZPTR2),y
-        beq l_fw_yes
+        beq l_fw_end
         cmp input_buf,x
-        bne l_fw_adv
+        bne l_fw_back
         inx
         iny
         bra l_fw_cmp
-l_fw_adv:
+l_fw_end:
+        lda input_buf,x         ; the word must end here too
+        jsr is_letter
+        bcc l_fw_yes
+l_fw_back:
         ldx l_fw_pos
+l_fw_next:
         inx
         bra l_fw_start
 l_fw_yes:
@@ -221,6 +234,19 @@ l_fw_yes:
         rts
 l_fw_no:
         clc
+        rts
+
+; C = 1 if A is a lower-case letter
+is_letter:
+        cmp #'a'
+        bcc +
+        cmp #'z' + 1
+        bcs ++
+        sec
+        rts
++       clc
+        rts
++       clc
         rts
 l_fw_pos: .byte 0
 
@@ -237,53 +263,70 @@ say_huh:        .null "Huh? I don't understand."
 
 keyword_table:
         #KW "hello", REQ_HELLO
-        #KW "hi ", REQ_HELLO
+        #KW "hi", REQ_HELLO
+        #KW "hey", REQ_HELLO
         #KW "how are", REQ_HOWAREYOU
         #KW "feed", REQ_FEEDDOG
         #KW "pet", REQ_PETDOG
         #KW "piano", REQ_PIANO
         #KW "record", REQ_RECORD
+        #KW "records", REQ_RECORD
         #KW "stereo", REQ_RECORD
         #KW "music", REQ_RECORD
         #KW "dance", REQ_DANCE
+        #KW "dancing", REQ_DANCE
         #KW "tv", REQ_TV
         #KW "television", REQ_TV
         #KW "letter", REQ_LETTER
         #KW "write", REQ_LETTER
+        #KW "typewriter", REQ_LETTER
+        #KW "solitaire", REQ_POOL
         #KW "card", REQ_CARDS
+        #KW "cards", REQ_CARDS
         #KW "poker", REQ_CARDS
+        #KW "blackjack", REQ_CARDS
         #KW "game", REQ_CARDS
+        #KW "games", REQ_CARDS
         #KW "computer", REQ_COMPUTER
         #KW "program", REQ_COMPUTER
         #KW "read", REQ_READ
+        #KW "reading", REQ_READ
         #KW "book", REQ_READ
+        #KW "books", REQ_READ
         #KW "teeth", REQ_BRUSH
         #KW "brush", REQ_BRUSH
+        #KW "toilet", REQ_WC
+        #KW "bathroom", REQ_WC
         #KW "bath", REQ_BATH
         #KW "shower", REQ_BATH
         #KW "wash", REQ_BATH
         #KW "drink", REQ_DRINK
         #KW "water", REQ_DRINK
+        #KW "thirsty", REQ_DRINK
         #KW "eat", REQ_EAT
         #KW "food", REQ_EAT
         #KW "hungry", REQ_EAT
+        #KW "lunch", REQ_EAT
+        #KW "dinner", REQ_EAT
+        #KW "breakfast", REQ_EAT
         #KW "sleep", REQ_SLEEP
         #KW "bed", REQ_SLEEP
+        #KW "nap", REQ_SLEEP
         #KW "exercise", REQ_EXERCISE
         #KW "jump", REQ_EXERCISE
         #KW "fire", REQ_FIRE
+        #KW "fireplace", REQ_FIRE
         #KW "phone", REQ_PHONE
         #KW "clothes", REQ_CHANGE
         #KW "dress", REQ_CHANGE
+        #KW "dressed", REQ_CHANGE
         #KW "change", REQ_CHANGE
-        #KW "solitaire", REQ_POOL
-        #KW "typewriter", REQ_LETTER
         #KW "out", REQ_GOOUT
+        #KW "outside", REQ_GOOUT
         #KW "walk", REQ_GOOUT
-        #KW "toilet", REQ_WC
-        #KW "bathroom", REQ_WC
         #KW "dog", REQ_PETDOG
         #KW "thank", REQ_THANKS
+        #KW "thanks", REQ_THANKS
         #KW "love", REQ_THANKS
         .word 0
 

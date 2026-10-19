@@ -2071,6 +2071,18 @@ knock_reply:
         sta ZPTR2+1
         jsr find_word
         bcs l_kr_yes
+        lda #<kw_okay
+        sta ZPTR2
+        lda #>kw_okay
+        sta ZPTR2+1
+        jsr find_word
+        bcs l_kr_yes
+        lda #<kw_yeah
+        sta ZPTR2
+        lda #>kw_yeah
+        sta ZPTR2+1
+        jsr find_word
+        bcs l_kr_yes
 l_kr_no:
         clc
         rts
@@ -2097,6 +2109,8 @@ l_kr_yes:
 kw_yes:  .null "yes"
 kw_sure: .null "sure"
 kw_ok:   .null "ok"
+kw_okay: .null "okay"
+kw_yeah: .null "yeah"
 l_say_deal:  .null "Great! I'll deal!"
 l_say_there: .null "Oh good, you ARE there!" 
 st_petdog:
