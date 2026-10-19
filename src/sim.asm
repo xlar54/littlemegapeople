@@ -690,10 +690,10 @@ l_fire_b: .byte 0,0,0
 act_floor:
         .byte 0, 0,0,0,0,0, 1,0,0, 1,1,1,1,1, 1,2, 2,2,2,2, 2,2,2, 0,0,0,0, 0, 2, 0, 2, 2
 act_xl:
-        .byte 0, <52,<122,<138,<34,<226, <252,<248,<302, <40,<115,<170,<196,<222, <278,<228
+        .byte 0, <52,<122,<138,<34,<226, <252,<268,<302, <40,<115,<170,<196,<222, <278,<228
         .byte <108,<100,<120,<154, <188,<228,<228, <160,0,0,<300, <226, <266, 0, <62, <62
 act_xh:
-        .byte 0, >52,>122,>138,>34,>226, >252,>248,>302, >40,>115,>170,>196,>222, >278,>228
+        .byte 0, >52,>122,>138,>34,>226, >252,>268,>302, >40,>115,>170,>196,>222, >278,>228
         .byte >108,>100,>120,>154, >188,>228,>228, >160,0,0,>300, >226, >266, 0, >62, >62
 act_face:
         .byte 0, 0,1,1,0,0, 1,1,1, 0,0,0,1,1, 1,1, 0,0,0,0, 1,1,1, 0,0,0,0, 0, 1, 0, 0, 0
@@ -2092,8 +2092,12 @@ drawer_set:
         jsr patch_apply
 +       rts
 l_ds_level: .byte 0
+; Lighting the fire: in front of the fireplace with his back to you, bent
+; down, hands busy (the bend frames alternate); then it catches.
 st_fire:
-        lda #3
+        lda #PM_BEND
+        sta p_mode
+        lda #4
         jmp set_timer_secs
 en_fire:
         ldx #PATCH_FIRE
@@ -3173,6 +3177,14 @@ l_ab_notbendside:
         bne l_ab_notbend
         ; back to you, bent down: same frame as the back view on the stairs
         #SETACT 0, SPR_BEND
+        lda p_act
+        cmp #A_FIRE
+        bne l_ab_bend_still
+        lda p_anim              ; laying the fire: arms move
+        and #8
+        beq l_ab_bend_still
+        #SETACT 0, SPR_BEND2
+l_ab_bend_still:
         sec
         lda p_x
         sbc #10

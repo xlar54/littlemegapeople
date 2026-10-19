@@ -933,6 +933,11 @@ def build_sprites():
                 fr[y] = fr[y][::-1]
         sprites.append(('climbstep%d' % i, fr))
     sprites.append(('bend', bend_back_frame(dict(sprites)['climb'])))
+    # second bent frame with the arms mirrored: busy hands (laying the fire)
+    bend2 = [r[:] for r in dict(sprites)['bend']]
+    for y in range(14, 19):
+        bend2[y] = bend2[y][::-1]
+    sprites.append(('bend2', bend2))
     # Front view coming down: left elbow out with the hand on the hip, then the
     # right one.
     elbow = [ln for ln in FRONT_ART]
