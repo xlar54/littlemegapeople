@@ -28,6 +28,7 @@ PM_CLIMB        = 4
 PM_JUMP         = 5
 PM_DANCE        = 6
 PM_FRONT        = 7         ; facing out of the screen
+PM_DOWNSTEP     = 8         ; coming down a front step block, facing you
 
 ; activities (also request ids)
 A_NONE          = 0
@@ -1466,7 +1467,7 @@ path_down0:
         .byte 136, 137, 1, 1
         .byte 166, 157, 1, 1
         .byte 177, 159, 1, 1
-        .byte 177, FLOOR0_Y, $80, 2
+        .byte 177, FLOOR0_Y, $82, 2
 path_up1:
         .byte 141, 96, 0, 2
         .byte 152, 94, 1, 1
@@ -1476,7 +1477,7 @@ path_down1:
         .byte 183, 72, 1, 1
         .byte 152, 94, 1, 1
         .byte 141, 96, 1, 1
-        .byte 141, FLOOR1_Y, $80, 2
+        .byte 141, FLOOR1_Y, $82, 2
 
 l_cl_ptr:   .word 0
 l_cl_seg:   .byte 0
@@ -1539,8 +1540,15 @@ person_climb:
         iny
         lda (ZPTR2),y
         sta l_pcl_rate
-        ; how it looks: back view on the step blocks, side view on the flights
+        ; how it looks: on the step blocks back view going up and facing you
+        ; coming down (mode bit 1); side view on the flights (bit 0)
         lda l_pcl_mode
+        and #2
+        beq +
+        lda #PM_DOWNSTEP
+        sta p_mode
+        bra l_pcl_pace
++       lda l_pcl_mode
         and #1
         beq l_pcl_back
         lda #PM_WALK
@@ -2785,7 +2793,31 @@ l_ab_front_xy:
         lda #0
         sta act_flip+0
         jmp l_ab_person_done
-+       cmp #PM_CLIMB
++       cmp #PM_DOWNSTEP
+        bne l_ab_notdown
+        ; facing you, stepping down: tiny sway and bob per step
+        #SETACT 0, SPR_FRONT
+        sec
+        lda p_x
+        sbc #9
+        sta act_xl2+0
+        lda p_x+1
+        sbc #0
+        sta act_xh2+0
+        lda p_y
+        lsr
+        lsr
+        and #1
+        sta act_flip+0
+        lda p_y
+        and #2
+        lsr
+        clc
+        adc act_y+0
+        sta act_y+0
+        jmp l_ab_person_done
+l_ab_notdown:
+        cmp #PM_CLIMB
         bne +
         #SETACT 0, SPR_CLIMB
         sec

@@ -74,6 +74,19 @@ AUTOHOUR = 8
         .endweak
         lda #AUTOHOUR
         sta clock_hour
+        .weak
+AUTOFLOOR = 0
+        .endweak
+        .if AUTOFLOOR == 2      ; start in the attic, by the stairs
+        lda #2
+        sta p_floor
+        lda #190
+        sta p_x
+        lda #0
+        sta p_x+1
+        lda #FLOOR2_Y
+        sta p_y
+        .endif
         lda #50
         sta clock_min
         .endif
