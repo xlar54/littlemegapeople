@@ -566,6 +566,11 @@ def build_sprites():
     stand[29] = [N, N, HOUSE0 + 9, SHOES, SHOES, SHOES, SHOES, HOUSE0 + 9, SHOES, SHOES, SHOES, SHOES, HOUSE0 + 9, N]
     for y in range(19, 28):
         stand[y] = [N, N, N, N, HOUSE0 + 9, PANTS, PANTS, HOUSE0 + 9, HOUSE0 + 9, PANTS, PANTS, HOUSE0 + 9, N, N]
+    # Side-view torso: the source rows 13..15 bulge front and back (his arms as
+    # seen from the front). In profile the trunk is a straight block; the arm
+    # is drawn separately by draw_arm.
+    for y in range(10, 19):
+        stand[y] = [N, N, N, N, HOUSE0 + 9] + [SHIRT] * 6 + [HOUSE0 + 9, N, N]
     walks = walk_frames(stand)
     draw_arm(stand, 7)
     sprites = [('stand', stand)]
