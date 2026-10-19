@@ -706,7 +706,7 @@ act_start_tbl:
 act_tick_tbl:
         .word tk_none, tk_none, tk_meal, tk_none, tk_none, tk_phone, tk_none, tk_none
         .word tk_goout, tk_sleep, tk_none, tk_brush, tk_none, tk_bath, tk_computer
-        .word tk_pool, tk_none, tk_record, tk_none, tk_piano, tk_none, tk_pool
+        .word tk_typing, tk_none, tk_record, tk_none, tk_piano, tk_none, tk_pool
         .word tk_none, tk_knock, tk_none, tk_none, tk_arrive, tk_readchair, tk_files, tk_none, tk_none, tk_none
 act_end_tbl:
         .word en_none, en_fridge, en_meal, en_drink, en_feeddog, en_phone, en_read, en_fire
@@ -2672,8 +2672,13 @@ en_computer:
 DESK_POSE_X     = 215         ; behind the typewriter, facing you
 DESK_POSE_Y     = 38
 
+HANDS_X         = 216           ; his hands on the typewriter keys
+HANDS_Y         = 47
+
 st_letter:
         #POSE SPR_SITDESK, DESK_POSE_X, DESK_POSE_Y
+        lda #7                  ; hands on the keys
+        sta fx_kind
         lda #6
         jmp set_timer_secs
 en_letter:
@@ -2804,6 +2809,16 @@ en_change:
         lda #PM_STAND
         sta p_mode
         rts
+; typing: a key every 6 ticks, hands taking turns
+tk_typing:
+        lda p_anim
+        and #7
+        cmp #0
+        bne +
+        lda #SFX_TYPE
+        jsr sfx_play
++       rts
+
 ; solitaire at the desk
 st_pool:
         #POSE SPR_SITDESK, DESK_POSE_X, DESK_POSE_Y
@@ -3452,6 +3467,21 @@ l_ab_dog_done:
         sta act_y+2
         bra l_ab_fx_done
 l_ab_notfist:
+        cmp #7
+        bne l_ab_nothands
+        #SETACT 2, SPR_HANDS0
+        lda p_anim
+        and #8
+        beq +
+        #SETACT 2, SPR_HANDS1
++       lda #<HANDS_X
+        sta act_xl2+2
+        lda #>HANDS_X
+        sta act_xh2+2
+        lda #HANDS_Y
+        sta act_y+2
+        jmp l_ab_fx_done
+l_ab_nothands:
         cmp #6
         bne l_ab_notchair
         #SETACT 2, SPR_CHAIRFRONT

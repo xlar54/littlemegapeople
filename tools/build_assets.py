@@ -962,6 +962,18 @@ def build_sprites():
         reading[y] = art([ln])[0]
     sprites.append(('reading', reading))
     sprites.append(('bookopen', art(BOOK_OPEN)))
+    # His hands on the typewriter keys (left keys x 216-219, right x 226-229),
+    # one up while the other is down.
+    for i in range(2):
+        rows = [[None] * 14 for _ in range(5)]
+        for hx, up in ((0, i == 0), (10, i == 1)):
+            y0 = 0 if up else 1
+            shape = ['.SS.', 'SSSS', '.kk.']           # knuckles, hand, shadow
+            for dy, ln in enumerate(shape):
+                for dx, c in enumerate(ln):
+                    if c != '.':
+                        rows[y0 + dy][hx + dx] = SKIN if c == 'S' else HOUSE0 + 9
+        sprites.append(('hands%d' % i, rows))
     for i, frame in enumerate(phone_frames(reading)):
         sprites.append(('phone%d' % i, frame))
     sprites.append(('bookturn', art(BOOK_TURN)))
