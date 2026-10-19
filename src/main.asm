@@ -69,6 +69,13 @@ main_entry:
         .if AUTOTEST != 0
         lda #AUTOTEST           ; test build: skip the arrival, go straight to it
         sta p_pending
+        .weak
+AUTOHOUR = 8
+        .endweak
+        lda #AUTOHOUR
+        sta clock_hour
+        lda #50
+        sta clock_min
         .endif
         jsr lights_update
         jsr pal_apply_all

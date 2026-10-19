@@ -154,10 +154,14 @@ l_sfx_t:     .byte 0
 sfx_play:
         sta sfx_id
         lda #0
+        sta shower_gate         ; the effect takes voice 3; the shower resumes after
+        lda sfx_id
+        lda #0
         sta l_sfx_t
         rts
 
 sound_tick:
+        jsr shower_tick
         lda tune_id
         beq l_st_sfx
         lda l_tn_left
@@ -222,6 +226,40 @@ l_sx_end:
         rts
 
 l_sx_last: .byte 0
+
+; Shower: one long steady hiss of noise on voice 3 while shower_on is set
+; (gated once, never re-triggered, so it doesn't stutter).
+shower_on:      .byte 0
+shower_gate:    .byte 0
+
+shower_tick:
+        lda shower_on
+        bne +
+        lda shower_gate
+        beq l_sh_out
+        lda #0
+        sta shower_gate
+        lda #$80                ; let it fade out
+        sta SID+18
+        rts
++       lda sfx_id
+        bne l_sh_out
+        lda shower_gate
+        bne l_sh_out
+        lda #1
+        sta shower_gate
+        lda #0
+        sta SID+14
+        lda #$C0
+        sta SID+15              ; high noise = water spray
+        lda #$60                ; soft attack
+        sta SID+19
+        lda #$A9                ; sustain 10, release 9
+        sta SID+20
+        lda #$81
+        sta SID+18
+l_sh_out:
+        rts
 
 sfx_table:
         .word sfxd_phone, sfxd_alarm, sfxd_knock, sfxd_flush, sfxd_splash, sfxd_bark

@@ -106,7 +106,29 @@ PATCHES = {
     'fridge_open': (3, 19, 3, 5, 'stairs'),
     'closet_open': (22, 3, 3, 5, 'piano'),
     'fire_lit': (32, 21, 3, 2, 'cards'),
+    # shower curtain pulled across the tub from the right, in three steps
+    'curtain_1': (25, 11, 5, 4, ('CURTAIN', 224)),
+    'curtain_2': (25, 11, 5, 4, ('CURTAIN', 214)),
+    'curtain_3': (25, 11, 5, 4, ('CURTAIN', 208)),
 }
+
+
+def draw_curtain(img, left):
+    """The shower curtain (normally bunched at the right end of the tub)
+    pulled across to x = left: red and magenta folds from the rod at y = 92
+    down over the tub to its base, with the rod extended to match."""
+    # Accordion pleats: the same number of folds whatever the width, so they
+    # bunch up tight while the curtain is only partly drawn.
+    folds = [14, 14, 13, 13, 14, 2]          # R R m m R r (Amiga indices)
+    width = 238 - left
+    pleats = 6
+    for x in range(left, 238):
+        img[92][x] = 9 if x % 2 else 3       # rod
+        u = (x - left) * pleats / width      # position in pleats
+        c = folds[min(5, int((u - int(u)) * 6))]
+        for y in range(93, 119):
+            img[y][x] = c
+        img[119][x] = 13 if x % 2 else 2     # hem
 DOOR_CLOSED_FROM = 'house_a'
 
 
@@ -151,7 +173,11 @@ def build_house():
             bg[y][x] = door_src[y][x]
     sky = sky_mask(bg)
     for name, (cx, cy, cw, ch, src) in PATCHES.items():
-        f = open_rows if src is None else A.frame(src)
+        if isinstance(src, tuple):
+            f = [r[:] for r in bg]
+            draw_curtain(f, src[1])
+        else:
+            f = open_rows if src is None else A.frame(src)
         pix = [[house_index(x, y, f[y][x], sky, name == 'fire_lit') for x in range(cx * 8, (cx + cw) * 8)]
                for y in range(cy * 8, (cy + ch) * 8)]
         patches[name] = (cx, cy, cw, ch, pix)
@@ -551,6 +577,8 @@ def build_sprites():
                                'dog2': ('kitchen', 245, 179, 27, 19),
                                'dog3': ('brushing', 47, 46, 26, 17)}.items():
         _, rows, ax, ay = pose(n, f, x, y, w, h, lambda x, y, v: amiga(9 if v in (0, 6) else v))
+        if n == 'dog2':
+            rows = [r[::-1] for r in rows]   # this screenshot's dog faces right; all face left
         sprites.append((n, rows))
     for n, rows in ASCII_SPRITES.items():
         sprites.append((n, remap(A.from_ascii(rows), lambda x, y, v: amiga(v))))
@@ -559,6 +587,14 @@ def build_sprites():
     # Seated behind the attic desk facing you: just head and shoulders, so the
     # desk and typewriter stay in front of him.
     sprites.append(('sitdesk', art(FRONT_ART[:12])))
+    # Censor mosaic for when he walks to the closet after a shower: 3x3 blocks
+    # of skin shades, two variants so it shimmers.
+    shades = [HOUSE0 + 16, HOUSE0 + 4, SKIN, HOUSE0 + 16]
+    for v in range(2):
+        rows = []
+        for y in range(9):
+            rows.append([shades[((x // 3) * 3 + (y // 3) * 5 + v) % 4] for x in range(9)])
+        sprites.append(('mosaic%d' % v, rows))
     for i, sz in enumerate((5, 8, 11, 15)):
         sprites.append(('fist%d' % i, fist(sz)))
     return sprites, anchors

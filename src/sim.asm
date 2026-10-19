@@ -109,7 +109,7 @@ health:         .byte 100
 lonely:         .byte 0     ; game minutes since you last paid attention (cap 255)
 dog_hunger:     .byte 20
 bowl_full:      .byte 0
-outfit:         .byte 0     ; 0 day clothes, 1 pyjamas
+outfit:         .byte 0     ; 0 day clothes, 1 pyjamas, 2 nothing (after a shower)
 brush_todo:     .byte 0
 dress_todo:     .byte 0
 fire_time:      .byte 0     ; game minutes of fire left
@@ -486,9 +486,10 @@ sky_rgb:
         .byte 0,0,221, 0,0,221, 0,0,221, 0,0,221, 0,0,221, 34,68,221         ; 12-17
         .byte 204,102,68, 136,51,102, 51,34,119, 34,17,102, 17,17,85, 17,17,85 ; 18-23
 
-outfit_rgb:     ; shirt, shirt shade, pants, far trouser leg (day, pyjamas)
+outfit_rgb:     ; shirt, shirt shade, pants, far trouser leg (day, pyjamas, nothing)
         .byte 34,102,255, 17,51,170, 255,255,255, 170,170,170
         .byte 221,34,153, 153,17,102, 255,204,221, 204,153,170
+        .byte 255,204,153, 230,170,120, 255,204,153, 221,160,110
 
 palette_animate:
         ; sky
@@ -504,11 +505,11 @@ palette_animate:
         sta ZPTR
         lda #>outfit_rgb
         sta ZPTR+1
-        ldy #0
         lda outfit
-        beq +
-        ldy #4
-+       sty l_pa_o
+        asl
+        asl
+        tay                     ; 4 entries per outfit
+        sty l_pa_o
         ldx #C_SHIRT
         jsr pal_set_from
         ldy l_pa_o
@@ -742,6 +743,12 @@ ai_choose:
         lda food
         beq +
         lda #A_FRIDGE
+        rts
++       ; fresh out of the shower: get dressed before anything else
+        lda outfit
+        cmp #2
+        bne +
+        lda #A_CHANGE
         rts
 +       ; bedtime
         lda clock_hour
@@ -2178,19 +2185,82 @@ st_wc:
 en_wc:
         lda #SFX_FLUSH
         jmp sfx_play
+; Shower: he steps behind the curtain, it slides shut (right to left, like an
+; accordion) over the tub, the water runs, then it slides open and he steps
+; out -- undressed, so he heads for the closet with a mosaic over him.
+BATH_SECS       = 9
+bath_t:         .byte 0
+
 st_bath:
         lda #PM_HIDDEN
         sta p_mode
-        lda #9
+        lda #0
+        sta bath_t
+        lda #1
+        sta shower_on
+        lda #BATH_SECS
         jmp set_timer_secs
 tk_bath:
-        lda p_anim
-        and #63
+        lda bath_t
+        cmp #255
+        beq +
+        inc bath_t
++       lda bath_t
+        cmp #2
         bne +
-        lda #SFX_SPLASH
-        jsr sfx_play
+        lda #1
+        jmp curtain_set
++       cmp #8
+        bne +
+        lda #2
+        jmp curtain_set
++       cmp #14
+        bne +
+        lda #3
+        jmp curtain_set
++       ; open again in the last moments
+        lda act_timer+1
+        bne l_tkb_out
+        lda act_timer
+        cmp #20
+        bne +
+        lda #0
+        sta shower_on
+        lda #2
+        jmp curtain_set
++       cmp #12
+        bne l_tkb_out
+        lda #1
+        jmp curtain_set
+l_tkb_out:
+        rts
+
+; A = 0 open (bunched at the right), 1..3 = drawn a third / two thirds / shut
+curtain_set:
+        sta l_cs_level
+        ; the three steps share cells: restore the open curtain, then draw one
+        lda #0
+        sta patch_state + PATCH_CURTAIN1
+        sta patch_state + PATCH_CURTAIN2
+        lda #1
+        sta patch_state + PATCH_CURTAIN3
+        ldx #PATCH_CURTAIN3
+        jsr patch_remove
+        lda l_cs_level
+        beq +
+        clc
+        adc #PATCH_CURTAIN1 - 1
+        tax
+        jsr patch_apply
 +       rts
+l_cs_level: .byte 0
+
 en_bath:
+        lda #0
+        sta shower_on
+        jsr curtain_set
+        lda #2                  ; out of the shower with nothing on
+        sta outfit
         lda #3
         jsr mood_up
         lda health
@@ -2598,7 +2668,7 @@ l_fu_out:
 ; Actor renderer: erase last frame's sprites, draw this frame's.
 ; Actor 0 = person, 1 = dog, 2 = effect, 3 = dog bowl food, 4 = sleeping head.
 ;---------------------------------------------------------------------------------------
-ACTORS          = 5
+ACTORS          = 6         ; 5 = censor mosaic
 act_vis:        .fill ACTORS, 0
 act_sprl:       .fill ACTORS, 0
 act_sprh:       .fill ACTORS, 0
@@ -2760,6 +2830,38 @@ l_ab_front_xy:
         and #1
         sta act_flip+0
 l_ab_person_done:
+        ; censor mosaic over his hips while he has nothing on
+        lda #0
+        sta act_vis+5
+        lda outfit
+        cmp #2
+        bne l_ab_nomosaic
+        lda act_vis+0
+        beq l_ab_nomosaic
+        lda p_mode
+        cmp #PM_POSE
+        beq l_ab_nomosaic
+        lda #1
+        sta act_vis+5
+        #SETACT 5, SPR_MOSAIC0
+        lda frame_count
+        and #8
+        beq +
+        #SETACT 5, SPR_MOSAIC1
++       sec
+        lda p_x
+        sbc #4
+        sta act_xl2+5
+        lda p_x+1
+        sbc #0
+        sta act_xh2+5
+        lda p_y
+        sec
+        sbc #13
+        sta act_y+5
+        lda #0
+        sta act_flip+5
+l_ab_nomosaic:
         ; sleeping head on the pillow
         jsr person_sleeping
         bcc +
@@ -2902,6 +3004,8 @@ l_ar_erase:
         ldx #4
         jsr l_ar_draw
         ldx #0
+        jsr l_ar_draw
+        ldx #5
         jsr l_ar_draw
         ldx #2
         jmp l_ar_draw
