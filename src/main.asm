@@ -116,6 +116,7 @@ game_loop:
 -       jsr sim_tick
         dec l_gl_n
         bne -
+        jsr lip_sync
         jsr actors_build
         inc frame_count
         bra game_loop

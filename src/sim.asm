@@ -61,7 +61,8 @@ A_PETDOG        = 25
 A_ARRIVE        = 26
 A_READCHAIR     = 27        ; reading in the armchair (after the bookshelf)
 A_FILES         = 28        ; looking through the filing cabinet
-A_COUNT         = 29
+A_CHAT          = 29        ; comes to the front and talks to you
+A_COUNT         = 30
 
 REQ_EAT         = A_FRIDGE
 REQ_DRINK       = A_DRINK
@@ -684,37 +685,37 @@ l_fire_b: .byte 0,0,0
 ;---------------------------------------------------------------------------------------
 ;               floor  x     face(1=right)
 act_floor:
-        .byte 0, 0,0,0,0,0, 1,0,0, 1,1,1,1,1, 1,2, 2,2,2,2, 2,2,2, 0,0,0,0, 0, 2
+        .byte 0, 0,0,0,0,0, 1,0,0, 1,1,1,1,1, 1,2, 2,2,2,2, 2,2,2, 0,0,0,0, 0, 2, 0
 act_xl:
         .byte 0, <52,<122,<138,<34,<226, <252,<248,<302, <40,<115,<170,<196,<222, <278,<228
-        .byte <80,<100,<120,<154, <188,<228,<228, <160,0,0,<300, <226, <266
+        .byte <80,<100,<120,<154, <188,<228,<228, <160,0,0,<300, <226, <266, 0
 act_xh:
         .byte 0, >52,>122,>138,>34,>226, >252,>248,>302, >40,>115,>170,>196,>222, >278,>228
-        .byte >80,>100,>120,>154, >188,>228,>228, >160,0,0,>300, >226, >266
+        .byte >80,>100,>120,>154, >188,>228,>228, >160,0,0,>300, >226, >266, 0
 act_face:
-        .byte 0, 0,1,1,0,0, 1,1,1, 0,0,0,1,1, 1,1, 0,0,0,0, 1,1,1, 0,0,0,0, 0, 1
+        .byte 0, 0,1,1,0,0, 1,1,1, 0,0,0,1,1, 1,1, 0,0,0,0, 1,1,1, 0,0,0,0, 0, 1, 0
 
 act_start_tbl:
         .word st_none, st_fridge, st_meal, st_drink, st_feeddog, st_phone, st_read, st_fire
         .word st_goout, st_sleep, st_exercise, st_brush, st_wc, st_bath, st_computer
         .word st_letter, st_tv, st_record, st_dance, st_piano, st_change, st_pool
-        .word st_cards, st_knock, st_idle, st_petdog, st_arrive, st_readchair, st_files
+        .word st_cards, st_knock, st_idle, st_petdog, st_arrive, st_readchair, st_files, st_chat
 act_tick_tbl:
         .word tk_none, tk_none, tk_none, tk_none, tk_none, tk_phone, tk_none, tk_none
         .word tk_goout, tk_sleep, tk_none, tk_none, tk_none, tk_bath, tk_computer
         .word tk_pool, tk_none, tk_record, tk_none, tk_piano, tk_none, tk_pool
-        .word tk_none, tk_knock, tk_none, tk_none, tk_arrive, tk_readchair, tk_files
+        .word tk_none, tk_knock, tk_none, tk_none, tk_arrive, tk_readchair, tk_files, tk_none
 act_end_tbl:
         .word en_none, en_fridge, en_meal, en_drink, en_feeddog, en_phone, en_read, en_fire
         .word en_goout, en_sleep, en_exercise, en_brush, en_wc, en_bath, en_computer
         .word en_letter, en_tv, en_record, en_dance, en_piano, en_change, en_pool
-        .word en_cards, en_knock, en_none, en_petdog, en_arrive, en_readchair, en_files
+        .word en_cards, en_knock, en_none, en_petdog, en_arrive, en_readchair, en_files, en_chat
 
 act_names:
         .word nm_none, nm_fridge, nm_meal, nm_drink, nm_feeddog, nm_phone, nm_read, nm_fire
         .word nm_goout, nm_sleep, nm_exercise, nm_brush, nm_wc, nm_bath, nm_computer
         .word nm_letter, nm_tv, nm_record, nm_dance, nm_piano, nm_change, nm_pool
-        .word nm_cards, nm_knock, nm_none, nm_petdog, nm_arrive, nm_readchair, nm_files
+        .word nm_cards, nm_knock, nm_none, nm_petdog, nm_arrive, nm_readchair, nm_files, nm_chat
 nm_none:     .null " is pottering about."
 nm_fridge:   .null " is getting some food."
 nm_meal:     .null " is eating."
@@ -724,6 +725,7 @@ nm_phone:    .null " is on the phone."
 nm_read:     .null " is picking out a book."
 nm_readchair: .null " is reading a book."
 nm_files:    .null " is rummaging in the filing cabinet."
+nm_chat:     .null " is talking to you."
 nm_fire:     .null " is lighting a fire."
 nm_goout:    .null " has gone out."
 nm_sleep:    .null " is asleep. Zzz..."
@@ -896,7 +898,7 @@ l_ai_fun:
 l_fun_list:
         .byte A_TV, A_TV, A_RECORD, A_PIANO, A_PIANO, A_READ, A_READ, A_COMPUTER
         .byte A_EXERCISE, A_POOL, A_BATH, A_WC, A_IDLE, A_IDLE, A_IDLE, A_PETDOG
-        .byte A_GOOUT, A_DANCE, A_IDLE, A_READ, A_CARDS, A_FILES
+        .byte A_GOOUT, A_DANCE, A_IDLE, A_READ, A_CARDS, A_FILES, A_CHAT
 l_fun_count = * - l_fun_list
 
 complain_water:
@@ -1374,8 +1376,11 @@ person_choose:
         lda #0
         sta goal_x+1
         bra l_pc_go
-+       cpx #A_KNOCK
++       cpx #A_CHAT
+        beq l_pc_front
+        cpx #A_KNOCK
         bne +
+l_pc_front:
         ; knock from a clear spot on whatever floor he is on
         lda p_floor
         sta goal_floor
@@ -2198,6 +2203,11 @@ l_tk_out:
 l_tk_talk:
         inc knock_t
         jsr fx_clear
+        jsr rnd
+        and #1
+        beq +
+        jsr speak                ; ...and says it out loud
++
         lda #30
         sta knock_wait
         lda #0
@@ -2246,6 +2256,90 @@ l_tk_talk:
 en_knock:
         lda #100
         sta lonely
+        jmp talk_stop
+
+; Now and then he comes to the front, faces you and chats (in his own
+; language, with the words on the top line).
+st_chat:
+        lda #PM_FRONT
+        sta p_mode
+        jsr speak
+        lda #8
+        jsr rnd_range
+        asl
+        tax
+        lda chat_lines,x
+        sta l_ch_p
+        lda chat_lines+1,x
+        sta l_ch_p+1
+        jsr sb_clear
+        jsr sb_lcp
+        lda #':'
+        jsr sb_char
+        lda #' '
+        jsr sb_char
+        ; expand @ in the line to your name
+        ldy #0
+-       lda (l_ch_p),y
+        beq ++
+        cmp #'@'
+        bne +
+        phy
+        jsr sb_player
+        ply
+        iny
+        bra -
++       phy
+        jsr sb_char
+        ply
+        iny
+        bra -
++       jsr ui_say_sb
+        lda #0
+        sta lonely
+        lda #6
+        jmp set_timer_secs
+en_chat:
+        jsr talk_stop
+        lda #2
+        jmp mood_up
+l_ch_p = ZPTR2
+
+chat_lines:
+        .word chl0, chl1, chl2, chl3, chl4, chl5, chl6, chl7
+chl0:   .null "Hi @! Just saying hello."
+chl1:   .null "Nice day, isn't it, @?"
+chl2:   .null "The dog snores, you know."
+chl3:   .null "I wonder what's for dinner."
+chl4:   .null "Thanks for the company, @!"
+chl5:   .null "I just love this house."
+chl6:   .null "Do you ever get bored out there?"
+chl7:   .null "Hey @, you look nice today!"
+
+; Talk out loud: start his voice; actors_build moves his mouth with it.
+speaking:       .byte 0
+mouth_open:     .byte 0
+speak:
+        lda #1
+        sta speaking
+        jmp talk_play
+
+; once per frame: mouth follows the loudness of his voice
+lip_sync:
+        lda #0
+        sta mouth_open
+        lda speaking
+        beq l_ls_out
+        jsr talk_level
+        bcs +
+        lda #0
+        sta speaking
+        rts
++       cmp #24
+        bcc l_ls_out
+        lda #1
+        sta mouth_open
+l_ls_out:
         rts
 l_tk_pick: .byte 0
 l_say_knock1: .null "Hey! Anybody out there? Hello, "
@@ -3002,7 +3096,10 @@ l_ab_notbend:
         cmp #PM_FRONT
         bne +
         #SETACT 0, SPR_FRONT
-        lda fx_kind
+        lda mouth_open
+        beq +
+        #SETACT 0, SPR_FRONTTALK
++       lda fx_kind
         cmp #4
         bne l_ab_front_xy
         #SETACT 0, SPR_FRONTKNOCK

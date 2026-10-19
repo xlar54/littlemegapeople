@@ -860,6 +860,9 @@ def build_sprites():
         sprites.append(('phone%d' % i, frame))
     sprites.append(('bookturn', art(BOOK_TURN)))
     sprites.append(('frontknock', art(FRONT_KNOCK_ART)))
+    talk_art = [ln for ln in FRONT_ART]
+    talk_art[7] = '..kSSSSkRRkSSSSk..'      # mouth open
+    sprites.append(('fronttalk', art(talk_art)))
     # Seated behind the attic desk facing you: just head and shoulders, so the
     # desk and typewriter stay in front of him.
     sprites.append(('sitdesk', art(FRONT_ART[:12])))
