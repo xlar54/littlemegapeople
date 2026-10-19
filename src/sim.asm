@@ -7,7 +7,7 @@
 ;=======================================================================================
 
 FLOOR0_Y        = 190         ; mid-floor, behind the kitchen table's front legs
-FLOOR1_Y        = 123
+FLOOR1_Y        = 128         ; mid-floor
 FLOOR2_Y        = 63
 DOG_Y           = 194         ; the dog trots nearer the viewer than him
 
@@ -25,7 +25,7 @@ PM_WALK         = 1
 PM_STAND        = 2
 PM_POSE         = 3
 PM_CLIMB        = 4
-PM_JUMP         = 5
+PM_JUMP         = 5         ; jumping jacks, facing you
 PM_DANCE        = 6
 PM_FRONT        = 7         ; facing out of the screen
 PM_DOWNSTEP     = 8         ; coming down a front step block, facing you
@@ -695,10 +695,10 @@ l_fire_b: .byte 0,0,0
 act_floor:
         .byte 0, 0,0,0,0,0, 1,0,0, 1,1,1,1,1, 1,2, 2,2,2,2, 2,2,2, 0,0,0,0, 0, 2, 0, 2, 2, 1, 0, 0
 act_xl:
-        .byte 0, <52,<122,<138,<34,<226, <252,<268,<302, <40,<115,<170,<196,<222, <278,<228
+        .byte 0, <52,<122,<138,<34,<226, <252,<268,<302, <40,<113,<170,<196,<222, <278,<228
         .byte <108,<100,<120,<154, <188,<228,<228, <160,0,0,<300, <226, <266, 0, <62, <62, <177, <294, 0
 act_xh:
-        .byte 0, >52,>122,>138,>34,>226, >252,>268,>302, >40,>115,>170,>196,>222, >278,>228
+        .byte 0, >52,>122,>138,>34,>226, >252,>268,>302, >40,>113,>170,>196,>222, >278,>228
         .byte >108,>100,>120,>154, >188,>228,>228, >160,0,0,>300, >226, >266, 0, >62, >62, >177, >294, 0
 act_face:
         .byte 0, 0,1,1,0,0, 1,1,1, 0,0,0,1,1, 1,1, 0,0,0,0, 1,1,1, 0,0,0,0, 0, 1, 0, 0, 0, 0, 1, 0
@@ -2512,13 +2512,9 @@ en_sleep:
 st_exercise:
         lda #PM_JUMP
         sta p_mode
-        lda #TUNE_DANCE
-        jsr tune_play
         lda #10
         jmp set_timer_secs
 en_exercise:
-        lda #TUNE_NONE
-        jsr tune_play
         lda health
         cmp #95
         bcs +
@@ -3627,7 +3623,39 @@ l_ab_back_xy:
         lda #0
         sta act_flip+0
         jmp l_ab_person_done
-+       ; jumping / dancing: alternate frames and bounce
++       cmp #PM_JUMP
+        bne l_ab_dance
+        ; jumping jacks facing you: arms down, out, up (with a hop), out...
+        lda p_anim
+        lsr
+        lsr
+        lsr
+        and #3
+        beq l_ab_jack0
+        cmp #2
+        beq l_ab_jack2
+        #SETACT 0, SPR_JACK1
+        bra l_ab_jack_xy
+l_ab_jack2:
+        #SETACT 0, SPR_JACK2
+        dec act_y+0
+        dec act_y+0
+        bra l_ab_jack_xy
+l_ab_jack0:
+        #SETACT 0, SPR_JACK0
+l_ab_jack_xy:
+        sec
+        lda p_x
+        sbc #13
+        sta act_xl2+0
+        lda p_x+1
+        sbc #0
+        sta act_xh2+0
+        lda #0
+        sta act_flip+0
+        jmp l_ab_person_done
+l_ab_dance:
+        ; dancing: alternate frames and bounce
         lda p_anim
         lsr
         lsr

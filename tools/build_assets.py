@@ -806,6 +806,54 @@ FRONT_ART = [
 ]
 # Same pose with his left arm (screen right) raised towards the glass: the sleeve
 # points out from the shoulder; the fist sprite is drawn beyond it.
+def jack_art(arms, spread):
+    """Jumping jacks, facing you (26 wide, his front pose in the middle):
+    arms 'down' / 'side' (straight out) / 'up' (raised in a V), legs `spread`
+    pixels apart at the feet."""
+    W = 26
+    g = [list('....' + ln + '....') for ln in FRONT_ART]
+    if arms == 'down' and spread == 0:
+        return [''.join(r) for r in g]
+    # torso without the arms at his sides
+    g[12] = list('.......kTTTTwwTTTTk.......')
+    for y in range(13, 18):
+        g[y] = list('........kTtTTTTtTk........')
+    g[18] = list('.........kTTTTTTk.........')
+    # legs: two 3-wide legs fanning out from the hips
+    for y in range(19, 30):
+        g[y] = list('.' * W)
+    for y in range(19, 28):
+        d = (y - 19) * spread // 8                   # how far out at this row
+        for x0 in (10 - d, 13 + d):
+            g[y][x0] = 'k'
+            g[y][x0 + 1] = 'P'
+            g[y][x0 + 2] = 'P'
+            g[y][x0 + 3] = 'k'
+    for x0, x1 in ((9 - spread, 13 - spread), (13 + spread, 17 + spread)):
+        for x in range(x0, x1 + 1):                  # shoes
+            g[28][x] = 'Z' if x0 < x < x1 else 'k'
+            g[29][x] = 'k'
+    # arms (2 wide, outlined), hands of skin at the ends
+    # (y, x) on his right (screen left); mirrored for the other arm
+    if arms == 'side':
+        sleeve = [(y, x) for y in (12, 13) for x in range(2, 7)]
+        hand = [(12, 1), (13, 1), (12, 0), (13, 0)]
+    else:                                            # up, in a V
+        sleeve = [(12 - i, x) for i in range(10) for x in (7 - i * 5 // 9, 6 - i * 5 // 9)]
+        hand = [(1, 1), (1, 2), (2, 1), (2, 2)]
+    sleeve += [(y, W - 1 - x) for y, x in sleeve]
+    hand += [(y, W - 1 - x) for y, x in hand]
+    for y, x in sleeve + hand:                       # outline first
+        for yy, xx in ((y - 1, x), (y + 1, x), (y, x - 1), (y, x + 1)):
+            if 0 <= yy < 30 and 0 <= xx < W and g[yy][xx] == '.':
+                g[yy][xx] = 'k'
+    for y, x in sleeve:
+        g[y][x] = 'T'
+    for y, x in hand:
+        g[y][x] = 'S'
+    return [''.join(r) for r in g]
+
+
 FRONT_KNOCK_ART = [ln for ln in FRONT_ART]
 FRONT_KNOCK_ART[11] = '....kkTwwwwTkkkk..'
 FRONT_KNOCK_ART[12] = '...kTTTTwwTTTTTTk.'
@@ -1000,6 +1048,10 @@ def build_sprites():
     for n, rows in PACKAGES.items():
         sprites.append((n, remap(A.from_ascii(rows), lambda x, y, v: amiga(v))))
     sprites.append(('front', art(FRONT_ART)))
+    # jumping jacks in front of the bedroom dresser
+    sprites.append(('jack0', art(jack_art('down', 0))))
+    sprites.append(('jack1', art(jack_art('side', 2))))
+    sprites.append(('jack2', art(jack_art('up', 5))))
     # Eating: the Amiga frame has his mouth wide open; add a chewing (shut)
     # frame and one with his hand up at his mouth.
     eat = dict(sprites)['eat']
