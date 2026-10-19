@@ -704,7 +704,7 @@ act_start_tbl:
         .word st_letter, st_tv, st_record, st_dance, st_piano, st_change, st_pool
         .word st_cards, st_knock, st_idle, st_petdog, st_arrive, st_readchair, st_files, st_chat, st_tvswitch, st_tvswitch
 act_tick_tbl:
-        .word tk_none, tk_none, tk_none, tk_none, tk_none, tk_phone, tk_none, tk_none
+        .word tk_none, tk_none, tk_meal, tk_none, tk_none, tk_phone, tk_none, tk_none
         .word tk_goout, tk_sleep, tk_none, tk_brush, tk_none, tk_bath, tk_computer
         .word tk_pool, tk_none, tk_record, tk_none, tk_piano, tk_none, tk_pool
         .word tk_none, tk_knock, tk_none, tk_none, tk_arrive, tk_readchair, tk_files, tk_none, tk_none, tk_none
@@ -1842,6 +1842,28 @@ st_meal:
         #POSE SPR_EAT, POSE_EAT_X, POSE_EAT_Y
         lda #7
         jmp set_timer_secs
+; chew (mouth open/shut), and every couple of seconds a bite: hand to mouth
+tk_meal:
+        lda p_anim
+        and #127
+        cmp #24
+        bcs l_tkm_chew
+        lda #<SPR_EATHAND
+        ldx #>SPR_EATHAND
+        bra l_tkm_set
+l_tkm_chew:
+        lda p_anim
+        and #8
+        bne +
+        lda #<SPR_EATSHUT
+        ldx #>SPR_EATSHUT
+        bra l_tkm_set
++       lda #<SPR_EAT
+        ldx #>SPR_EAT
+l_tkm_set:
+        sta pose_spr
+        stx pose_spr+1
+        rts
 en_meal:
         lda #0
         sta hunger

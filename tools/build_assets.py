@@ -895,6 +895,28 @@ def build_sprites():
     for n, rows in ASCII_SPRITES.items():
         sprites.append((n, remap(A.from_ascii(rows), lambda x, y, v: amiga(v))))
     sprites.append(('front', art(FRONT_ART)))
+    # Eating: the Amiga frame has his mouth wide open; add a chewing (shut)
+    # frame and one with his hand up at his mouth.
+    eat = dict(sprites)['eat']
+    shut = [r[:] for r in eat]
+    shut[7] = art(['.kSSSSSSSSSSSSSSk.'])[0]
+    shut[8] = art(['.kSSSSkkkkkkSSSSk.'])[0]
+    shut[9] = art(['.kSSSSSSSSSSSSSSk.'])[0]
+    sprites.append(('eatshut', shut))
+    hand = [r[:] for r in eat]
+    k = HOUSE0 + 9
+    for y, x in ((17, 13), (18, 12), (18, 13), (17, 14), (18, 14), (18, 11)):
+        hand[y][x] = None                    # hand leaves the table...
+    hand[17][13] = SHIRT
+    for y in (11, 12, 13):                   # ...sleeve up the chest...
+        hand[y][12] = SHIRT
+        hand[y][13] = SHIRT
+        hand[y][14] = k
+    for y in (9, 10):                        # ...hand at his mouth
+        for x in (11, 12, 13):
+            hand[y][x] = SKIN
+        hand[y][14] = k
+    sprites.append(('eathand', hand))
     # Brushing: second frame with the toothbrush (row 10) and hand moved up a
     # pixel; alternating the two scrubs the brush up and down.
     brush = dict(sprites)['brush']
