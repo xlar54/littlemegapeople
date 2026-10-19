@@ -2297,7 +2297,7 @@ st_chat:
 +       jsr ui_say_sb
         lda #0
         sta lonely
-        lda #6
+        lda #3                  ; about half his voice clip; en_chat cuts it off
         jmp set_timer_secs
 en_chat:
         jsr talk_stop
