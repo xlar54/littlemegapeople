@@ -2707,6 +2707,8 @@ SETACT .macro n, spr
         sta act_sprb+\n
 .endmacro
 
+dogw_l:    .byte <SPR_DOGW0, <SPR_DOGW1, <SPR_DOGW2, <SPR_DOGW3
+dogw_h:    .byte >SPR_DOGW0, >SPR_DOGW1, >SPR_DOGW2, >SPR_DOGW3
 fist_l:    .byte <SPR_FIST0, <SPR_FIST1, <SPR_FIST2, <SPR_FIST3
 fist_h:    .byte >SPR_FIST0, >SPR_FIST1, >SPR_FIST2, >SPR_FIST3
 fist_half: .byte 2, 4, 5, 7
@@ -2929,12 +2931,28 @@ l_ab_nomosaic:
         lda dog_state
         cmp #1
         bne l_ab_dog_rest
+        ; trotting: four leg frames, one every 3 pixels
         lda dog_x
-        and #8
-        beq +
-        #SETACT 1, SPR_DOG1
-        bra l_ab_dog_done
-+       #SETACT 1, SPR_DOG2
+        ldx #0
+-       cmp #12
+        bcc +
+        sbc #12
+        bra -
++       lsr
+        lsr
+        cmp #3
+        bcc +
+        lda #3
++       tax
+        lda dogw_l,x
+        sta act_sprl+1
+        lda dogw_h,x
+        sta act_sprh+1
+        lda #`SPR_DOGW0
+        sta act_sprb+1
+        dec act_xl2+1           ; walk frames have a 1px margin
+        lda #DOG_Y - 15
+        sta act_y+1
         bra l_ab_dog_done
 l_ab_dog_rest:
         #SETACT 1, SPR_DOG3

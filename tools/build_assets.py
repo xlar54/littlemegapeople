@@ -355,6 +355,36 @@ def draw_arm(rows, hx):
             rows[20][px] = k
 
 
+def dog_walk_frames(dog):
+    """Trotting dog (facing left): keep the Amiga dog's head and body (rows
+    0..12) and redraw the four legs below so they move. Diagonal pairs swing
+    forward/back together; the pair that is swinging through lifts its paws."""
+    k, fur = HOUSE0 + 9, HOUSE0 + 5
+    body = [[None] + r[:] + [None] for r in dog[:13]]     # 1px margin each side
+    w = len(body[0])
+    bases = [1, 6, 12, 18]           # left edge of each leg (front ... back)
+    pair = [0, 1, 1, 0]              # diagonal pairs
+    # (dx for pair 0, dx for pair 1, lifted pair or None); forward = left
+    phases = [(-2, 2, None), (0, 0, 0), (2, -2, None), (0, 0, 1)]
+    frames = []
+    for d0, d1, lift in phases:
+        rows = [r[:] for r in body] + [[None] * w for _ in range(3)]
+        for i, bx in enumerate(bases):
+            dx = (d0, d1)[pair[i]]
+            up = 1 if lift == pair[i] else 0
+            for r in range(13, 15 - up):
+                x = bx + (dx // 2 if r == 13 else dx)    # slant from the hip
+                for j, c in enumerate((k, fur, fur, k)):
+                    if 0 <= x + j < w:
+                        rows[r][x + j] = c
+            x = bx + dx
+            for j in range(4):           # paw
+                if 0 <= x + j < w:
+                    rows[15 - up][x + j] = k
+        frames.append(rows)
+    return frames
+
+
 def walk_frames(stand):
     """Side-view walk cycle (facing left): keep the stand torso (rows 0..18) and
     redraw the legs as hip -> knee -> ankle polylines so the knees bend. The
@@ -580,6 +610,9 @@ def build_sprites():
         if n == 'dog2':
             rows = [r[::-1] for r in rows]   # this screenshot's dog faces right; all face left
         sprites.append((n, rows))
+        if n == 'dog1':
+            for i, fr in enumerate(dog_walk_frames(rows)):
+                sprites.append(('dogw%d' % i, fr))
     for n, rows in ASCII_SPRITES.items():
         sprites.append((n, remap(A.from_ascii(rows), lambda x, y, v: amiga(v))))
     sprites.append(('front', art(FRONT_ART)))
