@@ -2907,7 +2907,7 @@ l_ab_nomosaic:
         lda #0
         sta act_xh2+4
         sta act_flip+4
-        lda #103
+        lda #108                ; chin just above the blanket, head on the pillow
         sta act_y+4
 +
         ; --- dog ---

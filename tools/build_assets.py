@@ -599,10 +599,12 @@ def build_sprites():
         for x in range(len(comp[0])):
             if x >= 13 and y < 1:
                 comp[y][x] = None
-    # Sleeping head: the front-facing head from the eating pose.
-    eat = dict(sprites)['eat']
-    head = [r[2:16] for r in eat[0:9]]
-    sprites.append(('sleephead', head))
+    # Sleeping head, lying on the pillow: the front-facing head (with chin)
+    # with the eyes closed.
+    sleep_art = [ln for ln in FRONT_ART[:10]]
+    sleep_art[4] = '...kSSSSSSSSSSk...'
+    sleep_art[5] = '...kSkkSSSSkkSk...'
+    sprites.append(('sleephead', art(sleep_art)))
     for n, (f, x, y, w, h) in {'dog1': ('attic_dog', 153, 137, 26, 19),
                                'dog2': ('kitchen', 245, 179, 27, 19),
                                'dog3': ('brushing', 47, 46, 26, 17)}.items():
