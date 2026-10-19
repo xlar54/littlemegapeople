@@ -3123,6 +3123,10 @@ SETACT .macro n, spr
 
 dogw_l:    .byte <SPR_DOGW0, <SPR_DOGW1, <SPR_DOGW2, <SPR_DOGW3
 dogw_h:    .byte >SPR_DOGW0, >SPR_DOGW1, >SPR_DOGW2, >SPR_DOGW3
+PIANOHANDS_X = 139
+PIANOHANDS_Y = 44
+pianohands_l: .byte <SPR_PIANOHANDS0, <SPR_PIANOHANDS1, <SPR_PIANOHANDS2, <SPR_PIANOHANDS3
+pianohands_h: .byte >SPR_PIANOHANDS0, >SPR_PIANOHANDS1, >SPR_PIANOHANDS2, >SPR_PIANOHANDS3
 fist_l:    .byte <SPR_FIST0, <SPR_FIST1, <SPR_FIST2, <SPR_FIST3
 fist_h:    .byte >SPR_FIST0, >SPR_FIST1, >SPR_FIST2, >SPR_FIST3
 fist_half: .byte 2, 4, 5, 7
@@ -3327,9 +3331,40 @@ l_ab_cl1:
         and #1
         sta act_flip+0
 l_ab_person_done:
-        ; censor mosaic over his hips while he has nothing on
+        ; actor 5: his hands on the piano keys while he plays...
         lda #0
         sta act_vis+5
+        lda p_act
+        cmp #A_PIANO
+        bne l_ab_nopiano
+        lda p_mode
+        cmp #PM_POSE
+        bne l_ab_nopiano
+        lda #1
+        sta act_vis+5
+        lda p_anim
+        lsr
+        lsr
+        lsr
+        and #3
+        tax
+        lda pianohands_l,x
+        sta act_sprl+5
+        lda pianohands_h,x
+        sta act_sprh+5
+        lda #`SPR_PIANOHANDS0
+        sta act_sprb+5
+        lda #<PIANOHANDS_X
+        sta act_xl2+5
+        lda #>PIANOHANDS_X
+        sta act_xh2+5
+        lda #PIANOHANDS_Y
+        sta act_y+5
+        lda #0
+        sta act_flip+5
+        jmp l_ab_nomosaic
+l_ab_nopiano:
+        ; ...or the censor mosaic over his hips while he has nothing on
         lda outfit
         cmp #2
         bne l_ab_nomosaic

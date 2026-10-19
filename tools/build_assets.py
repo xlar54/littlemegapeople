@@ -974,6 +974,17 @@ def build_sprites():
                     if c != '.':
                         rows[y0 + dy][hx + dx] = SKIN if c == 'S' else HOUSE0 + 9
         sprites.append(('hands%d' % i, rows))
+    # His hands on the piano keys either side of him (seen from behind): they
+    # move along the keyboard and take turns striking.
+    for i, (lx, rx, lup) in enumerate(((1, 1, True), (3, 2, False), (2, 4, True), (0, 3, False))):
+        rows = [[None] * 30 for _ in range(5)]
+        for hx, up in ((lx + 2, lup), (20 + rx, not lup)):   # close in by his sides
+            y0 = 0 if up else 1
+            for dy, ln in enumerate(['.SS.', 'SSSS', '.kk.']):
+                for dx, c in enumerate(ln):
+                    if c != '.':
+                        rows[y0 + dy][hx + dx] = SKIN if c == 'S' else HOUSE0 + 9
+        sprites.append(('pianohands%d' % i, rows))
     for i, frame in enumerate(phone_frames(reading)):
         sprites.append(('phone%d' % i, frame))
     sprites.append(('bookturn', art(BOOK_TURN)))
