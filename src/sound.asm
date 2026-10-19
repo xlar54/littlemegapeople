@@ -28,6 +28,7 @@ SFX_BLIP        = 12
 SFX_STEP        = 13
 SFX_TINK        = 14
 SFX_TALK        = 15
+SFX_BRUSH       = 16
 
 ;---------------------------------------------------------------------------------------
 ; Digital sample playback on audio DMA channel 0 (his voice on the phone).
@@ -332,7 +333,7 @@ l_sh_out:
 sfx_table:
         .word sfxd_phone, sfxd_alarm, sfxd_knock, sfxd_flush, sfxd_splash, sfxd_bark
         .word sfxd_type, sfxd_door, sfxd_glug, sfxd_chime, sfxd_clack, sfxd_blip
-        .word sfxd_step, sfxd_tink, sfxd_talk
+        .word sfxd_step, sfxd_tink, sfxd_talk, sfxd_brush
 
 ; frame, freq hi, control, attack/decay, sustain/release
 sfxd_phone:
@@ -426,6 +427,11 @@ sfxd_talk:
         .byte 9, $16, $10, $00, $63
         .byte 11, $10, $11, $00, $63
         .byte 15, $10, $10, $00, $63
+        .byte $FF
+; one toothbrush stroke: "chhh" -- a burst of mid-high noise that fades
+sfxd_brush:
+        .byte 0, $48, $81, $04, $00
+        .byte 3, $48, $80, $04, $00
         .byte $FF
 sfxd_step:
         .byte 0, $06, $81, $00, $01

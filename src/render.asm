@@ -756,6 +756,20 @@ draw_sprite:
         inz
         lda [ZSRC],z
         sta l_ds_h
+        ; never trust a header: a bad sprite pointer must not overrun rowbuf
+        lda l_ds_w
+        beq l_ds_bad
+        cmp #41
+        bcs l_ds_bad
+        lda l_ds_h
+        beq l_ds_bad
+        cmp #65
+        bcc l_ds_hdr_ok
+l_ds_bad:
+        ldz #0
+        sec
+        rts
+l_ds_hdr_ok:
         clc
         lda ZSRC
         adc #2

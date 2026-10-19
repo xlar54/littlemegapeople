@@ -840,6 +840,13 @@ def build_sprites():
     for n, rows in ASCII_SPRITES.items():
         sprites.append((n, remap(A.from_ascii(rows), lambda x, y, v: amiga(v))))
     sprites.append(('front', art(FRONT_ART)))
+    # Brushing: second frame with the toothbrush (row 10) and hand moved up a
+    # pixel; alternating the two scrubs the brush up and down.
+    brush = dict(sprites)['brush']
+    brush_up = [r[:] for r in brush]
+    brush_up[9][0:8] = brush[10][0:8]
+    brush_up[10][0:8] = brush[9][0:8]
+    sprites.append(('brushup', brush_up))
     for i, fr in enumerate(step_frames(dict(sprites)['climb'], 19, 7, 10, 28)):
         sprites.append(('climbstep%d' % i, fr))
     sprites.append(('bend', bend_back_frame(dict(sprites)['climb'])))

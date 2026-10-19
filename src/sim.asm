@@ -702,7 +702,7 @@ act_start_tbl:
         .word st_cards, st_knock, st_idle, st_petdog, st_arrive, st_readchair, st_files, st_chat
 act_tick_tbl:
         .word tk_none, tk_none, tk_none, tk_none, tk_none, tk_phone, tk_none, tk_none
-        .word tk_goout, tk_sleep, tk_none, tk_none, tk_none, tk_bath, tk_computer
+        .word tk_goout, tk_sleep, tk_none, tk_brush, tk_none, tk_bath, tk_computer
         .word tk_pool, tk_none, tk_record, tk_none, tk_piano, tk_none, tk_pool
         .word tk_none, tk_knock, tk_none, tk_none, tk_arrive, tk_readchair, tk_files, tk_none
 act_end_tbl:
@@ -2495,6 +2495,25 @@ st_brush:
         #POSE SPR_BRUSH, POSE_BRUSH_X, POSE_BRUSH_Y
         lda #5
         jmp set_timer_secs
+; scrub up and down, a little "shh" on each stroke
+tk_brush:
+        lda p_anim
+        and #4
+        tay
+        lda #<SPR_BRUSH
+        ldx #>SPR_BRUSH
+        cpy #0
+        beq +
+        lda #<SPR_BRUSHUP
+        ldx #>SPR_BRUSHUP
++       sta pose_spr
+        stx pose_spr+1
+        lda p_anim              ; a "chhh" on every stroke, up and down
+        and #3
+        bne +
+        lda #SFX_BRUSH
+        jsr sfx_play
++       rts
 en_brush:
         lda #1
         jmp mood_up
@@ -3097,9 +3116,10 @@ l_ab_notbend:
         bne +
         #SETACT 0, SPR_FRONT
         lda mouth_open
-        beq +
-        #SETACT 0, SPR_FRONTTALK
-+       lda fx_kind
+        beq l_ab_front_shut     ; (named: an anonymous + here hijacked the
+        #SETACT 0, SPR_FRONTTALK ;  "not front" branch above it)
+l_ab_front_shut:
+        lda fx_kind
         cmp #4
         bne l_ab_front_xy
         #SETACT 0, SPR_FRONTKNOCK
