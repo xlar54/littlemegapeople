@@ -712,7 +712,7 @@ act_tick_tbl:
         .word tk_none, tk_none, tk_meal, tk_none, tk_none, tk_phone, tk_none, tk_none
         .word tk_goout, tk_sleep, tk_none, tk_brush, tk_wc, tk_bath, tk_computer
         .word tk_typing, tk_none, tk_record, tk_none, tk_piano, tk_none, tk_pool
-        .word tk_none, tk_knock, tk_none, tk_none, tk_arrive, tk_readchair, tk_files, tk_none, tk_none, tk_none, tk_none, tk_delivery, tk_none
+        .word tk_none, tk_knock, tk_none, tk_none, tk_arrive, tk_readchair, tk_files, tk_none, tk_none, tk_none, tk_none, tk_delivery, tk_stow
 act_end_tbl:
         .word en_none, en_fridge, en_meal, en_drink, en_feeddog, en_phone, en_read, en_fire
         .word en_goout, en_sleep, en_exercise, en_brush, en_wc, en_bath, en_computer
@@ -2635,10 +2635,10 @@ carrying:       .byte 0     ; 1 = in his hands
 dlv_t:          .byte 0
 ;                 food  dog   book  record
 stow_floor:     .byte 0,    0,    1,    2
-stow_x:         .byte 78,   62,   252,  74
-stow_bend:      .byte 0,    1,    0,    1
-stow_px:        .byte 74,   58,   248,  70     ; where the package sits as he puts it away
-stow_py:        .byte 150,  175,  104,  45
+stow_x:         .byte 78,   56,   252,  74
+stow_bend:      .byte 0,    0,    0,    1
+stow_px:        .byte 74,   52,   248,  70     ; where the package sits as he puts it away
+stow_py:        .byte 150,  150,  104,  45
 pkg_l:          .byte <SPR_PKGFOOD, <SPR_PKGDOG, <SPR_PKGBOOK, <SPR_PKGRECORD
 pkg_h:          .byte >SPR_PKGFOOD, >SPR_PKGDOG, >SPR_PKGBOOK, >SPR_PKGRECORD
 
@@ -2685,6 +2685,8 @@ en_delivery:
         rts
 
 st_stow:
+        lda #0
+        sta dlv_t
         lda #PM_BACKSTAND
         ldx delivery
         ldy stow_bend-1,x
@@ -2694,13 +2696,93 @@ st_stow:
         lda #0
         sta carrying            ; now on the shelf / in the cupboard
         lda #2
-        jmp set_timer_secs
-en_stow:
+        ldx delivery
+        cpx #DLV_DOG + 1
+        bcs +
+        dex                     ; groceries / dog food: open up, put it in, close
+        stx cb_which
+        lda #3
++       jmp set_timer_secs
+; Groceries / dog food: the cupboard doors open on the jars (cans) already
+; there, the bag goes in and becomes one more (the supply goes up), the doors
+; close.
+cb_which:       .byte 0     ; 0 food cupboard, 1 dog-food cupboard
+tk_stow:
+        inc dlv_t
         lda delivery
+        beq +                   ; (already put in: it's on the shelf)
+        cmp #DLV_DOG + 1
+        bcc +
+        rts
++       lda dlv_t
+        cmp #2
+        bne +
+        lda #SFX_DOOR
+        jsr sfx_play
+        jmp cupboard_show
++       cmp #60
+        bne +
+        lda delivery            ; in: now it's food on the shelf
         jsr delivery_apply
         lda #0
         sta delivery
+        jmp cupboard_show
++       cmp #120
+        bne l_tkst_out
+        lda #SFX_DOOR
+        jsr sfx_play
+        jmp cupboard_close
+l_tkst_out:
+        rts
+en_stow:
+        jsr cupboard_close
+        lda delivery
+        beq +
+        jsr delivery_apply
++       lda #0
+        sta delivery
         sta carrying
+        rts
+
+; Show the cupboard open with a jar (can) for every two food (dog food),
+; at most 4.
+cupboard_show:
+        jsr cupboard_forget
+        lda food
+        ldx cb_which
+        beq +
+        lda dogfood
++       clc
+        adc #1
+        lsr
+        cmp #5
+        bcc +
+        lda #4
++       ldx cb_which
+        beq +
+        clc
+        adc #PATCH_DOGCAB - PATCH_CUPBOARD
++       clc
+        adc #PATCH_CUPBOARD
+        tax
+        jmp patch_apply
+; Shut it (whichever jar picture is up).
+cupboard_close:
+        ldx #PATCH_CUPBOARD
+-       phx
+        jsr patch_remove
+        plx
+        inx
+        cpx #PATCH_DOGCAB + 5
+        bne -
+        rts
+; The new picture overwrites the old one: just mark them all as not shown.
+cupboard_forget:
+        lda #0
+        ldx #9
+-       sta patch_state + PATCH_CUPBOARD,x
+        dex
+        bpl -
         rts
 
 ; A = delivery type: it's in the house now

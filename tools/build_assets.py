@@ -112,6 +112,18 @@ PATCHES = {
     'phone_off': (24, 21, 3, 1, ('PHONE', 0)),
     # bathroom WC door swung open (hinged on the left)
     'wc_open': (23, 11, 3, 4, ('WCDOOR', 0)),
+    # kitchen food cupboard, doors open, with 0-4 jars on its two shelves
+    'cupboard_0': (7, 17, 5, 4, ('CUPBOARD', 0)),
+    'cupboard_1': (7, 17, 5, 4, ('CUPBOARD', 1)),
+    'cupboard_2': (7, 17, 5, 4, ('CUPBOARD', 2)),
+    'cupboard_3': (7, 17, 5, 4, ('CUPBOARD', 3)),
+    'cupboard_4': (7, 17, 5, 4, ('CUPBOARD', 4)),
+    # the dog-food cupboard beside it, likewise with 0-4 cans
+    'dogcab_0': (5, 17, 4, 4, ('DOGCAB', 0)),
+    'dogcab_1': (5, 17, 4, 4, ('DOGCAB', 1)),
+    'dogcab_2': (5, 17, 4, 4, ('DOGCAB', 2)),
+    'dogcab_3': (5, 17, 4, 4, ('DOGCAB', 3)),
+    'dogcab_4': (5, 17, 4, 4, ('DOGCAB', 4)),
     # attic filing cabinet: top drawer pulled out towards you, two steps
     'drawer_1': (32, 5, 3, 3, ('DRAWER', 2)),
     'drawer_2': (32, 5, 3, 3, ('DRAWER', 4)),
@@ -136,6 +148,67 @@ def draw_wcdoor(img, _):
         img[y][191] = k
     for x in range(192, 204):                    # threshold
         img[119][x] = k
+
+
+JAR = ['.lll.',
+       'kRRRk',
+       'kwwwk',
+       'kRRRk',
+       'kRRRk',
+       '.kkk.']
+
+
+CAN = ['.lll.',
+       'kOOOk',
+       'kwnwk',
+       'kOOOk',
+       'kOOOk',
+       '.kkk.']
+
+
+def draw_cupboard(img, jars, x0=68, x1=90, item=JAR, cols=(71, 81)):
+    """A kitchen cupboard (inside x x0..x1-1, y 141-165; the food one by
+    default) with both doors swung open towards you: the doors seen almost
+    edge-on outside the frame, a dark inside with two shelves, and `jars`
+    items, two per shelf (top shelf first)."""
+    C = {ch: i for i, ch in enumerate(A.AMIGA_CH)}
+    k, r, u, g, n = C['k'], C['r'], C['u'], C['g'], C['n']
+    for y in range(141, 166):                    # inside
+        for x in range(x0, x1):
+            img[y][x] = u
+    for x in range(x0, x1):                      # shelves
+        img[153][x] = g
+        img[154][x] = n
+        img[165][x] = g
+    for y in range(139, 168):                    # the open doors, edge-on
+        for d0 in (x0 - 6, x1 + 1):
+            for x in range(d0, d0 + 4):
+                img[y][x] = k if x in (d0, d0 + 3) or y in (139, 167) else r
+    for j in range(jars):
+        jx = cols[j % 2]
+        jy = (147, 159)[j // 2]
+        for dy, row in enumerate(item):
+            for dx, ch in enumerate(row):
+                if ch != '.':
+                    img[jy + dy][jx + dx] = C[ch]
+
+
+def draw_dogcab(img, cans):
+    draw_cupboard(img, cans, 49, 64, CAN, (50, 57))
+
+
+def close_glass_cabinet(img):
+    """The glass-fronted cabinet between the kitchen cupboards (x 48-64,
+    y 140-166) stands open in the Amiga art; shut it with two red doors like
+    its neighbours."""
+    C = {ch: i for i, ch in enumerate(A.AMIGA_CH)}
+    k, r, g, w = C['k'], C['r'], C['g'], C['w']
+    for y in range(140, 167):
+        for x in range(48, 65):
+            img[y][x] = k if y in (140, 166) or x in (48, 56, 64) else r
+    for x in (54, 58):                           # handles
+        for y, c in zip(range(160, 165), (k, g, w, g, k)):
+            img[y][x] = c
 
 
 def draw_phone_off(img, _):
@@ -224,6 +297,7 @@ def build_house():
     bg = [r[:] for r in A.empty_house()]
     bg[0] = bg[1][:]                    # a source frame is one row short
     bg[199] = bg[198][:]
+    close_glass_cabinet(bg)
     patches = {}
     # Front door: majority vote shows it open; default the house to closed.
     door_src = A.frame(DOOR_CLOSED_FROM)
@@ -237,7 +311,8 @@ def build_house():
         if isinstance(src, tuple):
             f = [r[:] for r in bg]
             {'CURTAIN': draw_curtain, 'DRAWER': draw_drawer, 'PHONE': draw_phone_off,
-             'WCDOOR': draw_wcdoor}[src[0]](f, src[1])
+             'WCDOOR': draw_wcdoor, 'CUPBOARD': draw_cupboard,
+             'DOGCAB': draw_dogcab}[src[0]](f, src[1])
         else:
             f = open_rows if src is None else A.frame(src)
         pix = [[house_index(x, y, f[y][x], sky, name == 'fire_lit') for x in range(cx * 8, (cx + cw) * 8)]
