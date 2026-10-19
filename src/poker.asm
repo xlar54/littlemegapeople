@@ -65,6 +65,10 @@ deck_deal:
 
 poker_round:
         jsr cards_clear_table
+        lda #10                 ; the win / lose paths move this many chips
+        sta l_cd_win
+        lda #0
+        sta l_cd_say+1
         lda chips_p
         cmp #10
         bcs +

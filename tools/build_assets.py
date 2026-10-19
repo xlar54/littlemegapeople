@@ -993,6 +993,12 @@ ASCII_SPRITES = {
     'heart': ['.RR.RR.', 'RRRRRRR', 'RRRRRRR', '.RRRRR.', '..RRR..', '...R...'],
     'dogfood': ['.nnnn.', 'nnnnnn'],
     'bubble': ['.www.', 'w...w', '.www.'],
+    # solitaire laid out on the kitchen table, either side of his hands; the
+    # second frame has turned a card over
+    'tablecards0': ['wRw.wkw.www.wRw..........wkw.www',
+                    'www.www.www.www..........www.www'],
+    'tablecards1': ['wRw.wkw.wkw.wRw..........wkw.wRw',
+                    'www.www.www.www..........www.www'],
 }
 
 

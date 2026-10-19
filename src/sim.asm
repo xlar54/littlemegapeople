@@ -819,13 +819,13 @@ l_fire_b: .byte 0,0,0
 ;---------------------------------------------------------------------------------------
 ;               floor  x     face(1=right)
 act_floor:
-        .byte 0, 0,0,0,0,0, 1,0,0, 1,1,1,1,1, 1,2, 2,2,2,2, 1,2,2, 0,0,0,0, 0, 2, 0, 2, 2, 1, 0, 0
+        .byte 0, 0,0,0,0,0, 1,0,0, 1,1,1,1,1, 1,2, 2,2,2,2, 1,0,0, 0,0,0,0, 0, 2, 0, 2, 2, 1, 0, 0
 act_xl:
         .byte 0, <52,<122,<138,<34,<226, <252,<268,<302, <40,<113,<170,<196,<222, <278,<228
-        .byte <108,<100,<120,<154, <83,<228,<228, <160,0,0,<300, <226, <266, 0, <62, <62, <177, <294, 0
+        .byte <108,<100,<120,<154, <83,<122,<122, <160,0,0,<300, <226, <266, 0, <62, <62, <177, <294, 0
 act_xh:
         .byte 0, >52,>122,>138,>34,>226, >252,>268,>302, >40,>113,>170,>196,>222, >278,>228
-        .byte >108,>100,>120,>154, >83,>228,>228, >160,0,0,>300, >226, >266, 0, >62, >62, >177, >294, 0
+        .byte >108,>100,>120,>154, >83,>122,>122, >160,0,0,>300, >226, >266, 0, >62, >62, >177, >294, 0
 act_face:
         .byte 0, 0,1,1,0,0, 1,1,1, 0,0,0,1,1, 1,1, 0,0,0,0, 0,1,1, 0,0,0,0, 0, 1, 0, 0, 0, 0, 1, 0
 
@@ -3133,8 +3133,8 @@ en_computer:
         sta monitor_on
         lda #3
         jmp mood_up
-; The attic desk with the typewriter: letters, solitaire and card games happen
-; here, seated on the far side of the desk facing you.
+; The attic desk with the typewriter: he types his letters here, seated on
+; the far side of the desk facing you.
 DESK_POSE_X     = 215         ; behind the typewriter, facing you
 DESK_POSE_Y     = 38
 
@@ -3369,9 +3369,15 @@ tk_typing:
         jsr sfx_play
 +       rts
 
-; solitaire at the desk
+; Card games at the kitchen table: sitting where he eats, cards laid out in
+; front of him.
+TABLECARDS_X    = 106
+TABLECARDS_Y    = 180
+
 st_pool:
-        #POSE SPR_SITDESK, DESK_POSE_X, DESK_POSE_Y
+        #POSE SPR_EATSHUT, POSE_EAT_X, POSE_EAT_Y
+        lda #9                  ; the cards on the table
+        sta fx_kind
         lda #12
         jmp set_timer_secs
 tk_pool:
@@ -3385,7 +3391,9 @@ en_pool:
         lda #3
         jmp mood_up
 st_cards:
-        #POSE SPR_SITDESK, DESK_POSE_X, DESK_POSE_Y
+        #POSE SPR_EATSHUT, POSE_EAT_X, POSE_EAT_Y
+        lda #9
+        sta fx_kind
         lda #1
         jmp set_timer_secs
 en_cards:
@@ -4114,6 +4122,21 @@ l_ab_nopkg:
         sta act_y+2
         bra l_ab_fx_done
 l_ab_notfist:
+        cmp #9
+        bne l_ab_notcards
+        #SETACT 2, SPR_TABLECARDS0
+        lda p_anim
+        and #64
+        beq +
+        #SETACT 2, SPR_TABLECARDS1
++       lda #<TABLECARDS_X
+        sta act_xl2+2
+        lda #>TABLECARDS_X
+        sta act_xh2+2
+        lda #TABLECARDS_Y
+        sta act_y+2
+        jmp l_ab_fx_done
+l_ab_notcards:
         cmp #7
         bne l_ab_nothands
         #SETACT 2, SPR_HANDS0

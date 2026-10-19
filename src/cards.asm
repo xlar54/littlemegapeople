@@ -17,8 +17,11 @@ hand_dn:        .byte 0
 chips_p:        .byte 100
 chips_d:        .byte 100
 l_cd_hide:       .byte 1     ; dealer hole card hidden
-l_cd_tot:        .byte 0
+l_cd_tot:        .byte 0     ; (hand_total's working total)
 l_cd_aces:       .byte 0
+l_cd_dtot:       .byte 0     ; his final total, for the comparison
+l_cd_win:        .byte 10    ; chips at stake this hand
+l_cd_say:        .word 0     ; a message to say instead of the usual one
 
 cards_play:
         lda #CW_X0
@@ -96,7 +99,47 @@ l_cp_round:
         jsr deal_p
         jsr deal_d
         jsr cards_draw_all
-        ldx #<cs_prompt
+        lda #10
+        sta l_cd_win
+        lda #0
+        sta l_cd_say+1
+        ; blackjack (an ace and a ten-card) settles the hand at once
+        ldx #<hand_p
+        ldy hand_pn
+        jsr hand_total
+        cmp #21
+        bne l_cp_no_bj
+        lda #0
+        sta l_cd_hide
+        jsr cards_draw_all
+        ldx #<hand_d
+        ldy hand_dn
+        jsr hand_total
+        cmp #21
+        bne +
+        jmp l_cp_push           ; both: a tie
++       lda #15                 ; blackjack pays 3 to 2
+        sta l_cd_win
+        lda #>cs_bj             ; (said instead of "You win!")
+        sta l_cd_say+1
+        lda #<cs_bj
+        sta l_cd_say
+        jmp l_cp_you_win
+l_cp_no_bj:
+        ldx #<hand_d
+        ldy hand_dn
+        jsr hand_total
+        cmp #21
+        bne +
+        lda #0
+        sta l_cd_hide
+        jsr cards_draw_all
+        lda #>cs_hisbj
+        sta l_cd_say+1
+        lda #<cs_hisbj
+        sta l_cd_say
+        jmp l_cp_he_wins
++       ldx #<cs_prompt
         ldy #>cs_prompt
         jsr cards_msg
 l_cp_player:
@@ -118,7 +161,8 @@ l_cp_hit:
         ldx #<hand_p
         ldy hand_pn
         jsr hand_total
-        cmp #22
+        cmp #21
+        beq l_cp_stand          ; 21: nothing more to take
         bcc l_cp_player
         ldx #<cs_bust
         ldy #>cs_bust
@@ -142,34 +186,39 @@ l_cp_dealer:
         jsr deal_d
         bra l_cp_dealer
 l_cp_compare:
-        sta l_cd_tot
+        sta l_cd_dtot           ; (hand_total reuses l_cd_tot)
         cmp #22
         bcs l_cp_you_win
         ldx #<hand_p
         ldy hand_pn
         jsr hand_total
-        cmp l_cd_tot
+        cmp l_cd_dtot
         beq l_cp_push
         bcs l_cp_you_win
 l_cp_he_wins:
         lda #0
         sta l_cd_hide
         jsr cards_draw_all
+        lda l_cd_win            ; (no more than you have left)
+        cmp chips_p
+        bcc +
+        lda chips_p
++       sta l_cd_win
         clc
         lda chips_d
-        adc #10
+        adc l_cd_win
         sta chips_d
         sec
         lda chips_p
-        sbc #10
+        sbc l_cd_win
         sta chips_p
         lda #3
         jsr mood_up
-        lda #SFX_CHIME
+        lda #SFX_BLIP
         jsr sfx_play
         ldx #<cs_hewins
         ldy #>cs_hewins
-        jsr cards_msg
+        jsr cards_say
         jmp l_cp_again
 l_cp_push:
         ldx #<cs_push
@@ -177,16 +226,21 @@ l_cp_push:
         jsr cards_msg
         jmp l_cp_again
 l_cp_you_win:
+        lda l_cd_win            ; (no more than he has left)
+        cmp chips_d
+        bcc +
+        lda chips_d
++       sta l_cd_win
         clc
         lda chips_p
-        adc #10
+        adc l_cd_win
         sta chips_p
         sec
         lda chips_d
-        sbc #10
+        sbc l_cd_win
         sta chips_d
         inc cards_won
-        lda #SFX_BLIP
+        lda #SFX_CHIME      ; your win: the happy jingle
         jsr sfx_play
         lda cards_won
         cmp #4
@@ -195,7 +249,7 @@ l_cp_you_win:
         jsr mood_up
         ldx #<cs_youwin
         ldy #>cs_youwin
-        jsr cards_msg
+        jsr cards_say
         bra l_cp_again
 l_cp_sulk:
         lda #4
@@ -415,6 +469,15 @@ cards_chips:
 +       ldy #17
         jmp cards_print
 
+; X/Y = the message, unless a hand-specific one (blackjack) was left in
+; l_cd_say: that's said instead, once.
+cards_say:
+        lda l_cd_say+1
+        beq cards_msg
+        ldx l_cd_say
+        tay
+        lda #0
+        sta l_cd_say+1
 cards_msg:
         stx l_cm_p
         sty l_cm_p+1
@@ -624,6 +687,8 @@ cs_yours:  .null "Your cards:"
 cs_total:  .null "Total: "
 cs_prompt: .null "H = hit   S = stand   Q = quit"
 cs_bust:   .null "Bust! Over 21."
+cs_bj:     .null "Blackjack! Pays 3 to 2."
+cs_hisbj:  .null "Blackjack! Sorry..."
 cs_hewins: .null "Ha! I win this one!"
 cs_youwin: .null "You win! Nice hand."
 cs_sulk:   .null "Hmph. You win AGAIN?"
