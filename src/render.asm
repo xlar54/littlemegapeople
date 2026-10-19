@@ -445,7 +445,26 @@ rc_y1:  .byte 0
 l_rc_row: .byte 0
 
 restore_cells:
-        lda #ATTIC_MB
+        ; never trust the rectangle: clamp to the screen, refuse inverted ones
+        lda rc_x1
+        cmp #COLS
+        bcc +
+        lda #COLS - 1
+        sta rc_x1
++       lda rc_y1
+        cmp #ROWS
+        bcc +
+        lda #ROWS - 1
+        sta rc_y1
++       lda rc_x1
+        cmp rc_x0
+        bcs +
+        rts
++       lda rc_y1
+        cmp rc_y0
+        bcs +
+        rts
++       lda #ATTIC_MB
         sta dma_src_mb
         lda #ATTIC_WORK_BANK
         sta dma_src_bank
@@ -677,6 +696,7 @@ spr_cy0:   .byte 0
 spr_cx1:   .byte 0
 spr_cy1:   .byte 0
 l_ds_w:     .byte 0
+l_ds_vw:    .byte 0     ; visible width after right-edge clipping
 l_ds_h:     .byte 0
 l_ds_yy:    .byte 0
 l_ds_sub:   .byte 0
@@ -707,6 +727,42 @@ draw_sprite:
         bcc +
         inw ZSRC+1
 +
+        ; Off screen (x >= 320 or y >= 200 -- which is also how a slightly
+        ; negative position looks)? Draw nothing; C = 1 tells the caller there
+        ; is no rectangle to restore. Without this a wrapped rectangle became a
+        ; multi-KB restore DMA that ran past char RAM into the font and sprites.
+        lda spr_x+1
+        beq l_ds_xok
+        cmp #1
+        bne l_ds_off
+        lda spr_x
+        cmp #64
+        bcs l_ds_off
+l_ds_xok:
+        lda spr_y
+        cmp #200
+        bcc l_ds_on
+l_ds_off:
+        sec
+        rts
+l_ds_on:
+        ; visible width: clip at the right edge so x + vw <= 320
+        sec
+        lda #<320
+        sbc spr_x
+        sta l_ds_tmp
+        lda #>320
+        sbc spr_x+1
+        sta l_ds_tmp+1
+        lda l_ds_w
+        sta l_ds_vw
+        lda l_ds_tmp+1
+        bne +
+        lda l_ds_tmp
+        cmp l_ds_w
+        bcs +
+        sta l_ds_vw
++
         ; cell rectangle
         lda spr_x+1
         lsr
@@ -717,7 +773,7 @@ draw_sprite:
         sta spr_cx0
         clc
         lda spr_x
-        adc l_ds_w
+        adc l_ds_vw
         sta l_ds_tmp
         lda spr_x+1
         adc #0
@@ -738,12 +794,18 @@ draw_sprite:
         lsr
         lsr
         sta spr_cy0
+        ; bottom row, clamped to the screen (rows below 200 are not drawn)
         clc
         lda spr_y
         adc l_ds_h
+        bcs l_ds_ybot
         sec
         sbc #1
-        lsr
+        cmp #200
+        bcc +
+l_ds_ybot:
+        lda #199
++       lsr
         lsr
         lsr
         sta spr_cy1
@@ -835,13 +897,14 @@ l_ds_skip:
         inc ZDST+1
 l_ds_nx:
         iny
-        cpy l_ds_w
+        cpy l_ds_vw
         bne l_ds_px
 l_ds_next:
         inc l_ds_yy
         dec l_ds_h
         bne l_ds_row
         ldz #0
+        clc
         rts
 
 ;---------------------------------------------------------------------------------------

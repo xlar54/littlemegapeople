@@ -2950,7 +2950,10 @@ l_ab_nomosaic:
         sta act_sprh+1
         lda #`SPR_DOGW0
         sta act_sprb+1
-        dec act_xl2+1           ; walk frames have a 1px margin
+        lda act_xl2+1           ; walk frames have a 1px margin
+        bne +
+        dec act_xh2+1
++       dec act_xl2+1
         lda #DOG_Y - 15
         sta act_y+1
         bra l_ab_dog_done
@@ -3080,6 +3083,7 @@ l_ar_draw:
         phx
         jsr draw_sprite
         plx
+        bcs l_ard_out           ; off screen: nothing drawn, nothing to erase
         lda #1
         sta prev_valid,x
         lda spr_cx0
