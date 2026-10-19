@@ -304,6 +304,31 @@ def pose(name, frame, x, y, w, h, fn, crop=None):
     return name, remap(rows, fn), ax, ay
 
 
+def draw_arm(rows, hx):
+    """Side-view arm: a darker sleeve from the shoulder (row 12, column 7) down
+    to the hand at column hx, which hangs at hip level (rows 18-19) over the
+    trousers so it reads clearly; outlined in black where it leaves the body."""
+    k = HOUSE0 + 9
+    w = len(rows[0])
+    pts = []
+    for y in range(12, 18):
+        t = (y - 12) / 5
+        pts.append((y, round(7 + (hx - 7) * t)))
+    for y, x in pts:
+        rows[y][x] = SHIRT2
+        rows[y][x + 1] = SHIRT2
+    for y in (18, 19):
+        rows[y][hx] = SKIN
+        rows[y][hx + 1] = SKIN
+    for y, x in pts + [(18, hx), (19, hx)]:
+        for px in (x - 1, x + 2):
+            if 0 <= px < w and rows[y][px] is None:
+                rows[y][px] = k
+    for px in (hx, hx + 1):
+        if rows[20][px] is None:
+            rows[20][px] = k
+
+
 def walk_frames(stand):
     """Side-view walk cycle (facing left): keep the stand torso (rows 0..18) and
     redraw the legs as hip -> knee -> ankle polylines so the knees bend. The
@@ -319,6 +344,7 @@ def walk_frames(stand):
     support_n = [(19, 6), (24, 6), (29, 6)]
     swing_f = [(19, 7), (23, 5), (27, 7)]
     phases = [(trail, reach), (support, swing), (reach, trail), (swing_f, support_n)]
+    arm_x = [10, 7, 4, 7]       # hand column: swings opposite the near leg
     frames = []
     for far, near in phases:
         rows = [r[:] for r in torso] + [[N] * w for _ in range(11)]
@@ -342,6 +368,7 @@ def walk_frames(stand):
                     rows[fy][px] = k
         leg(far, PANTS2)
         leg(near, PANTS)
+        draw_arm(rows, arm_x[len(frames)])
         for px in range(4, 12):                   # waistband
             if rows[19][px] is None or rows[19][px] == k:
                 rows[19][px] = PANTS if 5 <= px <= 10 else k
@@ -483,8 +510,10 @@ def build_sprites():
     stand[29] = [N, N, HOUSE0 + 9, SHOES, SHOES, SHOES, SHOES, HOUSE0 + 9, SHOES, SHOES, SHOES, SHOES, HOUSE0 + 9, N]
     for y in range(19, 28):
         stand[y] = [N, N, N, N, HOUSE0 + 9, PANTS, PANTS, HOUSE0 + 9, HOUSE0 + 9, PANTS, PANTS, HOUSE0 + 9, N, N]
+    walks = walk_frames(stand)
+    draw_arm(stand, 7)
     sprites = [('stand', stand)]
-    for i, fr in enumerate(walk_frames(stand)):
+    for i, fr in enumerate(walks):
         sprites.append(('walk%d' % i, fr))
     anchors = {}
 
