@@ -26,7 +26,7 @@ letter_show:
         sta win_y0
         lda #36
         sta win_x1
-        lda #22
+        lda #19
         sta win_y1
         jsr window_open
         ldx #<lt_head

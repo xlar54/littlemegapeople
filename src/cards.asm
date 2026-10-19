@@ -406,10 +406,13 @@ cards_chips:
         jsr sb_char
         lda chips_d
         jsr sb_num
+-       lda sb_len
+        cmp #32
+        bcs +
         lda #' '
         jsr sb_char
-        jsr sb_char
-        ldy #17
+        bra -
++       ldy #17
         jmp cards_print
 
 cards_msg:
@@ -583,12 +586,23 @@ draw_card:
         ldy l_cd_row
         iny
         jsr draw_glyph
-        ; rank, bottom-right
+        ; rank, bottom-right ("10" takes two columns)
         lda l_cd_card
         and #15
-        tax
-        lda rank_ch,x
+        cmp #10
+        bne +
+        lda #'1'
         ldx l_cd_col
+        inx
+        ldy l_cd_row
+        iny
+        iny
+        jsr draw_glyph
+        lda #'0'
+        bra ++
++       tax
+        lda rank_ch,x
++       ldx l_cd_col
         inx
         inx
         ldy l_cd_row

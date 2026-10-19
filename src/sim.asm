@@ -2223,12 +2223,12 @@ en_computer:
         lda #3
         jmp mood_up
 ; The attic desk with the typewriter: letters, solitaire and card games happen
-; here, seated with his back to us.
-DESK_POSE_X     = 220
-DESK_POSE_Y     = 36
+; here, seated on the far side of the desk facing you.
+DESK_POSE_X     = 215         ; behind the typewriter, facing you
+DESK_POSE_Y     = 39
 
 st_letter:
-        #POSE SPR_PIANO, DESK_POSE_X, DESK_POSE_Y
+        #POSE SPR_SITDESK, DESK_POSE_X, DESK_POSE_Y
         lda #6
         jmp set_timer_secs
 en_letter:
@@ -2330,7 +2330,7 @@ en_change:
         rts
 ; solitaire at the desk
 st_pool:
-        #POSE SPR_PIANO, DESK_POSE_X, DESK_POSE_Y
+        #POSE SPR_SITDESK, DESK_POSE_X, DESK_POSE_Y
         lda #12
         jmp set_timer_secs
 tk_pool:
@@ -2344,7 +2344,7 @@ en_pool:
         lda #3
         jmp mood_up
 st_cards:
-        #POSE SPR_PIANO, DESK_POSE_X, DESK_POSE_Y
+        #POSE SPR_SITDESK, DESK_POSE_X, DESK_POSE_Y
         lda #1
         jmp set_timer_secs
 en_cards:

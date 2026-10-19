@@ -527,6 +527,9 @@ def build_sprites():
         sprites.append((n, remap(A.from_ascii(rows), lambda x, y, v: amiga(v))))
     sprites.append(('front', art(FRONT_ART)))
     sprites.append(('frontknock', art(FRONT_KNOCK_ART)))
+    # Seated behind the attic desk facing you: just head and shoulders, so the
+    # desk and typewriter stay in front of him.
+    sprites.append(('sitdesk', art(FRONT_ART[:12])))
     for i, sz in enumerate((5, 8, 11, 15)):
         sprites.append(('fist%d' % i, fist(sz)))
     return sprites, anchors
