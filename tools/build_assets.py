@@ -107,8 +107,8 @@ PATCHES = {
     'closet_open': (22, 3, 3, 5, 'piano'),
     'fire_lit': (32, 21, 3, 2, 'cards'),
     # attic filing cabinet: top drawer pulled out towards you, two steps
-    'drawer_1': (32, 5, 3, 2, ('DRAWER', 2)),
-    'drawer_2': (32, 5, 3, 2, ('DRAWER', 4)),
+    'drawer_1': (32, 5, 3, 3, ('DRAWER', 2)),
+    'drawer_2': (32, 5, 3, 3, ('DRAWER', 4)),
     # shower curtain pulled across the tub from the right, in three steps
     'curtain_1': (25, 11, 5, 4, ('CURTAIN', 224)),
     'curtain_2': (25, 11, 5, 4, ('CURTAIN', 214)),
@@ -117,16 +117,16 @@ PATCHES = {
 
 
 def draw_drawer(img, out):
-    """The filing cabinet's top drawer (front at x 260-272, y 40-46) pulled
+    """The filing cabinet's bottom drawer (front at x 260-272, y 48-54) pulled
     `out` pixels towards you: the front grows and drops, and the folders
     inside show above it."""
     k, u, l, w, O, n = 9, 6, 8, 3, 15, 5     # Amiga indices
     x0, x1 = 260 - out // 2, 272 + out // 2
-    top = 40 + out
+    top = 48 + out
     bot = top + 6 + out // 2
-    for y in range(40, top):                 # inside of the drawer: folders
+    for y in range(48, top):                 # inside of the drawer: folders
         for x in range(x0 + 1, x1):
-            img[y][x] = (w, O, l, w)[(x + (y == 40)) % 4] if y > 40 else k
+            img[y][x] = (w, O, l, w)[(x + (y == 48)) % 4] if y > 48 else k
         img[y][x0] = k
         img[y][x1] = k
     for y in range(top, bot + 1):            # drawer front
@@ -432,7 +432,7 @@ def dog_walk_frames(dog):
     return frames
 
 
-def step_frames(base, hip, lx, rx, foot):
+def step_frames(base, hip, lx, rx, foot, bent=0):
     """Stair-stepping legs seen from the back or front: two frames, each with
     one knee bent out to the side as that foot lifts onto the next step while
     the other leg stays straight. hip = first leg row, lx/rx = left column of
@@ -440,7 +440,7 @@ def step_frames(base, hip, lx, rx, foot):
     k = HOUSE0 + 9
     w = len(base[0])
     frames = []
-    for bent in (0, 1):
+    for bent in ((0, 1) if bent == 0 else (None,)):
         rows = [r[:] for r in base[:hip]] + [[None] * w for _ in range(foot + 1 - hip)]
         for i, x0 in enumerate((lx, rx)):
             out = -1 if i == 0 else 1                  # knees bend outwards
@@ -489,6 +489,19 @@ def bend_frame(stand):
             v = rows[y][x]
             if v is not None and 0 <= x + dx < w:
                 out[ny][x + dx] = v
+    return out
+
+
+def bend_back_frame(climb):
+    """Back view, bent down to look in a low drawer or shelf: head and
+    shoulders drop 4 pixels (the head sinks between the shoulders), legs
+    straight."""
+    straight = step_frames(climb, 19, 7, 10, 28, bent=None)[0]
+    out = [[None] * len(straight[0]) for _ in straight]
+    for y in range(19, len(straight)):
+        out[y] = straight[y][:]
+    for y in range(0, 15):
+        out[y + 4] = straight[y][:]
     return out
 
 
@@ -703,7 +716,7 @@ def build_sprites():
         stand[y] = [N, N, N, N, HOUSE0 + 9] + [SHIRT] * 6 + [HOUSE0 + 9, N, N]
     walks = walk_frames(stand)
     draw_arm(stand, 7)
-    sprites = [('stand', stand), ('bend', bend_frame(stand))]
+    sprites = [('stand', stand)]
     for i, fr in enumerate(walks):
         sprites.append(('walk%d' % i, fr))
     anchors = {}
@@ -755,6 +768,7 @@ def build_sprites():
     sprites.append(('front', art(FRONT_ART)))
     for i, fr in enumerate(step_frames(dict(sprites)['climb'], 19, 7, 10, 28)):
         sprites.append(('climbstep%d' % i, fr))
+    sprites.append(('bend', bend_back_frame(dict(sprites)['climb'])))
     for i, fr in enumerate(step_frames(art(FRONT_ART), 20, 7, 10, 28)):
         sprites.append(('downstep%d' % i, fr))
     # Reading in the armchair: the relaxing pose with his raised elbows taken

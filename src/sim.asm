@@ -29,7 +29,7 @@ PM_JUMP         = 5
 PM_DANCE        = 6
 PM_FRONT        = 7         ; facing out of the screen
 PM_DOWNSTEP     = 8         ; coming down a front step block, facing you
-PM_BEND         = 9         ; bent over, looking for something
+PM_BEND         = 9         ; back to you, bent down looking for something
 
 ; activities (also request ids)
 A_NONE          = 0
@@ -686,11 +686,11 @@ l_fire_b: .byte 0,0,0
 act_floor:
         .byte 0, 0,0,0,0,0, 1,0,0, 1,1,1,1,1, 1,2, 2,2,2,2, 2,2,2, 0,0,0,0, 0, 2
 act_xl:
-        .byte 0, <52,<122,<138,<34,<213, <236,<248,<302, <40,<115,<170,<196,<222, <278,<228
-        .byte <80,<100,<120,<154, <188,<228,<228, <160,0,0,<300, <226, <254
+        .byte 0, <52,<122,<138,<34,<213, <252,<248,<302, <40,<115,<170,<196,<222, <278,<228
+        .byte <80,<100,<120,<154, <188,<228,<228, <160,0,0,<300, <226, <266
 act_xh:
-        .byte 0, >52,>122,>138,>34,>213, >236,>248,>302, >40,>115,>170,>196,>222, >278,>228
-        .byte >80,>100,>120,>154, >188,>228,>228, >160,0,0,>300, >226, >254
+        .byte 0, >52,>122,>138,>34,>213, >252,>248,>302, >40,>115,>170,>196,>222, >278,>228
+        .byte >80,>100,>120,>154, >188,>228,>228, >160,0,0,>300, >226, >266
 act_face:
         .byte 0, 0,1,1,0,0, 1,1,1, 0,0,0,1,1, 1,1, 0,0,0,0, 1,1,1, 0,0,0,0, 0, 1
 
@@ -2937,18 +2937,22 @@ actors_build:
         jmp l_ab_person_done
 +       cmp #PM_BEND
         bne l_ab_notbend
+        ; back to you, bent down: same frame as the back view on the stairs
         #SETACT 0, SPR_BEND
-        ; padded 5 columns on the leaning side: shift when facing left
-        lda p_flip
-        bne +
         sec
-        lda act_xl2+0
-        sbc #5
+        lda p_x
+        sbc #10
         sta act_xl2+0
-        lda act_xh2+0
+        lda p_x+1
         sbc #0
         sta act_xh2+0
-+       jmp l_ab_person_done
+        lda p_y
+        sec
+        sbc #28
+        sta act_y+0
+        lda #0
+        sta act_flip+0
+        jmp l_ab_person_done
 l_ab_notbend:
         cmp #PM_FRONT
         bne +
