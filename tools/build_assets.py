@@ -188,7 +188,8 @@ def build_house():
 # Foreground furniture the person walks BEHIND: (x0, y0, x1, y1, colours).
 # Pixels inside the box whose Amiga colour is in the set are drawn over him.
 FOREGROUND = [
-    (103, 180, 139, 192, 'nrk'),      # kitchen table top and legs (not the chair)
+    (103, 180, 139, 192, 'nrk'),      # kitchen table top and legs
+    (113, 173, 128, 190, 'vk'),       # kitchen chair (walking past only; not when seated)
     (203, 50, 253, 63, None),          # attic desk (None = every pixel)
 ]
 

@@ -6,10 +6,10 @@
 ; (p_x = centre column, p_y = bottom row). Floors: 0 ground, 1 middle, 2 attic.
 ;=======================================================================================
 
-FLOOR0_Y        = 186
+FLOOR0_Y        = 190         ; mid-floor, behind the kitchen table's front legs
 FLOOR1_Y        = 123
 FLOOR2_Y        = 63
-DOG_Y           = 189
+DOG_Y           = 194         ; the dog trots nearer the viewer than him
 
 TICKS_PER_MIN   = 25        ; sim ticks per game minute (50 ticks per second)
 
@@ -2355,7 +2355,7 @@ en_computer:
 ; The attic desk with the typewriter: letters, solitaire and card games happen
 ; here, seated on the far side of the desk facing you.
 DESK_POSE_X     = 215         ; behind the typewriter, facing you
-DESK_POSE_Y     = 39
+DESK_POSE_Y     = 38
 
 st_letter:
         #POSE SPR_SITDESK, DESK_POSE_X, DESK_POSE_Y
@@ -3134,7 +3134,14 @@ l_ar_draw:
         lda act_flip,x
         sta spr_flip
         lda act_masked,x
-        sta spr_mask
+        cpx #0
+        bne +
+        lda #1
+        ldy p_mode              ; seated/posed in place: that furniture is his own
+        cpy #PM_POSE
+        bne +
+        lda #0
++       sta spr_mask
         phx
         jsr draw_sprite
         plx
