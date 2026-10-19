@@ -324,6 +324,10 @@ keyword_table:
         #KW "out", REQ_GOOUT
         #KW "outside", REQ_GOOUT
         #KW "walk", REQ_GOOUT
+        #KW "file", REQ_FILES
+        #KW "files", REQ_FILES
+        #KW "filing", REQ_FILES
+        #KW "cabinet", REQ_FILES
         #KW "dog", REQ_PETDOG
         #KW "thank", REQ_THANKS
         #KW "thanks", REQ_THANKS

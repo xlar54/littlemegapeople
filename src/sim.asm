@@ -29,6 +29,7 @@ PM_JUMP         = 5
 PM_DANCE        = 6
 PM_FRONT        = 7         ; facing out of the screen
 PM_DOWNSTEP     = 8         ; coming down a front step block, facing you
+PM_BEND         = 9         ; bent over, looking for something
 
 ; activities (also request ids)
 A_NONE          = 0
@@ -59,7 +60,8 @@ A_IDLE          = 24
 A_PETDOG        = 25
 A_ARRIVE        = 26
 A_READCHAIR     = 27        ; reading in the armchair (after the bookshelf)
-A_COUNT         = 28
+A_FILES         = 28        ; looking through the filing cabinet
+A_COUNT         = 29
 
 REQ_EAT         = A_FRIDGE
 REQ_DRINK       = A_DRINK
@@ -83,6 +85,7 @@ REQ_CHANGE      = A_CHANGE
 REQ_POOL        = A_POOL
 REQ_CARDS       = A_CARDS
 REQ_PETDOG      = A_PETDOG
+REQ_FILES       = A_FILES
 REQ_HELLO       = $80
 REQ_HOWAREYOU   = $81
 REQ_THANKS      = $82
@@ -681,37 +684,37 @@ l_fire_b: .byte 0,0,0
 ;---------------------------------------------------------------------------------------
 ;               floor  x     face(1=right)
 act_floor:
-        .byte 0, 0,0,0,0,0, 1,0,0, 1,1,1,1,1, 1,2, 2,2,2,2, 2,2,2, 0,0,0,0, 0
+        .byte 0, 0,0,0,0,0, 1,0,0, 1,1,1,1,1, 1,2, 2,2,2,2, 2,2,2, 0,0,0,0, 0, 2
 act_xl:
-        .byte 0, <52,<122,<138,<34,<213, <252,<248,<302, <40,<115,<170,<196,<222, <278,<228
-        .byte <80,<100,<120,<154, <188,<228,<228, <160,0,0,<300, <226
+        .byte 0, <52,<122,<138,<34,<213, <236,<248,<302, <40,<115,<170,<196,<222, <278,<228
+        .byte <80,<100,<120,<154, <188,<228,<228, <160,0,0,<300, <226, <254
 act_xh:
-        .byte 0, >52,>122,>138,>34,>213, >252,>248,>302, >40,>115,>170,>196,>222, >278,>228
-        .byte >80,>100,>120,>154, >188,>228,>228, >160,0,0,>300, >226
+        .byte 0, >52,>122,>138,>34,>213, >236,>248,>302, >40,>115,>170,>196,>222, >278,>228
+        .byte >80,>100,>120,>154, >188,>228,>228, >160,0,0,>300, >226, >254
 act_face:
-        .byte 0, 0,1,1,0,0, 0,1,1, 0,0,0,1,1, 1,1, 0,0,0,0, 1,1,1, 0,0,0,0, 0
+        .byte 0, 0,1,1,0,0, 1,1,1, 0,0,0,1,1, 1,1, 0,0,0,0, 1,1,1, 0,0,0,0, 0, 1
 
 act_start_tbl:
         .word st_none, st_fridge, st_meal, st_drink, st_feeddog, st_phone, st_read, st_fire
         .word st_goout, st_sleep, st_exercise, st_brush, st_wc, st_bath, st_computer
         .word st_letter, st_tv, st_record, st_dance, st_piano, st_change, st_pool
-        .word st_cards, st_knock, st_idle, st_petdog, st_arrive, st_readchair
+        .word st_cards, st_knock, st_idle, st_petdog, st_arrive, st_readchair, st_files
 act_tick_tbl:
         .word tk_none, tk_none, tk_none, tk_none, tk_none, tk_phone, tk_none, tk_none
         .word tk_goout, tk_sleep, tk_none, tk_none, tk_none, tk_bath, tk_computer
         .word tk_pool, tk_none, tk_record, tk_none, tk_piano, tk_none, tk_pool
-        .word tk_none, tk_knock, tk_none, tk_none, tk_arrive, tk_readchair
+        .word tk_none, tk_knock, tk_none, tk_none, tk_arrive, tk_readchair, tk_files
 act_end_tbl:
         .word en_none, en_fridge, en_meal, en_drink, en_feeddog, en_phone, en_read, en_fire
         .word en_goout, en_sleep, en_exercise, en_brush, en_wc, en_bath, en_computer
         .word en_letter, en_tv, en_record, en_dance, en_piano, en_change, en_pool
-        .word en_cards, en_knock, en_none, en_petdog, en_arrive, en_readchair
+        .word en_cards, en_knock, en_none, en_petdog, en_arrive, en_readchair, en_files
 
 act_names:
         .word nm_none, nm_fridge, nm_meal, nm_drink, nm_feeddog, nm_phone, nm_read, nm_fire
         .word nm_goout, nm_sleep, nm_exercise, nm_brush, nm_wc, nm_bath, nm_computer
         .word nm_letter, nm_tv, nm_record, nm_dance, nm_piano, nm_change, nm_pool
-        .word nm_cards, nm_knock, nm_none, nm_petdog, nm_arrive, nm_readchair
+        .word nm_cards, nm_knock, nm_none, nm_petdog, nm_arrive, nm_readchair, nm_files
 nm_none:     .null " is pottering about."
 nm_fridge:   .null " is getting some food."
 nm_meal:     .null " is eating."
@@ -720,6 +723,7 @@ nm_feeddog:  .null " is feeding the dog."
 nm_phone:    .null " is on the phone."
 nm_read:     .null " is picking out a book."
 nm_readchair: .null " is reading a book."
+nm_files:    .null " is rummaging in the filing cabinet."
 nm_fire:     .null " is lighting a fire."
 nm_goout:    .null " has gone out."
 nm_sleep:    .null " is asleep. Zzz..."
@@ -892,7 +896,7 @@ l_ai_fun:
 l_fun_list:
         .byte A_TV, A_TV, A_RECORD, A_PIANO, A_PIANO, A_READ, A_READ, A_COMPUTER
         .byte A_EXERCISE, A_POOL, A_BATH, A_WC, A_IDLE, A_IDLE, A_IDLE, A_PETDOG
-        .byte A_GOOUT, A_DANCE, A_IDLE, A_READ, A_CARDS
+        .byte A_GOOUT, A_DANCE, A_IDLE, A_READ, A_CARDS, A_FILES
 l_fun_count = * - l_fun_list
 
 complain_water:
@@ -1891,9 +1895,9 @@ BOOK_Y          = POSE_CHAIR_Y + 10
 book_page:      .byte 0     ; ticks left showing the page turning over
 
 st_read:
-        lda #PM_CLIMB           ; back view: facing the bookshelf
+        lda #PM_BEND            ; bent over the shelf, looking for a good one
         sta p_mode
-        lda #2
+        lda #3
         jmp set_timer_secs
 en_read:
         lda #SFX_CLACK
@@ -1928,6 +1932,85 @@ tk_readchair:
 en_readchair:
         lda #4
         jmp mood_up
+
+; Filing cabinet: bend over, pull the top drawer out (it grows towards you),
+; rummage, push it shut (thunk), stand up.
+files_t:        .byte 0
+
+st_files:
+        lda #PM_BEND
+        sta p_mode
+        lda #0
+        sta files_t
+        lda #6
+        jmp set_timer_secs
+tk_files:
+        lda files_t
+        cmp #255
+        beq +
+        inc files_t
++       lda files_t
+        cmp #20
+        bne +
+        lda #SFX_DOOR
+        jsr sfx_play
+        lda #1
+        jmp drawer_set
++       cmp #28
+        bne +
+        lda #2
+        jmp drawer_set
++       cmp #60
+        bcc l_tkf_end
+        lda p_anim              ; rummaging: paper rustles
+        and #31
+        bne l_tkf_end
+        lda #SFX_STEP
+        jsr sfx_play
+l_tkf_end:
+        ; closing in the last second, then he stands up
+        lda act_timer+1
+        bne l_tkf_out
+        lda act_timer
+        cmp #50
+        bne +
+        lda #1
+        jmp drawer_set
++       cmp #42
+        bne +
+        lda #SFX_DOOR           ; thunk
+        jsr sfx_play
+        lda #0
+        jmp drawer_set
++       cmp #25
+        bne l_tkf_out
+        lda #PM_STAND
+        sta p_mode
+l_tkf_out:
+        rts
+en_files:
+        lda #0
+        jsr drawer_set
+        lda #2
+        jmp mood_up
+
+; A = 0 shut, 1 half out, 2 all the way out
+drawer_set:
+        sta l_ds_level
+        lda #0
+        sta patch_state + PATCH_DRAWER1
+        lda #1
+        sta patch_state + PATCH_DRAWER2
+        ldx #PATCH_DRAWER2
+        jsr patch_remove
+        lda l_ds_level
+        beq +
+        clc
+        adc #PATCH_DRAWER1 - 1
+        tax
+        jsr patch_apply
++       rts
+l_ds_level: .byte 0
 st_fire:
         lda #3
         jmp set_timer_secs
@@ -2852,7 +2935,22 @@ actors_build:
         bne +
         #SETACT 0, SPR_STAND
         jmp l_ab_person_done
-+       cmp #PM_FRONT
++       cmp #PM_BEND
+        bne l_ab_notbend
+        #SETACT 0, SPR_BEND
+        ; padded 5 columns on the leaning side: shift when facing left
+        lda p_flip
+        bne +
+        sec
+        lda act_xl2+0
+        sbc #5
+        sta act_xl2+0
+        lda act_xh2+0
+        sbc #0
+        sta act_xh2+0
++       jmp l_ab_person_done
+l_ab_notbend:
+        cmp #PM_FRONT
         bne +
         #SETACT 0, SPR_FRONT
         lda fx_kind
@@ -3197,7 +3295,10 @@ l_ar_draw:
         lda #1
         ldy p_mode              ; seated/posed in place: that furniture is his own
         cpy #PM_POSE
+        beq l_ard_nomask
+        cpy #PM_BEND
         bne +
+l_ard_nomask:
         lda #0
 +       sta spr_mask
         phx

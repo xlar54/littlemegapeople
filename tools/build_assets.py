@@ -106,11 +106,36 @@ PATCHES = {
     'fridge_open': (3, 19, 3, 5, 'stairs'),
     'closet_open': (22, 3, 3, 5, 'piano'),
     'fire_lit': (32, 21, 3, 2, 'cards'),
+    # attic filing cabinet: top drawer pulled out towards you, two steps
+    'drawer_1': (32, 5, 3, 2, ('DRAWER', 2)),
+    'drawer_2': (32, 5, 3, 2, ('DRAWER', 4)),
     # shower curtain pulled across the tub from the right, in three steps
     'curtain_1': (25, 11, 5, 4, ('CURTAIN', 224)),
     'curtain_2': (25, 11, 5, 4, ('CURTAIN', 214)),
     'curtain_3': (25, 11, 5, 4, ('CURTAIN', 208)),
 }
+
+
+def draw_drawer(img, out):
+    """The filing cabinet's top drawer (front at x 260-272, y 40-46) pulled
+    `out` pixels towards you: the front grows and drops, and the folders
+    inside show above it."""
+    k, u, l, w, O, n = 9, 6, 8, 3, 15, 5     # Amiga indices
+    x0, x1 = 260 - out // 2, 272 + out // 2
+    top = 40 + out
+    bot = top + 6 + out // 2
+    for y in range(40, top):                 # inside of the drawer: folders
+        for x in range(x0 + 1, x1):
+            img[y][x] = (w, O, l, w)[(x + (y == 40)) % 4] if y > 40 else k
+        img[y][x0] = k
+        img[y][x1] = k
+    for y in range(top, bot + 1):            # drawer front
+        for x in range(x0, x1 + 1):
+            edge = y in (top, bot) or x in (x0, x1)
+            img[y][x] = k if edge else u
+    cx = (x0 + x1) // 2
+    for i, c in enumerate((l, k, k, l)):     # handle
+        img[top + 2][cx - 1 + i] = c
 
 
 def draw_curtain(img, left):
@@ -175,7 +200,7 @@ def build_house():
     for name, (cx, cy, cw, ch, src) in PATCHES.items():
         if isinstance(src, tuple):
             f = [r[:] for r in bg]
-            draw_curtain(f, src[1])
+            (draw_curtain if src[0] == 'CURTAIN' else draw_drawer)(f, src[1])
         else:
             f = open_rows if src is None else A.frame(src)
         pix = [[house_index(x, y, f[y][x], sky, name == 'fire_lit') for x in range(cx * 8, (cx + cw) * 8)]
@@ -445,6 +470,28 @@ def step_frames(base, hip, lx, rx, foot):
     return frames
 
 
+def bend_frame(stand):
+    """Side view bent forward at the waist (facing left), looking for
+    something: head and shoulders lean forward and drop, legs stay put.
+    Padded 5 columns on the left for the lean."""
+    pad = 5
+    w = len(stand[0]) + pad
+    rows = [[None] * pad + r[:] for r in stand]
+    out = [[None] * w for _ in range(len(rows))]
+    for y in range(17, len(rows)):            # hips and legs unchanged
+        out[y] = rows[y][:]
+    for y in range(0, 17):                    # upper body: lean and drop 3
+        dx = -round((17 - y) * 5 / 17)
+        ny = y + 3
+        if ny >= 17:
+            continue
+        for x in range(w):
+            v = rows[y][x]
+            if v is not None and 0 <= x + dx < w:
+                out[ny][x + dx] = v
+    return out
+
+
 def walk_frames(stand):
     """Side-view walk cycle (facing left): keep the stand torso (rows 0..18) and
     redraw the legs as hip -> knee -> ankle polylines so the knees bend. The
@@ -656,7 +703,7 @@ def build_sprites():
         stand[y] = [N, N, N, N, HOUSE0 + 9] + [SHIRT] * 6 + [HOUSE0 + 9, N, N]
     walks = walk_frames(stand)
     draw_arm(stand, 7)
-    sprites = [('stand', stand)]
+    sprites = [('stand', stand), ('bend', bend_frame(stand))]
     for i, fr in enumerate(walks):
         sprites.append(('walk%d' % i, fr))
     anchors = {}
