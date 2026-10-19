@@ -579,6 +579,54 @@ def load_sound(path, rate):
     return out
 
 
+CHAIR_X0, CHAIR_Y0, CHAIR_X1, CHAIR_Y1 = 99, 44, 118, 59   # attic chair back, arm and seat
+
+
+def sit_side(stand):
+    """Sitting back in a reclining chair, side view facing left (the attic TV),
+    as in the Amiga original: sunk low and leaning back, knees raised towards
+    the TV, feet on the floor in front of the chair. 8 columns of padding on
+    the left for the legs."""
+    k = HOUSE0 + 9
+    pad = 8
+    sink = 5
+    w = len(stand[0]) + pad + 2
+    rows = [[None] * w for _ in range(28)]
+    # upper body, sunk 4 px and leaning back (top rows shifted right)
+    for y in range(19):
+        dx = round((18 - y) * 2 / 18)
+        for x, v in enumerate(stand[y]):
+            if v is not None:
+                rows[y + sink][x + pad + dx] = v
+    hip_y = 18 + sink                            # row 22
+
+    def thick(y0, x0, y1, x1, colour):
+        n = max(abs(y1 - y0), abs(x1 - x0), 1)
+        for i in range(n + 1):
+            y = round(y0 + (y1 - y0) * i / n)
+            x = round(x0 + (x1 - x0) * i / n)
+            for dy in (0, 1):
+                rows[y + dy][x] = colour
+                rows[y + dy][x + 1] = colour
+
+    # thigh: hip (row 22, col 14) up to the raised knee (row 18, col 2)
+    thick(hip_y - 1, 14, 18, 2, PANTS)
+    # shin: knee down to the ankle (row 26, col 2)
+    thick(19, 1, 26, 2, PANTS2)
+    for x in range(0, 5):                        # shoe, toe to the left
+        rows[27][x] = SHOES
+    # outline everything that touches empty space
+    out = [r[:] for r in rows]
+    for y in range(28):
+        for x in range(w):
+            if rows[y][x] is None:
+                for nx, ny in ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)):
+                    if 0 <= nx < w and 0 <= ny < 28 and rows[ny][nx] in (PANTS, PANTS2, SHOES):
+                        out[y][x] = k
+                        break
+    return out
+
+
 def walk_frames(stand):
     """Side-view walk cycle (facing left): keep the stand torso (rows 0..18) and
     redraw the legs as hip -> knee -> ankle polylines so the knees bend. The
@@ -789,8 +837,14 @@ def build_sprites():
     for y in range(10, 19):
         stand[y] = [N, N, N, N, HOUSE0 + 9] + [SHIRT] * 6 + [HOUSE0 + 9, N, N]
     walks = walk_frames(stand)
-    draw_arm(stand, 7)
-    sprites = [('stand', stand)]
+    armless = [r[:] for r in stand]     # seated in the attic chair: the chair's
+    draw_arm(stand, 7)                  # own arms show instead of his
+    sprites = [('stand', stand), ('sittv', sit_side(armless))]
+    # The attic chair's back and arm, drawn over him while he sits in it.
+    bgh = A.empty_house()
+    chair = [[HOUSE0 + bgh[y][x] if A.AMIGA_CH[bgh[y][x]] in 'Bb' else None
+              for x in range(CHAIR_X0, CHAIR_X1 + 1)] for y in range(CHAIR_Y0, CHAIR_Y1 + 1)]
+    sprites.append(('chairfront', chair))
     for i, fr in enumerate(walks):
         sprites.append(('walk%d' % i, fr))
     anchors = {}

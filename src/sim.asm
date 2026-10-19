@@ -688,10 +688,10 @@ act_floor:
         .byte 0, 0,0,0,0,0, 1,0,0, 1,1,1,1,1, 1,2, 2,2,2,2, 2,2,2, 0,0,0,0, 0, 2, 0
 act_xl:
         .byte 0, <52,<122,<138,<34,<226, <252,<248,<302, <40,<115,<170,<196,<222, <278,<228
-        .byte <80,<100,<120,<154, <188,<228,<228, <160,0,0,<300, <226, <266, 0
+        .byte <108,<100,<120,<154, <188,<228,<228, <160,0,0,<300, <226, <266, 0
 act_xh:
         .byte 0, >52,>122,>138,>34,>226, >252,>248,>302, >40,>115,>170,>196,>222, >278,>228
-        .byte >80,>100,>120,>154, >188,>228,>228, >160,0,0,>300, >226, >266, 0
+        .byte >108,>100,>120,>154, >188,>228,>228, >160,0,0,>300, >226, >266, 0
 act_face:
         .byte 0, 0,1,1,0,0, 1,1,1, 0,0,0,1,1, 1,1, 0,0,0,0, 1,1,1, 0,0,0,0, 0, 1, 0
 
@@ -2651,7 +2651,16 @@ en_letter:
         jmp letter_show
 
 ; --- attic -----------------------------------------------------------------------------
+; Watching TV: sitting in the blue attic chair, facing the set.
+SITTV_X         = 97
+SITTV_Y         = 35
+CHAIRFRONT_X    = 99            ; the chair's back and arm, drawn over him
+CHAIRFRONT_Y    = 44
+
 st_tv:
+        #POSE SPR_SITTV, SITTV_X, SITTV_Y
+        lda #6                  ; chair back/arm overlay (in front of him)
+        sta fx_kind
         lda #1
         sta tv_on
         lda #15
@@ -3364,6 +3373,17 @@ l_ab_dog_done:
         sta act_y+2
         bra l_ab_fx_done
 l_ab_notfist:
+        cmp #6
+        bne l_ab_notchair
+        #SETACT 2, SPR_CHAIRFRONT
+        lda #<CHAIRFRONT_X
+        sta act_xl2+2
+        lda #>CHAIRFRONT_X
+        sta act_xh2+2
+        lda #CHAIRFRONT_Y
+        sta act_y+2
+        bra l_ab_fx_done
+l_ab_notchair:
         cmp #5
         bne l_ab_notbook
         ; the book in his hands, open or turning a page
