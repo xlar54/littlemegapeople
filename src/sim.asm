@@ -30,6 +30,7 @@ PM_DANCE        = 6
 PM_FRONT        = 7         ; facing out of the screen
 PM_DOWNSTEP     = 8         ; coming down a front step block, facing you
 PM_BEND         = 9         ; back to you, bent down looking for something
+PM_BENDSIDE     = 10        ; side view, leaning forward (switching the TV)
 
 ; activities (also request ids)
 A_NONE          = 0
@@ -62,7 +63,9 @@ A_ARRIVE        = 26
 A_READCHAIR     = 27        ; reading in the armchair (after the bookshelf)
 A_FILES         = 28        ; looking through the filing cabinet
 A_CHAT          = 29        ; comes to the front and talks to you
-A_COUNT         = 30
+A_TVON          = 30        ; walks to the attic TV and switches it on
+A_TVOFF         = 31        ; ...and off again
+A_COUNT         = 32
 
 REQ_EAT         = A_FRIDGE
 REQ_DRINK       = A_DRINK
@@ -685,37 +688,37 @@ l_fire_b: .byte 0,0,0
 ;---------------------------------------------------------------------------------------
 ;               floor  x     face(1=right)
 act_floor:
-        .byte 0, 0,0,0,0,0, 1,0,0, 1,1,1,1,1, 1,2, 2,2,2,2, 2,2,2, 0,0,0,0, 0, 2, 0
+        .byte 0, 0,0,0,0,0, 1,0,0, 1,1,1,1,1, 1,2, 2,2,2,2, 2,2,2, 0,0,0,0, 0, 2, 0, 2, 2
 act_xl:
         .byte 0, <52,<122,<138,<34,<226, <252,<248,<302, <40,<115,<170,<196,<222, <278,<228
-        .byte <108,<100,<120,<154, <188,<228,<228, <160,0,0,<300, <226, <266, 0
+        .byte <108,<100,<120,<154, <188,<228,<228, <160,0,0,<300, <226, <266, 0, <62, <62
 act_xh:
         .byte 0, >52,>122,>138,>34,>226, >252,>248,>302, >40,>115,>170,>196,>222, >278,>228
-        .byte >108,>100,>120,>154, >188,>228,>228, >160,0,0,>300, >226, >266, 0
+        .byte >108,>100,>120,>154, >188,>228,>228, >160,0,0,>300, >226, >266, 0, >62, >62
 act_face:
-        .byte 0, 0,1,1,0,0, 1,1,1, 0,0,0,1,1, 1,1, 0,0,0,0, 1,1,1, 0,0,0,0, 0, 1, 0
+        .byte 0, 0,1,1,0,0, 1,1,1, 0,0,0,1,1, 1,1, 0,0,0,0, 1,1,1, 0,0,0,0, 0, 1, 0, 0, 0
 
 act_start_tbl:
         .word st_none, st_fridge, st_meal, st_drink, st_feeddog, st_phone, st_read, st_fire
         .word st_goout, st_sleep, st_exercise, st_brush, st_wc, st_bath, st_computer
         .word st_letter, st_tv, st_record, st_dance, st_piano, st_change, st_pool
-        .word st_cards, st_knock, st_idle, st_petdog, st_arrive, st_readchair, st_files, st_chat
+        .word st_cards, st_knock, st_idle, st_petdog, st_arrive, st_readchair, st_files, st_chat, st_tvswitch, st_tvswitch
 act_tick_tbl:
         .word tk_none, tk_none, tk_none, tk_none, tk_none, tk_phone, tk_none, tk_none
         .word tk_goout, tk_sleep, tk_none, tk_brush, tk_none, tk_bath, tk_computer
         .word tk_pool, tk_none, tk_record, tk_none, tk_piano, tk_none, tk_pool
-        .word tk_none, tk_knock, tk_none, tk_none, tk_arrive, tk_readchair, tk_files, tk_none
+        .word tk_none, tk_knock, tk_none, tk_none, tk_arrive, tk_readchair, tk_files, tk_none, tk_none, tk_none
 act_end_tbl:
         .word en_none, en_fridge, en_meal, en_drink, en_feeddog, en_phone, en_read, en_fire
         .word en_goout, en_sleep, en_exercise, en_brush, en_wc, en_bath, en_computer
         .word en_letter, en_tv, en_record, en_dance, en_piano, en_change, en_pool
-        .word en_cards, en_knock, en_none, en_petdog, en_arrive, en_readchair, en_files, en_chat
+        .word en_cards, en_knock, en_none, en_petdog, en_arrive, en_readchair, en_files, en_chat, en_tvon, en_tvoff
 
 act_names:
         .word nm_none, nm_fridge, nm_meal, nm_drink, nm_feeddog, nm_phone, nm_read, nm_fire
         .word nm_goout, nm_sleep, nm_exercise, nm_brush, nm_wc, nm_bath, nm_computer
         .word nm_letter, nm_tv, nm_record, nm_dance, nm_piano, nm_change, nm_pool
-        .word nm_cards, nm_knock, nm_none, nm_petdog, nm_arrive, nm_readchair, nm_files, nm_chat
+        .word nm_cards, nm_knock, nm_none, nm_petdog, nm_arrive, nm_readchair, nm_files, nm_chat, nm_tv, nm_tvoff
 nm_none:     .null " is pottering about."
 nm_fridge:   .null " is getting some food."
 nm_meal:     .null " is eating."
@@ -726,6 +729,7 @@ nm_read:     .null " is picking out a book."
 nm_readchair: .null " is reading a book."
 nm_files:    .null " is rummaging in the filing cabinet."
 nm_chat:     .null " is talking to you."
+nm_tvoff:    .null " is switching off the TV."
 nm_fire:     .null " is lighting a fire."
 nm_goout:    .null " has gone out."
 nm_sleep:    .null " is asleep. Zzz..."
@@ -1355,6 +1359,11 @@ person_choose:
         stx p_pending
         bra ++
 +       jsr ai_choose
++       cmp #A_TV
+        bne +
+        ldx tv_on
+        bne +
+        lda #A_TVON             ; it's off: go and switch it on first
 +       sta p_goal
         tax
         lda act_floor,x
@@ -2661,15 +2670,37 @@ st_tv:
         #POSE SPR_SITTV, SITTV_X, SITTV_Y
         lda #6                  ; chair back/arm overlay (in front of him)
         sta fx_kind
-        lda #1
-        sta tv_on
         lda #15
         jmp set_timer_secs
 en_tv:
+        lda #4
+        jsr mood_up
+        jsr rnd                 ; about half the time he switches it off after
+        and #1
+        beq +
+        lda #A_TVOFF
+        sta p_pending
++       rts
+
+; Leaning over the set to work the knob.
+st_tvswitch:
+        lda #PM_BENDSIDE
+        sta p_mode
+        lda #2
+        jmp set_timer_secs
+en_tvon:
+        lda #1
+        sta tv_on
+        lda #SFX_CLACK
+        jsr sfx_play
+        lda #A_TV               ; now sit down and watch
+        sta p_pending
+        rts
+en_tvoff:
         lda #0
         sta tv_on
-        lda #4
-        jmp mood_up
+        lda #SFX_CLACK
+        jmp sfx_play
 st_record:
         lda #TUNE_RECORD
         jsr tune_play
@@ -3102,7 +3133,21 @@ actors_build:
         bne +
         #SETACT 0, SPR_STAND
         jmp l_ab_person_done
-+       cmp #PM_BEND
++       cmp #PM_BENDSIDE
+        bne l_ab_notbendside
+        #SETACT 0, SPR_BENDSIDE
+        lda p_flip
+        bne +
+        sec                     ; facing left: the lean padding is on the left
+        lda act_xl2+0
+        sbc #5
+        sta act_xl2+0
+        lda act_xh2+0
+        sbc #0
+        sta act_xh2+0
++       jmp l_ab_person_done
+l_ab_notbendside:
+        cmp #PM_BEND
         bne l_ab_notbend
         ; back to you, bent down: same frame as the back view on the stairs
         #SETACT 0, SPR_BEND

@@ -839,7 +839,8 @@ def build_sprites():
     walks = walk_frames(stand)
     armless = [r[:] for r in stand]     # seated in the attic chair: the chair's
     draw_arm(stand, 7)                  # own arms show instead of his
-    sprites = [('stand', stand), ('sittv', sit_side(armless))]
+    sprites = [('stand', stand), ('sittv', sit_side(armless)),
+               ('bendside', bend_frame(stand))]     # leaning over to the TV knob
     # The attic chair's back and arm, drawn over him while he sits in it.
     bgh = A.empty_house()
     chair = [[HOUSE0 + bgh[y][x] if A.AMIGA_CH[bgh[y][x]] in 'Bb' else None
