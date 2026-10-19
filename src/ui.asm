@@ -110,6 +110,19 @@ sb_lcp:
         ldy lcp_name_ptr+1
         jmp sb_strxy
 
+; "MM/DD/YY"
+sb_date:
+        lda date_month
+        jsr sb_num2
+        lda #'/'
+        jsr sb_char
+        lda date_day
+        jsr sb_num2
+        lda #'/'
+        jsr sb_char
+        lda date_year
+        jmp sb_num2
+
 ; "hh:mmAM"
 sb_time:
         lda clock_hour

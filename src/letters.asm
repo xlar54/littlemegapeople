@@ -29,9 +29,15 @@ letter_show:
         lda #19
         sta win_y1
         jsr window_open
+        jsr sb_clear
+        jsr sb_date
+        ldy #0
+        jsr window_print_sb
         ldx #<lt_head
         ldy #>lt_head
-        jsr window_print_list
+        lda #2
+        sta l_wl_row
+        jsr window_print_more
         ; pick up to two topics: urgent ones first, then random filler
         lda #0
         sta l_lt_n

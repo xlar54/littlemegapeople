@@ -94,6 +94,9 @@ fast_forward:   .byte 0
 quit_request:   .byte 0
 rnd_seed:       .word $ACE1
 
+date_month:     .byte 1     ; set from the RTC on the title screen
+date_day:       .byte 1
+date_year:      .byte 87    ; two digits
 clock_hour:     .byte 8
 clock_min:      .byte 0
 clock_tick:     .byte 0
@@ -255,6 +258,7 @@ game_minute:
         bcc l_gm_hour
         lda #0
         sta clock_hour
+        jsr next_day
 l_gm_hour:
         jsr lights_update
 l_gm_needs:
@@ -415,6 +419,40 @@ l_mod9:
         bra -
 +       cmp #0
         rts
+
+; Midnight: the calendar moves on.
+next_day:
+        inc date_day
+        ldx date_month
+        lda month_days-1,x
+        cpx #2
+        bne l_nd_cmp
+        tay
+        lda date_year
+        and #3
+        bne +
+        iny                     ; leap year February
++       tya
+l_nd_cmp:
+        cmp date_day
+        bcs l_nd_out
+        lda #1
+        sta date_day
+        inc date_month
+        lda date_month
+        cmp #13
+        bcc l_nd_out
+        lda #1
+        sta date_month
+        inc date_year
+        lda date_year
+        cmp #100
+        bcc l_nd_out
+        lda #0
+        sta date_year
+l_nd_out:
+        rts
+month_days: .byte 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31
 
 ; A = amount
 mood_up:
