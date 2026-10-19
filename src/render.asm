@@ -311,10 +311,8 @@ pal_scale:
 pal_apply_all:
         ldx #0
 l_paa:
-        cpx #C_DIM_LAST+1
-        bcs l_paa_full
-        cpx #0
-        beq l_paa_full
+        jsr pal_dimmed
+        bcc l_paa_full
         lda pal_r,x
         jsr pal_scale
         tay
@@ -346,12 +344,31 @@ l_paa_next:
         bne l_paa
         rts
 
-; Set one palette entry: X = index, A = red, pe_g, pe_b. Dimmed if X <= 31.
+; C = 1 if palette entry X dims with the house lights (1..31 and the dots)
+pal_dimmed:
+        cpx #0
+        beq l_pd_no
+        cpx #C_DIM_LAST+1
+        bcc l_pd_yes
+        cpx #C_DOTS_SHIRT
+        bcc l_pd_no
+        cpx #C_DOTS_PANTS+1
+        bcc l_pd_yes
+l_pd_no:
+        clc
+        rts
+l_pd_yes:
+        sec
+        rts
+
+; Set one palette entry: X = index, A = red, pe_g, pe_b. Dimmed per pal_dimmed.
 pe_g:   .byte 0
 pe_b:   .byte 0
 pal_set:
-        cpx #C_DIM_LAST+1
-        bcs l_ps_raw
+        pha
+        jsr pal_dimmed
+        pla
+        bcc l_ps_raw
         jsr pal_scale
         tay
         lda nib_swap,y

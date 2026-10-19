@@ -244,7 +244,7 @@ sim_init:
         lda #FLOOR0_Y
         sta p_y
         jsr dog_init
-        rts
+        jmp shirt_pick
 
 ; The clock runs in real time, paced by the real-time clock's seconds (or,
 ; if the RTC isn't ticking, by counting 50 frames a second). Fast forward
@@ -651,10 +651,10 @@ sky_rgb:
         .byte 0,0,221, 0,0,221, 0,0,221, 0,0,221, 0,0,221, 34,68,221         ; 12-17
         .byte 204,102,68, 136,51,102, 51,34,119, 34,17,102, 17,17,85, 17,17,85 ; 18-23
 
-outfit_rgb:     ; shirt, shirt shade, pants, far trouser leg (day, pyjamas, nothing)
-        .byte 34,102,255, 17,51,170, 255,255,255, 170,170,170
-        .byte 221,34,153, 153,17,102, 255,204,221, 204,153,170
-        .byte 255,204,153, 230,170,120, 255,204,153, 221,160,110
+outfit_rgb:     ; shirt, shirt shade, pants, far trouser leg, shirt dots, pants dots
+        .byte 34,102,255, 17,51,170, 255,255,255, 170,170,170, 34,102,255, 255,255,255  ; day
+        .byte 51,85,221, 34,51,153, 51,85,221, 34,51,153, 255,136,204, 255,136,204      ; pyjamas
+        .byte 255,204,153, 230,170,120, 255,204,153, 221,160,110, 255,204,153, 255,204,153 ; nothing
 
 palette_animate:
         ; sky
@@ -672,8 +672,9 @@ palette_animate:
         sta ZPTR+1
         lda outfit
         asl
+        adc outfit
         asl
-        tay                     ; 4 entries per outfit
+        tay                     ; 6 entries per outfit
         sty l_pa_o
         ldx #C_SHIRT
         jsr pal_set_from
@@ -691,6 +692,18 @@ palette_animate:
         iny
         iny
         ldx #C_PANTS2
+        jsr pal_set_from
+        lda l_pa_o
+        clc
+        adc #4
+        tay
+        ldx #C_DOTS_SHIRT
+        jsr pal_set_from
+        lda l_pa_o
+        clc
+        adc #5
+        tay
+        ldx #C_DOTS_PANTS
         jsr pal_set_from
         ; skin: green when sick
         lda #204
@@ -806,15 +819,15 @@ l_fire_b: .byte 0,0,0
 ;---------------------------------------------------------------------------------------
 ;               floor  x     face(1=right)
 act_floor:
-        .byte 0, 0,0,0,0,0, 1,0,0, 1,1,1,1,1, 1,2, 2,2,2,2, 2,2,2, 0,0,0,0, 0, 2, 0, 2, 2, 1, 0, 0
+        .byte 0, 0,0,0,0,0, 1,0,0, 1,1,1,1,1, 1,2, 2,2,2,2, 1,2,2, 0,0,0,0, 0, 2, 0, 2, 2, 1, 0, 0
 act_xl:
         .byte 0, <52,<122,<138,<34,<226, <252,<268,<302, <40,<113,<170,<196,<222, <278,<228
-        .byte <108,<100,<120,<154, <188,<228,<228, <160,0,0,<300, <226, <266, 0, <62, <62, <177, <294, 0
+        .byte <108,<100,<120,<154, <83,<228,<228, <160,0,0,<300, <226, <266, 0, <62, <62, <177, <294, 0
 act_xh:
         .byte 0, >52,>122,>138,>34,>226, >252,>268,>302, >40,>113,>170,>196,>222, >278,>228
-        .byte >108,>100,>120,>154, >188,>228,>228, >160,0,0,>300, >226, >266, 0, >62, >62, >177, >294, 0
+        .byte >108,>100,>120,>154, >83,>228,>228, >160,0,0,>300, >226, >266, 0, >62, >62, >177, >294, 0
 act_face:
-        .byte 0, 0,1,1,0,0, 1,1,1, 0,0,0,1,1, 1,1, 0,0,0,0, 1,1,1, 0,0,0,0, 0, 1, 0, 0, 0, 0, 1, 0
+        .byte 0, 0,1,1,0,0, 1,1,1, 0,0,0,1,1, 1,1, 0,0,0,0, 0,1,1, 0,0,0,0, 0, 1, 0, 0, 0, 0, 1, 0
 
 act_start_tbl:
         .word st_none, st_fridge, st_meal, st_drink, st_feeddog, st_phone, st_read, st_fire
@@ -824,7 +837,7 @@ act_start_tbl:
 act_tick_tbl:
         .word tk_none, tk_none, tk_meal, tk_none, tk_none, tk_phone, tk_none, tk_none
         .word tk_goout, tk_sleep, tk_none, tk_brush, tk_wc, tk_bath, tk_computer
-        .word tk_typing, tk_none, tk_record, tk_none, tk_piano, tk_none, tk_pool
+        .word tk_typing, tk_none, tk_record, tk_none, tk_piano, tk_change, tk_pool
         .word tk_none, tk_knock, tk_none, tk_none, tk_arrive, tk_readchair, tk_files, tk_none, tk_none, tk_none, tk_none, tk_delivery, tk_stow
 act_end_tbl:
         .word en_none, en_fridge, en_meal, en_drink, en_feeddog, en_phone, en_read, en_fire
@@ -934,8 +947,8 @@ l_pc_dlv:
 +       ; bedtime: 9pm, 11pm on Friday and Saturday; up at 7 (8 at weekends)
         jsr bedtime_hour
         cmp clock_hour
-        beq l_ai_sleep
-        bcc l_ai_sleep
+        beq l_ai_bed
+        bcc l_ai_bed
         jsr wake_hour
         cmp clock_hour
         beq +
@@ -957,6 +970,12 @@ l_pc_dlv:
         bne +
 l_ai_sleep:
         lda #A_SLEEP
+        rts
+l_ai_bed:
+        lda outfit              ; pyjamas on first
+        cmp #1
+        beq l_ai_sleep
+        lda #A_CHANGE
         rts
 +       lda health
         cmp #30
@@ -2605,8 +2624,6 @@ st_sleep:
         sta sleep_min
         lda #PM_HIDDEN
         sta p_mode
-        lda #1
-        sta outfit
         lda #<$FFFF
         sta act_timer
         lda #>$FFFF
@@ -2648,8 +2665,12 @@ l_tks_wake:
 l_tks_out:
         rts
 en_sleep:
+        lda outfit              ; up out of pyjamas: get dressed
+        cmp #1
+        bne +
         lda #1
         sta dress_todo
++
         lda #PM_STAND
         sta p_mode
         rts
@@ -3242,26 +3263,102 @@ en_piano:
         jsr tune_play
         lda #5
         jmp mood_up
+; Changing clothes at the bedroom closet: the door opens, he steps in behind
+; it, changes (pyjamas in the evening, else today's shirt), steps out and
+; shuts the door.
+chg_t:          .byte 0
 st_change:
         ldx #PATCH_CLOSET
         jsr patch_apply
         lda #SFX_DOOR
         jsr sfx_play
+        lda #0
+        sta chg_t
+        lda #5
+        jmp set_timer_secs
+tk_change:
+        inc chg_t
+        lda chg_t
+        cmp #20                 ; in he goes
+        bne +
         lda #PM_HIDDEN
         sta p_mode
-        lda #3
-        jmp set_timer_secs
+        rts
++       cmp #120                ; changed
+        bne +
+        jmp change_outfit
++       cmp #180                ; out again
+        bne +
+        lda #PM_FRONT
+        sta p_mode
+        rts
++       cmp #215                ; door shut
+        bne +
+        ldx #PATCH_CLOSET
+        jsr patch_remove
+        lda #SFX_DOOR
+        jmp sfx_play
++       rts
 en_change:
         ldx #PATCH_CLOSET
         jsr patch_remove
-        jsr is_night
-        lda #0
-        bcc +
-        lda #1
-+       sta outfit
-        lda #PM_STAND
+        lda chg_t
+        cmp #120
+        bcs +
+        jsr change_outfit       ; (cut short: still changed)
++       lda #PM_STAND
         sta p_mode
         rts
+
+; Pyjamas from 6pm until he gets up, else day clothes in today's colour.
+change_outfit:
+        jsr wake_hour
+        cmp clock_hour
+        beq l_co_day
+        bcs l_co_pj
+        lda clock_hour
+        cmp #18
+        bcs l_co_pj
+l_co_day:
+        jsr shirt_pick
+        lda #0
+        bra +
+l_co_pj:
+        lda #1
++       sta outfit
+        lda #1
+        sta ui_dirty
+        rts
+
+; Today's shirt: a colour for each day of the week, into the day outfit.
+shirt_pick:
+        jsr day_of_week
+        sta l_sp_n
+        asl
+        clc
+        adc l_sp_n
+        asl                     ; * 6
+        tax
+        ldy #0
+-       lda shirt_rgb,x
+        sta outfit_rgb,y
+        cpy #3
+        bcs +
+        sta outfit_rgb+12,y     ; the (hidden) dots match the shirt
++       inx
+        iny
+        cpy #6
+        bne -
+        rts
+l_sp_n: .byte 0
+shirt_rgb:      ; shirt, shirt shade: Sunday .. Saturday
+        .byte 34,170,170, 17,102,102        ; teal
+        .byte 34,102,255, 17,51,170         ; blue
+        .byte 221,51,51, 153,17,17          ; red
+        .byte 51,170,68, 17,102,34          ; green
+        .byte 238,204,51, 170,136,17        ; yellow
+        .byte 136,68,204, 85,34,136         ; purple
+        .byte 238,136,34, 170,85,17         ; orange
 ; typing: a key every 6 ticks, hands taking turns
 tk_typing:
         lda p_anim

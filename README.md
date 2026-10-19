@@ -76,7 +76,8 @@ Life in the house
   evenings often mean TV. He may take an afternoon nap when tired.
   Starve him or let the water run dry and his health falls â€” he turns green and
   spends more time in bed. Supplies only come from you.
-* **Routines:** gets dressed in the morning (closet in the attic), brushes his
+* **Routines:** changes at the bedroom closet — pyjamas at bedtime, a different
+  colour shirt each day of the week when he dresses in the morning — brushes his
   teeth after meals, lights the fire in the evening, sometimes goes out.
 * **Time:** the clock runs in real time, set from and paced by the MEGA65's
   real-time clock, and the day of the week follows the date.

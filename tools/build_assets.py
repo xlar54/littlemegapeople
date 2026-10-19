@@ -35,6 +35,9 @@ SND_BASE = 0x18000          # where the voice lives in chip RAM (bank 1)
 HOUSE0 = 1                  # 1..17 = Amiga house colours (AMIGA_PAL + 1)
 SKY, TVSCR, MONITOR, BOTTLE, FIRE_A, FIRE_B, FIRE_C = range(18, 25)
 SKIN, HAIR, SHIRT, SHIRT2, PANTS, SHOES, PANTS2 = range(25, 32)
+# Polka dots: sprinkled over his shirt and trousers in their own palette
+# entries, the cloth's colour by day (invisible), pink on his pyjamas.
+DOTS_SHIRT, DOTS_PANTS = 48, 49
 UI = 32                     # 32..47 UI colours
 TITLE0 = 64                 # 64..71 guestbook colours
 LOGO0 = 80                  # 80..143 logo gradient x antialias
@@ -56,6 +59,8 @@ PAL[SHIRT2] = (17, 51, 170)
 PAL[PANTS] = (255, 255, 255)
 PAL[SHOES] = (85, 34, 0)
 PAL[PANTS2] = (170, 170, 170)
+PAL[DOTS_SHIRT] = PAL[SHIRT]
+PAL[DOTS_PANTS] = PAL[PANTS]
 UI_COLS = [
     (153, 153, 153),  # 32 bar background
     (0, 0, 0),        # 33 text
@@ -106,7 +111,8 @@ for g in range(16):
 PATCHES = {
     'door_open': (36, 18, 3, 6, None),        # the majority vote has the front door open
     'fridge_open': (3, 19, 3, 5, 'stairs'),
-    'closet_open': (22, 3, 3, 5, 'piano'),
+    # bedroom closet door open on his clothes (from the Amiga 'cards' frame)
+    'closet_open': (9, 11, 3, 4, ('BEDCLOSET', 0)),
     'fire_lit': (32, 21, 3, 2, 'cards'),
     # living-room phone with the handset lifted off (empty cradle)
     'phone_off': (24, 21, 3, 1, ('PHONE', 0)),
@@ -211,6 +217,16 @@ def close_glass_cabinet(img):
             img[y][x] = c
 
 
+def draw_bedcloset(img, _):
+    """The bedroom closet (door x 74-91, y 90-119) standing open, as in the
+    Amiga original: the door swung back on its left hinge, shirts and
+    trousers hanging inside, shoes on the floor."""
+    f = A.frame('cards')
+    for y in range(90, 120):
+        for x in range(74, 92):
+            img[y][x] = f[y][x]
+
+
 def draw_phone_off(img, _):
     """The phone on the side table (handset on rows 172-173, x 196-207) with
     the handset lifted: wall shows through, the cradle hooks remain, and the
@@ -312,7 +328,7 @@ def build_house():
             f = [r[:] for r in bg]
             {'CURTAIN': draw_curtain, 'DRAWER': draw_drawer, 'PHONE': draw_phone_off,
              'WCDOOR': draw_wcdoor, 'CUPBOARD': draw_cupboard,
-             'DOGCAB': draw_dogcab}[src[0]](f, src[1])
+             'DOGCAB': draw_dogcab, 'BEDCLOSET': draw_bedcloset}[src[0]](f, src[1])
         else:
             f = open_rows if src is None else A.frame(src)
         pix = [[house_index(x, y, f[y][x], sky, name == 'fire_lit') for x in range(cx * 8, (cx + cw) * 8)]
@@ -350,6 +366,19 @@ def to_cells(img):
         for cx in range(40):
             for y in range(8):
                 out += bytes(img[cy * 8 + y][cx * 8:cx * 8 + 8])
+    return out
+
+
+def polka(rows):
+    """Mark a staggered dot pattern on the shirt and trouser pixels."""
+    out = [list(r) for r in rows]
+    for y, r in enumerate(out):
+        for x, v in enumerate(r):
+            if y % 3 == 1 and (x + (y // 3) * 2) % 4 == 1:
+                if v == SHIRT:
+                    r[x] = DOTS_SHIRT
+                elif v == PANTS:
+                    r[x] = DOTS_PANTS
     return out
 
 
@@ -1265,6 +1294,7 @@ def main():
     lines.append('GFX_MASK                = $%05X   ; foreground mask, 1 bit/pixel, cell order' % (GFX_BASE + len(blob)))
     blob += build_mask()
     for n, rows in sprites:
+        rows = polka(rows)
         addr = GFX_BASE + len(blob)
         h = len(rows)
         w = len(rows[0])
