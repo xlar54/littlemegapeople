@@ -197,6 +197,9 @@ boot_load:
         #LOAD_FILE fn_title, fn_title_end
         ldy #ATTIC_TITLE_BANK
         jsr stage_to_attic
+        ; his voice: stage -> chip RAM bank 1 (audio DMA plays only from chip RAM)
+        #LOAD_FILE fn_voice, fn_voice_end
+        jsr stage_to_voice
         #LOAD_FILE fn_gfx, fn_gfx_end
         rts
 
@@ -275,6 +278,31 @@ fn_title:       .text "LMP-TITLE"
 fn_title_end:
 fn_gfx:         .text "LMP-GFX"
 fn_gfx_end:
+fn_voice:       .text "LMP-VOICE"
+fn_voice_end:
+
+; copy the voice sample from the stage ($50002) to SND_TALK in bank 1
+stage_to_voice:
+        lda #0
+        sta dma_src_mb
+        sta dma_dst_mb
+        lda #<2
+        sta dma_src
+        lda #0
+        sta dma_src+1
+        lda #STAGE_BANK
+        sta dma_src_bank
+        lda #<SND_TALK
+        sta dma_dst
+        lda #>SND_TALK
+        sta dma_dst+1
+        lda #`SND_TALK
+        sta dma_dst_bank
+        lda #<SND_TALK_LEN
+        sta dma_len
+        lda #>SND_TALK_LEN
+        sta dma_len+1
+        jmp dma_copy
 
 ;=======================================================================================
 ; Modules

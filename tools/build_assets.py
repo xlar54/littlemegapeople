@@ -27,6 +27,7 @@ CHARGEN_LOCAL = os.path.join(ROOT, 'art', 'chargen.bin')
 LOGO_FONT = r'C:\Windows\Fonts\ROCKEB.TTF'
 GFX_BASE = 0x50002          # gfx.prg body lands at $50000 + 2-byte PRG header
 SND_RATE = 5000             # phone voice sample rate
+SND_BASE = 0x18000          # where the voice lives in chip RAM (bank 1)
 
 # ---------------------------------------------------------------------------
 # Palette layout (see README / src/platform.asm for the same list)
@@ -1114,13 +1115,16 @@ def main():
     for n, (x, y) in anchors.items():
         lines.append('POSE_%-19s= %d' % (n.upper() + '_X', x))
         lines.append('POSE_%-19s= %d' % (n.upper() + '_Y', y))
-    # his voice on the phone (sampled from the Amiga original)
+    # His voice (sampled from the Amiga original) is its own file, LMP-VOICE:
+    # audio DMA can only play from chip RAM, so the boot loader copies it to
+    # SND_BASE in bank 1 (above the screen RAM, below the colour RAM window).
     snd = load_sound(os.path.join(ROOT, 'art', 'sound', 'phone_talk.wav'), SND_RATE)
-    lines.append('SND_TALK                = $%05X   ; %d bytes, unsigned 8-bit, %d Hz' % (GFX_BASE + len(blob), len(snd), SND_RATE))
-    lines.append('SND_TALK_END            = $%05X' % (GFX_BASE + len(blob) + len(snd)))
+    lines.append('SND_TALK                = $%05X   ; %d bytes, unsigned 8-bit, %d Hz' % (SND_BASE, len(snd), SND_RATE))
+    lines.append('SND_TALK_LEN            = %d' % len(snd))
+    lines.append('SND_TALK_END            = $%05X' % (SND_BASE + len(snd)))
     lines.append('SND_FREQ                = $%06X   ; audio DMA step: rate * 2^24 / 40.5 MHz' % round(SND_RATE * 16777216 / 40500000))
-    assert ((GFX_BASE + len(blob)) >> 16) == ((GFX_BASE + len(blob) + len(snd)) >> 16), 'sample crosses a 64K bank'
-    blob += snd
+    assert SND_BASE + len(snd) < 0x1F800, 'voice sample runs into the colour RAM window'
+    write(os.path.join(ROOT, 'assets', 'voice.prg'), prg(snd))
     lines.append('')
     lines.append('GFX_SIZE                = %d' % len(blob))
     assert GFX_BASE + len(blob) < 0x60000, 'gfx blob overflows bank 5'
