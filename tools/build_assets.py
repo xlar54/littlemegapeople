@@ -349,6 +349,116 @@ def walk_frames(stand):
     return frames
 
 
+# Front-facing standing pose (for knocking on the screen and idling), drawn in
+# the style of the Amiga sprites. Letters: S skin, H hair, T shirt, t shirt shade,
+# P trousers, Z shoes, plus the Amiga palette letters.
+FRONT_ART = [
+    '.....kkkkkkkk.....',
+    '....kHHHHHHHHk....',
+    '...kHHHSSSSHHHk...',
+    '...kSSSSSSSSSSk...',
+    '...kSSkkSSkkSSk...',
+    '...kSSSSSSSSSSk...',
+    '..kSSSHHHHHHSSSk..',
+    '..kSSSSkkkkSSSSk..',
+    '...kSSSSSSSSSSk...',
+    '....kkSSSSSSkk....',
+    '......kSSSSk......',
+    '....kkTwwwwTkk....',
+    '...kTTTTwwTTTTk...',
+    '..kTTktTTTTtkTTk..',
+    '..kTTktTTTTtkTTk..',
+    '..kTTktTTTTtkTTk..',
+    '..kTTktTTTTtkTTk..',
+    '..kSSkTTTTTTkSSk..',
+    '...kk.kTTTTk.kk...',
+    '......kPPPPk......',
+    '......kPPkPPk.....',
+    '......kPPkPPk.....',
+    '......kPPkPPk.....',
+    '......kPPkPPk.....',
+    '......kPPkPPk.....',
+    '......kPPkPPk.....',
+    '......kPPkPPk.....',
+    '......kPPkPPk.....',
+    '.....kZZZkZZZk....',
+    '.....kkkk.kkkk....',
+]
+# Same pose with his left arm (screen right) raised towards the glass: the sleeve
+# points out from the shoulder; the fist sprite is drawn beyond it.
+FRONT_KNOCK_ART = [ln for ln in FRONT_ART]
+FRONT_KNOCK_ART[11] = '....kkTwwwwTkkkk..'
+FRONT_KNOCK_ART[12] = '...kTTTTwwTTTTTTk.'
+FRONT_KNOCK_ART[13] = '..kTTktTTTTtTTTTk.'
+FRONT_KNOCK_ART[14] = '..kTTktTTTTtkkkk..'
+FRONT_KNOCK_ART[15] = '..kTTktTTTTtk.....'
+FRONT_KNOCK_ART[16] = '..kTTktTTTTtk.....'
+FRONT_KNOCK_ART[17] = '..kSSkTTTTTTk.....'
+FRONT_KNOCK_ART[18] = '...kk.kTTTTk......'
+PERSON_LETTERS = {'S': SKIN, 'H': HAIR, 'T': SHIRT, 't': SHIRT2, 'P': PANTS, 'Z': SHOES}
+
+
+def art(lines, extra=None):
+    m = dict(PERSON_LETTERS)
+    if extra:
+        m.update(extra)
+    out = []
+    for ln in lines:
+        row = []
+        for c in ln:
+            if c == '.':
+                row.append(None)
+            elif c in m:
+                row.append(m[c])
+            else:
+                row.append(HOUSE0 + A.AMIGA_CH.index(c))
+        out.append(row)
+    w = max(len(r) for r in out)
+    return [r + [None] * (w - len(r)) for r in out]
+
+
+def fist(size):
+    """A fist seen knuckles-first, `size` pixels across, for the screen knock:
+    four finger bumps along the top, the thumb curled across the front."""
+    import math
+    k, edge = HOUSE0 + 9, HOUSE0 + 5
+    W, H = size, round(size * 0.9)
+    fw = W / 4
+    top = round(H * 0.15)
+    finger_bottom = round(H * 0.62)
+
+    def inside(x, y):
+        # body: rounded box; top edge scalloped into four fingers
+        if y < top:
+            f = min(3, int(x / fw))
+            cx = (f + 0.5) * fw
+            return math.hypot((x + 0.5 - cx) / (fw / 2), (y + 0.5 - top) / max(1, top)) <= 1.0
+        rx, ry = W / 2, (H - top)
+        dx = abs(x + 0.5 - W / 2) / rx
+        dy = max(0.0, (y + 0.5 - top) / ry - 0.55) / 0.45
+        return dx ** 3 + dy ** 3 <= 1.0
+    rows = [[SKIN if inside(x, y) else None for x in range(W)] for y in range(H)]
+    out = [r[:] for r in rows]
+    for y in range(H):
+        for x in range(W):
+            if rows[y][x] is None:
+                continue
+            for nx, ny in ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)):
+                if not (0 <= nx < W and 0 <= ny < H) or rows[ny][nx] is None:
+                    out[y][x] = k
+    if size >= 9:
+        for f in (1, 2, 3):                      # gaps between the fingers
+            x = round(f * fw)
+            for y in range(top, finger_bottom):
+                if out[y][x] == SKIN:
+                    out[y][x] = edge
+        for x in range(1, round(W * 0.7)):       # thumb across the front
+            y = finger_bottom + (1 if x > W * 0.45 else 0)
+            if y < H and out[y][x] == SKIN:
+                out[y][x] = edge
+    return out
+
+
 ASCII_SPRITES = {
     'zz': ['wwww.', '..w..', '.w...', 'wwww.'],
     'note': ['..kk', '..kw', '..k.', '..k.', 'kkk.', 'kkk.'],
@@ -413,8 +523,12 @@ def build_sprites():
                                'dog3': ('brushing', 47, 46, 26, 17)}.items():
         _, rows, ax, ay = pose(n, f, x, y, w, h, lambda x, y, v: amiga(9 if v in (0, 6) else v))
         sprites.append((n, rows))
-    for n, art in ASCII_SPRITES.items():
-        sprites.append((n, remap(A.from_ascii(art), lambda x, y, v: amiga(v))))
+    for n, rows in ASCII_SPRITES.items():
+        sprites.append((n, remap(A.from_ascii(rows), lambda x, y, v: amiga(v))))
+    sprites.append(('front', art(FRONT_ART)))
+    sprites.append(('frontknock', art(FRONT_KNOCK_ART)))
+    for i, sz in enumerate((5, 8, 11, 15)):
+        sprites.append(('fist%d' % i, fist(sz)))
     return sprites, anchors
 
 

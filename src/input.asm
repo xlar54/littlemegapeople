@@ -154,7 +154,10 @@ parse_command:
 +       inx
         cpx input_len
         bcc -
-        lda #<kw_please
+        jsr knock_reply         ; answering his knock?
+        bcc +
+        rts
++       lda #<kw_please
         sta ZPTR2
         lda #>kw_please
         sta ZPTR2+1

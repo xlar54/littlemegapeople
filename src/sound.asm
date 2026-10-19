@@ -26,6 +26,7 @@ SFX_CHIME       = 10
 SFX_CLACK       = 11
 SFX_BLIP        = 12
 SFX_STEP        = 13
+SFX_TINK        = 14
 
 sound_init:
         ldx #$18
@@ -225,7 +226,7 @@ l_sx_last: .byte 0
 sfx_table:
         .word sfxd_phone, sfxd_alarm, sfxd_knock, sfxd_flush, sfxd_splash, sfxd_bark
         .word sfxd_type, sfxd_door, sfxd_glug, sfxd_chime, sfxd_clack, sfxd_blip
-        .word sfxd_step
+        .word sfxd_step, sfxd_tink
 
 ; frame, freq hi, control, attack/decay, sustain/release
 sfxd_phone:
@@ -306,6 +307,10 @@ sfxd_chime:
 sfxd_clack:
         .byte 0, $70, $81, $00, $02
         .byte 1, $70, $80, $00, $02
+        .byte $FF
+sfxd_tink:
+        .byte 0, $70, $11, $07, $00
+        .byte 1, $70, $10, $07, $00
         .byte $FF
 sfxd_step:
         .byte 0, $06, $81, $00, $01

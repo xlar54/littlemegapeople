@@ -27,6 +27,7 @@ PM_POSE         = 3
 PM_CLIMB        = 4
 PM_JUMP         = 5
 PM_DANCE        = 6
+PM_FRONT        = 7         ; facing out of the screen
 
 ; activities (also request ids)
 A_NONE          = 0
@@ -263,6 +264,10 @@ l_gm_needs:
         jsr l_gm_dec
         ldx #letter_cd - complain_cd
         jsr l_gm_dec
+        lda knock_wait
+        beq +
+        dec knock_wait
++
         lda fire_time
         beq +
         dec fire_time
@@ -274,19 +279,30 @@ l_gm_needs:
         beq +
         inc lonely
 +
-        ; every 4 minutes: thirst
+        ; asleep: hunger and thirst creep up slowly (every 16 minutes)
+        jsr person_sleeping
+        bcc l_gm_needs_awake
+        lda minute_count
+        and #15
+        bne l_gm_dog
+        lda #thirst - hunger
+        jsr l_gm_up
+        lda #0
+        jsr l_gm_up
+        bra l_gm_dog
+l_gm_needs_awake:
+        ; awake: thirst every 4 minutes, hunger every 6
         lda minute_count
         and #3
         bne +
         lda #thirst - hunger
         jsr l_gm_up
-+       ; every 6 minutes: hunger (approx: minute_count % 6 via table)
-        lda minute_count
++       lda minute_count
         jsr l_mod6
-        bne +
+        bne l_gm_dog
         lda #0
         jsr l_gm_up
-+       ; every 8 minutes: dog hunger
+l_gm_dog:       ; every 8 minutes: dog hunger
         lda minute_count
         and #7
         bne +
@@ -712,7 +728,22 @@ l_ad_walk:
 ; Brain: choose what to do next.
 ;---------------------------------------------------------------------------------------
 ai_choose:
-        ; bedtime
+        ; urgent needs come first, even at bedtime
+        lda thirst
+        cmp #75
+        bcc +
+        lda water
+        beq +
+        lda #A_DRINK
+        rts
++       lda hunger
+        cmp #75
+        bcc +
+        lda food
+        beq +
+        lda #A_FRIDGE
+        rts
++       ; bedtime
         lda clock_hour
         cmp #22
         bcs l_ai_sleep
@@ -1291,6 +1322,17 @@ person_choose:
         lda #0
         sta goal_x+1
         bra l_pc_go
++       cpx #A_KNOCK
+        bne +
+        ; knock from a clear spot on whatever floor he is on
+        lda p_floor
+        sta goal_floor
+        tay
+        lda knock_x,y
+        sta goal_x
+        lda #0
+        sta goal_x+1
+        bra l_pc_go
 +       cpx #A_PETDOG
         bne +
         lda dog_x
@@ -1695,7 +1737,12 @@ en_none:
         rts
 
 st_idle:
-        lda #4
+        lda #3
+        jsr rnd_range
+        bne +
+        lda #PM_FRONT           ; sometimes just stand and look out at you
+        sta p_mode
++       lda #4
         jsr rnd_range
         clc
         adc #2
@@ -1878,23 +1925,165 @@ en_arrive:
         lda #A_IDLE
         sta p_pending
         rts
+; Knocking on the screen: he turns to face you, reaches out, and taps on the
+; inside of the glass three times (his fist grows as it nears the glass, tink!),
+; then talks to you. Ticks: 0-19 reach out, 20-115 three taps, then he speaks.
+KNOCK_TAPS_START = 20
+KNOCK_TAP_LEN    = 32
+KNOCK_TALK       = KNOCK_TAPS_START + 3 * KNOCK_TAP_LEN
+knock_t:        .byte 0
+knock_wait:     .byte 0     ; game minutes he waits for your answer
+knock_invite:   .byte 0     ; 1 = he asked you to play poker
+fist_size:      .byte 0
+fist_sizes:     .byte 0, 1, 2, 3, 3, 2, 1, 0
+knock_x:        .byte 150, 110, 120
+
 st_knock:
-        lda #SFX_KNOCK
-        jsr sfx_play
+        lda #PM_FRONT
+        sta p_mode
         lda #0
-        sta p_flip
+        sta knock_t
+        sta fist_size
         lda #4
+        sta fx_kind
+        lda #6
         jmp set_timer_secs
 tk_knock:
-        lda act_phase
+        lda knock_t
+        cmp #KNOCK_TALK
+        beq l_tk_talk
+        bcs l_tk_out
+        inc knock_t
+        cmp #KNOCK_TAPS_START
+        bcc l_tk_out
+        sec
+        sbc #KNOCK_TAPS_START
+-       cmp #KNOCK_TAP_LEN
+        bcc +
+        sbc #KNOCK_TAP_LEN
+        bra -
++       cmp #12
         bne +
-        inc act_phase
-        #SAY l_say_knock
-+       rts
+        pha
+        lda #SFX_TINK
+        jsr sfx_play
+        pla
++       lsr
+        lsr
+        tax
+        lda fist_sizes,x
+        sta fist_size
+l_tk_out:
+        rts
+l_tk_talk:
+        inc knock_t
+        jsr fx_clear
+        lda #30
+        sta knock_wait
+        lda #0
+        sta knock_invite
+        lda #3
+        jsr rnd_range
+        sta l_tk_pick
+        cmp #2
+        bne +
+        lda #1
+        sta knock_invite
++       jsr sb_clear
+        lda #<l_say_knock1
+        ldx l_tk_pick
+        beq +
+        lda #<l_say_knock2
+        cpx #1
+        beq +
+        lda #<l_say_knock3
++       pha
+        lda #>l_say_knock1
+        ldx l_tk_pick
+        beq +
+        lda #>l_say_knock2
+        cpx #1
+        beq +
+        lda #>l_say_knock3
++       tay
+        plx
+        jsr sb_strxy
+        jsr sb_player
+        lda #'!'
+        jsr sb_char
+        ldx l_tk_pick
+        beq +
+        ldx #<l_say_knock4
+        ldy #>l_say_knock4
+        lda l_tk_pick
+        cmp #2
+        bne ++
+        ldx #<l_say_knock5
+        ldy #>l_say_knock5
++
++       jsr sb_strxy
+        jmp ui_say_sb
 en_knock:
         lda #100
         sta lonely
         rts
+l_tk_pick: .byte 0
+l_say_knock1: .null "Hey! Anybody out there? Hello, "
+l_say_knock2: .null "Psst! Psst! "
+l_say_knock3: .null "Knock knock, "
+l_say_knock4: .null " I'm bored. Talk to me?"
+l_say_knock5: .null " Wanna play poker? (YES?)"
+
+; Called by the parser before keywords: answers to his knock.
+knock_reply:
+        lda knock_wait
+        beq l_kr_no
+        lda #<kw_yes
+        sta ZPTR2
+        lda #>kw_yes
+        sta ZPTR2+1
+        jsr find_word
+        bcs l_kr_yes
+        lda #<kw_sure
+        sta ZPTR2
+        lda #>kw_sure
+        sta ZPTR2+1
+        jsr find_word
+        bcs l_kr_yes
+        lda #<kw_ok
+        sta ZPTR2
+        lda #>kw_ok
+        sta ZPTR2+1
+        jsr find_word
+        bcs l_kr_yes
+l_kr_no:
+        clc
+        rts
+l_kr_yes:
+        lda #0
+        sta knock_wait
+        sta lonely
+        lda #8
+        jsr mood_up
+        lda knock_invite
+        beq +
+        ldx #<l_say_deal
+        ldy #>l_say_deal
+        jsr ui_say
+        lda #A_CARDS
+        jsr request_pending
+        sec
+        rts
++       ldx #<l_say_there
+        ldy #>l_say_there
+        jsr ui_say
+        sec
+        rts
+kw_yes:  .null "yes"
+kw_sure: .null "sure"
+kw_ok:   .null "ok"
+l_say_deal:  .null "Great! I'll deal!"
+l_say_there: .null "Oh good, you ARE there!" 
 st_petdog:
         jsr fx_heart_on_person
         lda #3
@@ -1918,7 +2107,18 @@ st_sleep:
         jsr fx_zz_on
         jmp lights_update
 tk_sleep:
-        ; wake when rested in the morning
+        ; get up for food or water if he needs it and there is some
+        lda thirst
+        cmp #75
+        bcc +
+        lda water
+        bne l_tks_wake
++       lda hunger
+        cmp #75
+        bcc +
+        lda food
+        bne l_tks_wake
++       ; otherwise wake when rested in the daytime
         lda clock_hour
         cmp #7
         bcc l_tks_out
@@ -1927,9 +2127,7 @@ tk_sleep:
         lda energy
         cmp #70
         bcc l_tks_out
-        lda health
-        cmp #30
-        bcc l_tks_out
+l_tks_wake:
         lda #0
         sta act_timer
         sta act_timer+1
@@ -2377,6 +2575,8 @@ l_fx_set:
 fx_update:
         lda fx_kind
         beq l_fu_out
+        cmp #4                  ; the knocking fist is driven by tk_knock
+        beq l_fu_out
         inc fx_t
         lda fx_t
         and #3
@@ -2429,6 +2629,9 @@ SETACT .macro n, spr
         sta act_sprb+\n
 .endmacro
 
+fist_l:    .byte <SPR_FIST0, <SPR_FIST1, <SPR_FIST2, <SPR_FIST3
+fist_h:    .byte >SPR_FIST0, >SPR_FIST1, >SPR_FIST2, >SPR_FIST3
+fist_half: .byte 2, 4, 5, 7
 walk_sprl: .byte <SPR_WALK0, <SPR_WALK1, <SPR_WALK2, <SPR_WALK3
 walk_sprh: .byte >SPR_WALK0, >SPR_WALK1, >SPR_WALK2, >SPR_WALK3
 bounce:    .byte 0, 1, 3, 4, 5, 4, 3, 1
@@ -2476,6 +2679,24 @@ actors_build:
 +       cmp #PM_STAND
         bne +
         #SETACT 0, SPR_STAND
+        jmp l_ab_person_done
++       cmp #PM_FRONT
+        bne +
+        #SETACT 0, SPR_FRONT
+        lda fx_kind
+        cmp #4
+        bne l_ab_front_xy
+        #SETACT 0, SPR_FRONTKNOCK
+l_ab_front_xy:
+        sec
+        lda p_x
+        sbc #9
+        sta act_xl2+0
+        lda p_x+1
+        sbc #0
+        sta act_xh2+0
+        lda #0
+        sta act_flip+0
         jmp l_ab_person_done
 +       cmp #PM_POSE
         bne +
@@ -2602,6 +2823,32 @@ l_ab_dog_done:
         lda #0
         sta act_flip+2
         lda fx_kind
+        cmp #4
+        bne l_ab_notfist
+        ; knocking fist: out past his raised left arm (screen right), growing
+        ; outwards from the end of the sleeve as it nears the glass
+        ldx fist_size
+        lda fist_l,x
+        sta act_sprl+2
+        lda fist_h,x
+        sta act_sprh+2
+        lda #`SPR_FIST0
+        sta act_sprb+2
+        clc
+        lda p_x
+        adc #7
+        sta act_xl2+2
+        lda p_x+1
+        adc #0
+        sta act_xh2+2
+        lda p_y
+        sec
+        sbc #19
+        sec
+        sbc fist_half,x
+        sta act_y+2
+        bra l_ab_fx_done
+l_ab_notfist:
         cmp #1
         bne +
         #SETACT 2, SPR_ZZ
