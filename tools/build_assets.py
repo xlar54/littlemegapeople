@@ -901,10 +901,27 @@ def build_sprites():
     brush_up[9][0:8] = brush[10][0:8]
     brush_up[10][0:8] = brush[9][0:8]
     sprites.append(('brushup', brush_up))
+    # Stairs: the elbows alternate with the steps. Back view: the Amiga pose has
+    # one arm out and the other elbow bent (hand on hip); the second frame
+    # mirrors the arms (rows 10-18 are symmetric about his body).
     for i, fr in enumerate(step_frames(dict(sprites)['climb'], 19, 7, 10, 28)):
+        if i == 1:
+            for y in range(10, 19):
+                fr[y] = fr[y][::-1]
         sprites.append(('climbstep%d' % i, fr))
     sprites.append(('bend', bend_back_frame(dict(sprites)['climb'])))
-    for i, fr in enumerate(step_frames(art(FRONT_ART), 20, 7, 10, 28)):
+    # Front view coming down: left elbow out with the hand on the hip, then the
+    # right one.
+    elbow = [ln for ln in FRONT_ART]
+    elbow[13] = '.kTTTktTTTTtkTTk..'
+    elbow[14] = 'kTTk.ktTTTTtkTTk..'
+    elbow[15] = 'kTTk.ktTTTTtkTTk..'
+    elbow[16] = '.kTTkktTTTTtkTTk..'
+    elbow[17] = '..kSSkTTTTTTkSSk..'
+    for i, fr in enumerate(step_frames(art(elbow), 20, 7, 10, 28)):
+        if i == 1:
+            for y in range(13, 19):
+                fr[y] = fr[y][::-1]
         sprites.append(('downstep%d' % i, fr))
     # Reading in the armchair: the relaxing pose with his raised elbows taken
     # out; the book sprite (held in both hands) covers his chest.
