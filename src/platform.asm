@@ -134,3 +134,4 @@ ZSRC                    = $14       ; 32-bit pointer (source)
 ZPTR                    = $18       ; 16-bit pointer (bank-0 data, strings)
 ZPTR2                   = $1A       ; 16-bit pointer
 ZTMP                    = $1C       ; 4 scratch bytes
+ZMASK                   = $20       ; 32-bit pointer into the foreground mask

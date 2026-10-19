@@ -2700,6 +2700,7 @@ act_xh2:        .fill ACTORS, 0
 act_y:          .fill ACTORS, 0
 act_flip:       .fill ACTORS, 0
 prev_valid:     .fill ACTORS, 0
+act_masked:     .byte 1, 0, 0, 0, 0, 1  ; him and his mosaic go behind furniture
 prev_cx0:       .fill ACTORS, 0
 prev_cy0:       .fill ACTORS, 0
 prev_cx1:       .fill ACTORS, 0
@@ -3094,6 +3095,8 @@ l_ar_draw:
         sta spr_y
         lda act_flip,x
         sta spr_flip
+        lda act_masked,x
+        sta spr_mask
         phx
         jsr draw_sprite
         plx

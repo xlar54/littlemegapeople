@@ -691,6 +691,7 @@ spr_addr:  .byte 0, 0, 0
 spr_x:     .word 0
 spr_y:     .byte 0
 spr_flip:  .byte 0
+spr_mask:  .byte 0      ; 1 = furniture in the foreground mask hides this sprite
 spr_cx0:   .byte 0
 spr_cy0:   .byte 0
 spr_cx1:   .byte 0
@@ -704,6 +705,38 @@ l_ds_x64lo: .byte 0
 l_ds_x64hi: .byte 0
 l_ds_tmp:   .word 0
 rowbuf:    .fill 40, 0
+l_ds_mb:   .byte 0      ; foreground mask bits for the current cell row
+l_ds_pix:  .byte 0
+bitmask:   .byte $80, $40, $20, $10, $08, $04, $02, $01
+
+; ZMASK = GFX_MASK + (char-data offset in ZDST) / 8, and load that mask byte.
+mask_point:
+        lda ZDST+1
+        sta ZMASK+1
+        lda ZDST
+        lsr ZMASK+1
+        ror
+        lsr ZMASK+1
+        ror
+        lsr ZMASK+1
+        ror
+        clc
+        adc #<GFX_MASK
+        sta ZMASK
+        lda ZMASK+1
+        adc #>GFX_MASK
+        sta ZMASK+1
+        lda #`GFX_MASK
+        adc #0
+        sta ZMASK+2
+        lda #0
+        sta ZMASK+3
+        phz
+        ldz #0
+        lda [ZMASK],z
+        sta l_ds_mb
+        plz
+        rts
 
 draw_sprite:
         lda spr_addr
@@ -878,11 +911,24 @@ l_ds_have:
         sta ZDST+2
         lda #0
         sta ZDST+3
-        ldy #0
+        lda spr_mask
+        beq +
+        jsr mask_point          ; ZMASK -> this cell row's mask byte
++       ldy #0
         ldz l_ds_sub
 l_ds_px:
         lda rowbuf,y
         beq l_ds_skip
+        ldx spr_mask
+        beq l_ds_put
+        sta l_ds_pix            ; furniture in front? leave the background
+        tza
+        tax
+        lda bitmask,x
+        and l_ds_mb
+        bne l_ds_skip
+        lda l_ds_pix
+l_ds_put:
         sta [ZDST],z
 l_ds_skip:
         inz
@@ -893,8 +939,21 @@ l_ds_skip:
         lda ZDST
         adc #64
         sta ZDST
-        bcc l_ds_nx
+        bcc +
         inc ZDST+1
++       lda spr_mask
+        beq l_ds_nx
+        clc                     ; next cell: mask byte is 8 further on
+        lda ZMASK
+        adc #8
+        sta ZMASK
+        bcc +
+        inw ZMASK+1
++       phz
+        ldz #0
+        lda [ZMASK],z
+        sta l_ds_mb
+        plz
 l_ds_nx:
         iny
         cpy l_ds_vw
