@@ -4844,7 +4844,7 @@ l_ab_dog_noeat:
         and #8
         beq +
         #SETACT 1, SPR_DOGBEG1
-+       lda #DOG_Y - 20
++       lda #DOG_Y - 18
         sta act_y+1
         bra l_ab_dog_done
 l_ab_dog_sit:
