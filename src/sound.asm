@@ -36,6 +36,10 @@ SFX_TINK        = 14
 SFX_TALK        = 15
 SFX_BRUSH       = 16
 SFX_SHUT        = 17        ; a door shutting: a soft thud, the latch clicks
+SFX_WAKA        = 18        ; video games: the maze muncher chomping (high)...
+SFX_WAKA2       = 19        ;   ...and low
+SFX_PEW         = 20        ;   the shooter's shot
+SFX_BOOM        = 21        ;   an alien hit
 
 ;---------------------------------------------------------------------------------------
 ; Digital sample playback on audio DMA channel 0 (his voice on the phone).
@@ -416,6 +420,7 @@ sfx_table:
         .word sfxd_phone, sfxd_alarm, sfxd_knock, sfxd_flush, sfxd_splash, sfxd_bark
         .word sfxd_type, sfxd_door, sfxd_glug, sfxd_chime, sfxd_clack, sfxd_blip
         .word sfxd_step, sfxd_tink, sfxd_talk, sfxd_brush, sfxd_shut
+        .word sfxd_waka, sfxd_waka2, sfxd_pew, sfxd_boom
 
 ; frame, freq hi, control, attack/decay, sustain/release
 sfxd_phone:
@@ -492,6 +497,31 @@ sfxd_chime:
         .byte 8, $2B, $11, $09, $00
         .byte 16, $33, $11, $09, $00
         .byte 30, $33, $10, $09, $00
+        .byte $FF
+; video game noises
+sfxd_waka:
+        .byte 0, $24, $11, $00, $A0
+        .byte 2, $1C, $11, $00, $A0
+        .byte 4, $14, $11, $00, $A0
+        .byte 5, $14, $10, $00, $A0
+        .byte $FF
+sfxd_waka2:
+        .byte 0, $14, $11, $00, $A0
+        .byte 2, $1C, $11, $00, $A0
+        .byte 4, $24, $11, $00, $A0
+        .byte 5, $24, $10, $00, $A0
+        .byte $FF
+sfxd_pew:
+        .byte 0, $48, $21, $00, $A0
+        .byte 1, $38, $21, $00, $A0
+        .byte 2, $2A, $21, $00, $A0
+        .byte 3, $1E, $21, $00, $A0
+        .byte 4, $14, $21, $00, $A0
+        .byte 5, $14, $20, $00, $A0
+        .byte $FF
+sfxd_boom:
+        .byte 0, $0A, $81, $0A, $00
+        .byte 2, $06, $80, $0A, $00
         .byte $FF
 sfxd_shut:
         .byte 0, $05, $81, $06, $06

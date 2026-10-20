@@ -4859,16 +4859,42 @@ st_computer:
         sta monitor_on
         lda #15
         jmp set_timer_secs
+; the game's noises, in time with the frames on its screen
 tk_computer:
         lda p_anim
+        and #7                  ; (a new frame every 8)
+        bne l_tkc_out
+        lda p_anim
+        lsr
+        lsr
+        lsr
         and #15
+        tax                     ; X = the frame
+        lda vg_game
+        bne l_tkc_shoot
+        txa                     ; the maze: waka, waka...
+        and #1
+        beq +
+        lda #SFX_WAKA2
+        jmp sfx_play
++       lda #SFX_WAKA
+        jmp sfx_play
+l_tkc_shoot:
+        cpx #6                  ; his shot
         bne +
-        lda #3
-        jsr rnd_range
+        lda #SFX_PEW
+        jmp sfx_play
++       cpx #11                 ; the diver hit
         bne +
-        lda #SFX_BLIP           ; bleep
-        jsr sfx_play
-+       rts
+        lda #SFX_BOOM
+        jmp sfx_play
++       txa                     ; the formation marching
+        and #3
+        bne l_tkc_out
+        lda #SFX_STEP
+        jmp sfx_play
+l_tkc_out:
+        rts
 en_computer:
         lda #0
         sta monitor_on
