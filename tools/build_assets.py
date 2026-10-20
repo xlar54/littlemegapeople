@@ -1155,6 +1155,76 @@ ASCII_SPRITES = {
 }
 
 
+# ---------------------------------------------------------------------------
+# Video games on the computer screen (17x8 at x 292, y 99): a maze muncher
+# and a space shooter, 16 frames each. Our own little pixel games.
+# ---------------------------------------------------------------------------
+VG_W, VG_H = 17, 8
+
+
+def vg_maze(f):
+    K, B, Y, R, W = HOUSE0 + 9, HOUSE0 + 10, 37, HOUSE0 + 14, HOUSE0 + 3
+    g = [[K] * VG_W for _ in range(VG_H)]
+    for x in range(VG_W):                       # maze walls
+        g[0][x] = B
+        g[7][x] = B
+    for x in (4, 5, 11, 12):
+        g[1][x] = B
+        g[6][x] = B
+    mx = f                                      # the muncher, eating along row 3-5
+    for x in range(1, VG_W, 2):                 # dots still to eat
+        if x > mx + 1:
+            g[4][x] = W
+    open_ = f % 2 == 0
+    for dy in (-1, 0, 1):
+        for dx in (-1, 0, 1):
+            x, y = mx + dx, 4 + dy
+            if 0 <= x < VG_W:
+                if open_ and dx == 1 and dy in (0, -1) and (dy == 0):
+                    continue                    # mouth
+                g[y][x] = Y
+    gx = mx - 6                                 # the ghost behind
+    for dy, row in zip((-1, 0, 1), ('.R.', 'RWR', 'R.R')):
+        for dx, c in zip((-1, 0, 1), row):
+            x, y = gx + dx, 4 + dy
+            if c != '.' and 0 <= x < VG_W:
+                g[y][x] = R if c == 'R' else W
+    return g
+
+
+def vg_shoot(f):
+    K, G, W, Y, R = HOUSE0 + 9, 36, HOUSE0 + 3, 37, HOUSE0 + 14
+    g = [[K] * VG_W for _ in range(VG_H)]
+    shuffle = (0, 1, 2, 1)[(f // 2) % 4]
+    hit = 11 <= f <= 12
+    for i in range(4):                           # the formation
+        x = 1 + i * 4 + shuffle
+        if i == 2 and 4 <= f <= 12:
+            continue                             # this one's diving
+        g[1][x] = G
+        g[1][x + 1] = G
+        g[2][x] = G
+        g[2][x + 1] = G
+    if 4 <= f <= 12:                             # the diver swoops down
+        dx = (0, 1, 2, 3, 3, 2, 1, 0, 0)[f - 4]
+        dy = (1, 2, 3, 3, 4, 4, 4, 4, 4)[f - 4]
+        x, y = 10 + dx, dy
+        c = R if hit else G
+        for yy, xx in ((y, x), (y, x + 1), (y + 1, x), (y + 1, x + 1)):
+            if 0 <= yy < VG_H and 0 <= xx < VG_W:
+                g[yy][xx] = c
+    sx = (4, 5, 6, 7, 8, 9, 10, 10, 10, 10, 10, 10, 9, 8, 6, 5)[f]   # his ship
+    g[7][sx - 1] = W
+    g[7][sx] = W
+    g[7][sx + 1] = W
+    g[6][sx] = W
+    if 6 <= f <= 10:                             # a shot going up
+        by = 5 - (f - 6)
+        if 0 <= by < VG_H:
+            g[by][10] = Y
+    return g
+
+
 def build_sprites():
     stand_fn = person_colours(hair=(15,), shirt=(4,), pants=(3,), shoes=())
     name, stand, sx, sy = pose('stand', 'kitchen', 44, 155, 20, 34, stand_fn)
@@ -1236,6 +1306,10 @@ def build_sprites():
     for n, rows in PACKAGES.items():
         sprites.append((n, remap(A.from_ascii(rows), lambda x, y, v: amiga(v))))
     sprites.append(('front', art(FRONT_ART)))
+    for f in range(16):
+        sprites.append(('vgm%d' % f, vg_maze(f)))
+    for f in range(16):
+        sprites.append(('vgs%d' % f, vg_shoot(f)))
     sprites.append(('frontdrink', art(FRONT_DRINK_ART)))
     # jumping jacks in front of the bedroom dresser
     sprites.append(('jack0', art(jack_art('down', 0))))

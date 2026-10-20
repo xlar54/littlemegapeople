@@ -1029,7 +1029,7 @@ nm_exercise: .null " is exercising."
 nm_brush:    .null " is brushing his teeth."
 nm_wc:       .null " is in the bathroom."
 nm_bath:     .null " is taking a bath."
-nm_computer: .null " is using the computer."
+nm_computer: .null " is playing a video game."
 nm_letter:   .null " is typing you a letter."
 nm_tv:       .null " is watching TV."
 nm_record:   .null " is listening to records."
@@ -3864,20 +3864,34 @@ en_bath:
         sta health
 +       #SAY l_say_clean
         rts
+; Playing a video game on the computer: a maze muncher or a space shooter
+; running on its screen, with little game blips.
+VG_X            = 292
+VG_Y            = 99
+vg_game:        .byte 0     ; 0 maze, 16 shooter (first frame in vg_l/h)
+vg_l:           .byte <SPR_VGM0, <SPR_VGM1, <SPR_VGM2, <SPR_VGM3, <SPR_VGM4, <SPR_VGM5, <SPR_VGM6, <SPR_VGM7, <SPR_VGM8, <SPR_VGM9, <SPR_VGM10, <SPR_VGM11, <SPR_VGM12, <SPR_VGM13, <SPR_VGM14, <SPR_VGM15, <SPR_VGS0, <SPR_VGS1, <SPR_VGS2, <SPR_VGS3, <SPR_VGS4, <SPR_VGS5, <SPR_VGS6, <SPR_VGS7, <SPR_VGS8, <SPR_VGS9, <SPR_VGS10, <SPR_VGS11, <SPR_VGS12, <SPR_VGS13, <SPR_VGS14, <SPR_VGS15
+vg_h:           .byte >SPR_VGM0, >SPR_VGM1, >SPR_VGM2, >SPR_VGM3, >SPR_VGM4, >SPR_VGM5, >SPR_VGM6, >SPR_VGM7, >SPR_VGM8, >SPR_VGM9, >SPR_VGM10, >SPR_VGM11, >SPR_VGM12, >SPR_VGM13, >SPR_VGM14, >SPR_VGM15, >SPR_VGS0, >SPR_VGS1, >SPR_VGS2, >SPR_VGS3, >SPR_VGS4, >SPR_VGS5, >SPR_VGS6, >SPR_VGS7, >SPR_VGS8, >SPR_VGS9, >SPR_VGS10, >SPR_VGS11, >SPR_VGS12, >SPR_VGS13, >SPR_VGS14, >SPR_VGS15
 st_computer:
         #POSE SPR_COMPUTER, POSE_COMPUTER_X, POSE_COMPUTER_Y
-        lda #1
+        lda #0
+        sta vg_game
+        jsr rnd
+        and #1
+        beq +
+        lda #16
+        sta vg_game
++       lda #1
         sta monitor_on
         lda #15
         jmp set_timer_secs
 tk_computer:
         lda p_anim
-        and #7
+        and #15
         bne +
-        lda #4
+        lda #3
         jsr rnd_range
         bne +
-        lda #SFX_TYPE
+        lda #SFX_BLIP           ; bleep
         jsr sfx_play
 +       rts
 en_computer:
@@ -4961,6 +4975,39 @@ l_ab_person_done:
         sta act_flip+5
         jmp l_ab_nomosaic
 l_ab_nopiano:
+        ; ...or the video game on the computer screen while he plays
+        lda p_act
+        cmp #A_COMPUTER
+        bne l_ab_novg
+        lda p_mode
+        cmp #PM_POSE
+        bne l_ab_novg
+        lda #1
+        sta act_vis+5
+        lda p_anim
+        lsr
+        lsr
+        lsr
+        and #15
+        clc
+        adc vg_game
+        tax
+        lda vg_l,x
+        sta act_sprl+5
+        lda vg_h,x
+        sta act_sprh+5
+        lda #`SPR_VGM0
+        sta act_sprb+5
+        lda #<VG_X
+        sta act_xl2+5
+        lda #>VG_X
+        sta act_xh2+5
+        lda #VG_Y
+        sta act_y+5
+        lda #0
+        sta act_flip+5
+        jmp l_ab_nomosaic
+l_ab_novg:
         ; ...or the censor mosaic over his hips while he has nothing on
         lda outfit
         cmp #2
