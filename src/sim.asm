@@ -91,7 +91,8 @@ A_UNLEASH       = 52        ;   ...and the leash off
 A_RECSTOP       = 53        ; stops the record (when asked)
 A_VACPICK       = 54        ; back to the vacuum he left, picks it up
 A_DISHES        = 55        ; washes up at the kitchen sink after eating
-A_COUNT         = 56
+A_PHONECALL     = 56        ; rings someone up himself
+A_COUNT         = 57
 
 REQ_EAT         = A_FRIDGE
 REQ_DRINK       = A_DRINK
@@ -159,6 +160,7 @@ fire_time:      .byte 0     ; game minutes of fire left
 complain_cd:    .byte 0     ; cooldowns, in game minutes
 knock_cd:       .byte 90
 letter_cd:      .byte 120
+call_cd:        .byte 60        ; minutes until he might ring someone
 cards_won:      .byte 0     ; your wins this session, he sulks if you win too much
 gift_flags:     .byte 0     ; bit0 book, bit1 record, bit2 food, bit3 water (for letters)
 tv_on:          .byte 0
@@ -424,6 +426,8 @@ l_gm_needs:
         ldx #knock_cd - complain_cd
         jsr l_gm_dec
         ldx #letter_cd - complain_cd
+        jsr l_gm_dec
+        ldx #call_cd - complain_cd
         jsr l_gm_dec
         lda knock_wait
         beq +
@@ -987,15 +991,15 @@ l_fire_b: .byte 0,0,0
 ;---------------------------------------------------------------------------------------
 ;               floor  x     face(1=right)
 act_floor:
-        .byte 0, 0,0,0,0,0, 1,0,0, 1,1,1,1,1, 1,2, 2,2,2,2, 1,0,0, 0,0,0,0, 0, 2, 0, 2, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 1, 2, 0, 0, 0, 0, 2, 0, 0
+        .byte 0, 0,0,0,0,0, 1,0,0, 1,1,1,1,1, 1,2, 2,2,2,2, 1,0,0, 0,0,0,0, 0, 2, 0, 2, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 1, 2, 0, 0, 0, 0, 2, 0, 0, 0
 act_xl:
         .byte 0, <52,<122,<138,<28,<226, <252,<268,<302, <40,<113,<170,<196,<222, <278,<228
-        .byte <108,<73,<76,<154, <83,<122,<122, <160,0,0,<300, <226, <266, 0, <62, <62, <177, <294, 0, <78, <58, <28, <28, <58, <52, <56, <82, <82, 0, <186, <186, <141, <186, <177, 0, <268, <268, <73, 0, <82
+        .byte <108,<73,<76,<154, <83,<122,<122, <160,0,0,<300, <226, <266, 0, <62, <62, <177, <294, 0, <78, <58, <28, <28, <58, <52, <56, <82, <82, 0, <186, <186, <141, <186, <177, 0, <268, <268, <73, 0, <82, <226
 act_xh:
         .byte 0, >52,>122,>138,>28,>226, >252,>268,>302, >40,>113,>170,>196,>222, >278,>228
-        .byte >108,>73,>76,>154, >83,>122,>122, >160,0,0,>300, >226, >266, 0, >62, >62, >177, >294, 0, >78, >58, >28, >28, >58, >52, >56, >82, >82, 0, >186, >186, >141, >186, >177, 0, >268, >268, >73, 0, >82
+        .byte >108,>73,>76,>154, >83,>122,>122, >160,0,0,>300, >226, >266, 0, >62, >62, >177, >294, 0, >78, >58, >28, >28, >58, >52, >56, >82, >82, 0, >186, >186, >141, >186, >177, 0, >268, >268, >73, 0, >82, >226
 act_face:
-        .byte 0, 0,1,1,0,0, 1,1,1, 0,0,0,1,1, 1,1, 0,0,0,0, 0,1,1, 0,0,0,0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0
+        .byte 0, 0,1,1,0,0, 1,1,1, 0,0,0,1,1, 1,1, 0,0,0,0, 0,1,1, 0,0,0,0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0
 
 act_start_tbl:
         .word st_none, st_fridge, st_meal, st_drink, st_feeddog, st_phone, st_read, st_fire
@@ -1005,7 +1009,7 @@ act_start_tbl:
         .word st_getfood, st_prep, st_stoveon, st_stoveoff, st_serve, st_fridgeget, st_dogfood
         .word st_getcup, st_cupsink, st_askwater
         .word st_vacget, st_vacsweep, st_vacsweep, st_vacput, st_vacsweep
-        .word st_leash, st_walkout, st_unleash, st_recstop, st_vacpick, st_dishes
+        .word st_leash, st_walkout, st_unleash, st_recstop, st_vacpick, st_dishes, st_phonecall
 act_tick_tbl:
         .word tk_none, tk_none, tk_meal, tk_drink, tk_feeddog, tk_phone, tk_none, tk_none
         .word tk_goout, tk_sleep, tk_none, tk_brush, tk_wc, tk_bath, tk_computer
@@ -1014,7 +1018,7 @@ act_tick_tbl:
         .word tk_getfood, tk_prep, tk_stoveon, tk_stoveoff, tk_prep, tk_fridgeget, tk_dogfood
         .word tk_getcup, tk_cupsink, tk_none
         .word tk_vacget, tk_vacsweep, tk_vacsweep, tk_vacput, tk_vacsweep
-        .word tk_leash, tk_walkout, tk_leash, tk_recstop, tk_vacpick, tk_none
+        .word tk_leash, tk_walkout, tk_leash, tk_recstop, tk_vacpick, tk_none, tk_phonecall
 act_end_tbl:
         .word en_none, en_fridge, en_meal, en_drink, en_feeddog, en_phone, en_read, en_fire
         .word en_goout, en_sleep, en_exercise, en_brush, en_wc, en_bath, en_computer
@@ -1023,7 +1027,7 @@ act_end_tbl:
         .word en_getfood, en_prep, en_stoveon, en_stoveoff, en_serve, en_fridgeget, en_dogfood
         .word en_getcup, en_none, en_none
         .word en_vacget, en_vacsweep, en_vacsweep, en_vacput, en_vacsweep
-        .word en_leash, en_walkout, en_unleash, en_none, en_vacpick, en_dishes
+        .word en_leash, en_walkout, en_unleash, en_none, en_vacpick, en_dishes, en_phone
 
 act_names:
         .word nm_none, nm_fridge, nm_meal, nm_drink, nm_feeddog, nm_phone, nm_read, nm_fire
@@ -1033,7 +1037,7 @@ act_names:
         .word nm_getfood, nm_prep, nm_cook, nm_stoveoff, nm_serve, nm_getfood, nm_feeddog
         .word nm_drink, nm_drink, nm_askwater
         .word nm_vacuum, nm_vacuum, nm_vacuum, nm_vacuum, nm_vacuum
-        .word nm_dogwalk, nm_dogwalk, nm_dogwalk, nm_recstop, nm_vacuum, nm_dishes
+        .word nm_dogwalk, nm_dogwalk, nm_dogwalk, nm_recstop, nm_vacuum, nm_dishes, nm_phonecall
 nm_none:     .null " is pottering about."
 nm_fridge:   .null " is getting some food."
 nm_meal:     .null " is eating."
@@ -1053,6 +1057,7 @@ nm_vacuum:   .null " is vacuuming."
 nm_dogwalk:  .null " is taking the dog for a walk."
 nm_recstop:  .null " is stopping the record."
 nm_dishes:   .null " is washing the dishes."
+nm_phonecall: .null " is making a phone call."
 nm_getfood:  .null " is fetching something to cook."
 nm_prep:     .null " is getting a meal ready."
 nm_cook:     .null " is cooking."
@@ -1322,6 +1327,21 @@ l_ai_fire:
         lda #A_FIRE
         rts
 l_ai_fun:
+        lda call_cd             ; ring somebody up (every 2.5-3.5 hours, 9-9)
+        bne l_ai_nocall
+        lda clock_hour
+        cmp #9
+        bcc l_ai_nocall
+        cmp #21
+        bcs l_ai_nocall
+        lda #60
+        jsr rnd_range
+        clc
+        adc #150
+        sta call_cd
+        lda #A_PHONECALL
+        rts
+l_ai_nocall:
         jsr weekend_evening     ; Friday / Saturday night: often the TV
         bcc +
         lda #2
@@ -2762,6 +2782,64 @@ l_tkp_pose:
         jsr sb_strxy
         jmp ui_say_sb
 +       rts
+; Ringing someone up himself: handset up, he dials (beep beep...), then a
+; chat as when you call him.
+call_t:         .byte 0
+call_lines:     .word l_call1, l_call2, l_call3, l_call4, l_call5
+l_call1:        .null ": Hello, Mom? It's me!"
+l_call2:        .null ": Hi! Just calling to say hello."
+l_call3:        .null ": Hello, is that the library? About my book..."
+l_call4:        .null ": Hey, buddy! Long time no talk!"
+l_call5:        .null ": Hello? Is your refrigerator running?"
+st_phonecall:
+        jsr st_phone
+        lda #1                  ; (not answering: no "nice of you to call")
+        sta act_phase
+        lda #2                  ; (and he does the talking when he's ready)
+        sta phone_spells
+        lda #0
+        sta call_t
+        rts
+tk_phonecall:
+        lda call_t
+        cmp #110
+        bcs l_tpc_talk
+        inc call_t
+        lda call_t
+        and #7                  ; dialling: a beep every few frames...
+        bne +
+        lda call_t
+        cmp #80                 ; ...seven digits
+        bcs +
+        lda #SFX_BLIP
+        jsr sfx_play
++       lda call_t
+        cmp #110                ; they pick up: he talks
+        bne +
+        lda #5
+        jsr rnd_range
+        asl
+        tax
+        lda call_lines,x
+        pha
+        lda call_lines+1,x
+        sta l_tpc_p+1
+        pla
+        sta l_tpc_p
+        jsr sb_clear
+        jsr sb_lcp
+        ldx l_tpc_p
+        ldy l_tpc_p+1
+        jsr sb_strxy
+        jsr ui_say_sb
+        lda #0
+        sta phone_spells
+        jsr talk_play
++       rts
+l_tpc_talk:
+        jmp tk_phone
+l_tpc_p:        .word 0
+
 en_phone:
         jsr talk_stop
         ldx #PATCH_PHONE        ; handset back on the phone
