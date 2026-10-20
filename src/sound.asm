@@ -49,14 +49,14 @@ SFX_BOOM        = 21        ;   an alien hit
 ;---------------------------------------------------------------------------------------
 ; His voice and the other digital sounds live in Attic RAM; sample_play DMAs
 ; one into the chip-RAM buffer SND_BUF and starts audio DMA channel 0 on it.
-snd_ofs_l:  .byte <SND_TALK_OFS, <SND_FLUSH_OFS, <SND_BELL_OFS, <SND_BARK_OFS, <SND_ALARM_OFS
-snd_ofs_h:  .byte >SND_TALK_OFS, >SND_FLUSH_OFS, >SND_BELL_OFS, >SND_BARK_OFS, >SND_ALARM_OFS
-snd_len_l:  .byte <SND_TALK_LEN, <SND_FLUSH_LEN, <SND_BELL_LEN, <SND_BARK_LEN, <SND_ALARM_LEN
-snd_len_h:  .byte >SND_TALK_LEN, >SND_FLUSH_LEN, >SND_BELL_LEN, >SND_BARK_LEN, >SND_ALARM_LEN
-snd_bank:   .byte SND_TALK_BANK, SND_FLUSH_BANK, SND_BELL_BANK, SND_BARK_BANK, SND_ALARM_BANK
-snd_fq0:    .byte <SND_TALK_FREQ, <SND_FLUSH_FREQ, <SND_BELL_FREQ, <SND_BARK_FREQ, <SND_ALARM_FREQ
-snd_fq1:    .byte >SND_TALK_FREQ, >SND_FLUSH_FREQ, >SND_BELL_FREQ, >SND_BARK_FREQ, >SND_ALARM_FREQ
-snd_fq2:    .byte `SND_TALK_FREQ, `SND_FLUSH_FREQ, `SND_BELL_FREQ, `SND_BARK_FREQ, `SND_ALARM_FREQ
+snd_ofs_l:  .byte <SND_TALK_OFS, <SND_FLUSH_OFS, <SND_BELL_OFS, <SND_BARK_OFS, <SND_ALARM_OFS, <SND_WHISTLE_OFS
+snd_ofs_h:  .byte >SND_TALK_OFS, >SND_FLUSH_OFS, >SND_BELL_OFS, >SND_BARK_OFS, >SND_ALARM_OFS, >SND_WHISTLE_OFS
+snd_len_l:  .byte <SND_TALK_LEN, <SND_FLUSH_LEN, <SND_BELL_LEN, <SND_BARK_LEN, <SND_ALARM_LEN, <SND_WHISTLE_LEN
+snd_len_h:  .byte >SND_TALK_LEN, >SND_FLUSH_LEN, >SND_BELL_LEN, >SND_BARK_LEN, >SND_ALARM_LEN, >SND_WHISTLE_LEN
+snd_bank:   .byte SND_TALK_BANK, SND_FLUSH_BANK, SND_BELL_BANK, SND_BARK_BANK, SND_ALARM_BANK, SND_WHISTLE_BANK
+snd_fq0:    .byte <SND_TALK_FREQ, <SND_FLUSH_FREQ, <SND_BELL_FREQ, <SND_BARK_FREQ, <SND_ALARM_FREQ, <SND_WHISTLE_FREQ
+snd_fq1:    .byte >SND_TALK_FREQ, >SND_FLUSH_FREQ, >SND_BELL_FREQ, >SND_BARK_FREQ, >SND_ALARM_FREQ, >SND_WHISTLE_FREQ
+snd_fq2:    .byte `SND_TALK_FREQ, `SND_FLUSH_FREQ, `SND_BELL_FREQ, `SND_BARK_FREQ, `SND_ALARM_FREQ, `SND_WHISTLE_FREQ
 
 talk_play:
         ldx #SND_TALK
@@ -71,6 +71,9 @@ bark_play:
         bcc +
         rts
 +       ldx #SND_BARK
+        jmp sample_play
+whistle_play:
+        ldx #SND_WHISTLE
         jmp sample_play
 alarm_play:
         ldx #SND_ALARM

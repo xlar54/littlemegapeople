@@ -296,7 +296,12 @@ SND_ALARM               = 4
 SND_ALARM_OFS           = $0D805   ; offset in its Attic bank, 9000 bytes
 SND_ALARM_LEN           = 9000
 SND_ALARM_BANK          = ATTIC_SOUNDS_BANK + 0
+SND_WHISTLE_FREQ        = $00102F   ; 10000 Hz
+SND_WHISTLE             = 5
+SND_WHISTLE_OFS         = $00000   ; offset in its Attic bank, 6001 bytes
+SND_WHISTLE_LEN         = 6001
+SND_WHISTLE_BANK        = ATTIC_SOUNDS_BANK + 1
 SOUNDS_SIZE             = 64301
-SOUNDS2_SIZE            = 1
+SOUNDS2_SIZE            = 6001
 
 GFX_SIZE                = 40752

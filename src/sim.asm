@@ -92,7 +92,8 @@ A_RECSTOP       = 53        ; stops the record (when asked)
 A_VACPICK       = 54        ; back to the vacuum he left, picks it up
 A_DISHES        = 55        ; washes up at the kitchen sink after eating
 A_PHONECALL     = 56        ; rings someone up himself
-A_COUNT         = 57
+A_WHISTLE       = 57        ; whistles the dog down for its walk
+A_COUNT         = 58
 
 REQ_EAT         = A_FRIDGE
 REQ_DRINK       = A_DRINK
@@ -111,6 +112,7 @@ REQ_LETTER      = A_LETTER
 REQ_TV          = A_TV
 REQ_RECORD      = A_RECORD
 REQ_RECSTOP     = A_RECSTOP
+REQ_DOGWALK     = A_LEASH
 REQ_DANCE       = A_DANCE
 REQ_PIANO       = A_PIANO
 REQ_CHANGE      = A_CHANGE
@@ -1049,15 +1051,15 @@ l_fire_b: .byte 0,0,0
 ;---------------------------------------------------------------------------------------
 ;               floor  x     face(1=right)
 act_floor:
-        .byte 0, 0,0,0,0,0, 1,0,0, 1,1,1,1,1, 1,2, 2,2,2,2, 1,0,0, 0,0,0,0, 0, 2, 0, 2, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 1, 2, 0, 0, 0, 0, 2, 0, 0, 0
+        .byte 0, 0,0,0,0,0, 1,0,0, 1,1,1,1,1, 1,2, 2,2,2,2, 1,0,0, 0,0,0,0, 0, 2, 0, 2, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 1, 2, 0, 0, 0, 0, 2, 0, 0, 0, 0
 act_xl:
-        .byte 0, <52,<122,<138,<28,<226, <252,<268,<302, <40,<113,<170,<196,<222, <278,<228
-        .byte <108,<73,<76,<154, <83,<122,<122, <160,0,0,<300, <226, <266, 0, <62, <62, <177, <294, 0, <78, <58, <28, <28, <58, <52, <56, <82, <82, 0, <186, <186, <141, <186, <177, 0, <268, <268, <73, 0, <82, <226
+        .byte 0, <52,<122,<138,<28,<226, <252,<268,<268, <40,<113,<170,<196,<222, <278,<228
+        .byte <108,<73,<76,<154, <83,<122,<122, <160,0,0,<300, <226, <266, 0, <62, <62, <177, <294, 0, <78, <58, <28, <28, <58, <52, <56, <82, <82, 0, <186, <186, <141, <186, <177, 0, <268, <268, <73, 0, <82, <226, 0
 act_xh:
-        .byte 0, >52,>122,>138,>28,>226, >252,>268,>302, >40,>113,>170,>196,>222, >278,>228
-        .byte >108,>73,>76,>154, >83,>122,>122, >160,0,0,>300, >226, >266, 0, >62, >62, >177, >294, 0, >78, >58, >28, >28, >58, >52, >56, >82, >82, 0, >186, >186, >141, >186, >177, 0, >268, >268, >73, 0, >82, >226
+        .byte 0, >52,>122,>138,>28,>226, >252,>268,>268, >40,>113,>170,>196,>222, >278,>228
+        .byte >108,>73,>76,>154, >83,>122,>122, >160,0,0,>300, >226, >266, 0, >62, >62, >177, >294, 0, >78, >58, >28, >28, >58, >52, >56, >82, >82, 0, >186, >186, >141, >186, >177, 0, >268, >268, >73, 0, >82, >226, 0
 act_face:
-        .byte 0, 0,1,1,0,0, 1,1,1, 0,0,0,1,1, 1,1, 0,0,0,0, 0,1,1, 0,0,0,0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0
+        .byte 0, 0,1,1,0,0, 1,1,1, 0,0,0,1,1, 1,1, 0,0,0,0, 0,1,1, 0,0,0,0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0
 
 act_start_tbl:
         .word st_none, st_fridge, st_meal, st_drink, st_feeddog, st_phone, st_read, st_fire
@@ -1067,7 +1069,7 @@ act_start_tbl:
         .word st_getfood, st_prep, st_stoveon, st_stoveoff, st_serve, st_fridgeget, st_dogfood
         .word st_getcup, st_cupsink, st_askwater
         .word st_vacget, st_vacsweep, st_vacsweep, st_vacput, st_vacsweep
-        .word st_leash, st_walkout, st_unleash, st_recstop, st_vacpick, st_dishes, st_phonecall
+        .word st_leash, st_walkout, st_unleash, st_recstop, st_vacpick, st_dishes, st_phonecall, st_whistle
 act_tick_tbl:
         .word tk_none, tk_none, tk_meal, tk_drink, tk_feeddog, tk_phone, tk_none, tk_none
         .word tk_goout, tk_sleep, tk_none, tk_brush, tk_wc, tk_bath, tk_computer
@@ -1076,7 +1078,7 @@ act_tick_tbl:
         .word tk_getfood, tk_prep, tk_stoveon, tk_stoveoff, tk_prep, tk_fridgeget, tk_dogfood
         .word tk_getcup, tk_cupsink, tk_none
         .word tk_vacget, tk_vacsweep, tk_vacsweep, tk_vacput, tk_vacsweep
-        .word tk_leash, tk_walkout, tk_leash, tk_recstop, tk_vacpick, tk_none, tk_phonecall
+        .word tk_leash, tk_walkout, tk_leash, tk_recstop, tk_vacpick, tk_none, tk_phonecall, tk_whistle
 act_end_tbl:
         .word en_none, en_fridge, en_meal, en_drink, en_feeddog, en_phone, en_read, en_fire
         .word en_goout, en_sleep, en_exercise, en_brush, en_wc, en_bath, en_computer
@@ -1085,7 +1087,7 @@ act_end_tbl:
         .word en_getfood, en_prep, en_stoveon, en_stoveoff, en_serve, en_fridgeget, en_dogfood
         .word en_getcup, en_none, en_none
         .word en_vacget, en_vacsweep, en_vacsweep, en_vacput, en_vacsweep
-        .word en_leash, en_walkout, en_unleash, en_none, en_vacpick, en_dishes, en_phone
+        .word en_leash, en_walkout, en_unleash, en_none, en_vacpick, en_dishes, en_phone, en_whistle
 
 act_names:
         .word nm_none, nm_fridge, nm_meal, nm_drink, nm_feeddog, nm_phone, nm_read, nm_fire
@@ -1095,7 +1097,7 @@ act_names:
         .word nm_getfood, nm_prep, nm_cook, nm_stoveoff, nm_serve, nm_getfood, nm_feeddog
         .word nm_drink, nm_drink, nm_askwater
         .word nm_vacuum, nm_vacuum, nm_vacuum, nm_vacuum, nm_vacuum
-        .word nm_dogwalk, nm_dogwalk, nm_dogwalk, nm_recstop, nm_vacuum, nm_dishes, nm_phonecall
+        .word nm_dogwalk, nm_dogwalk, nm_dogwalk, nm_recstop, nm_vacuum, nm_dishes, nm_phonecall, nm_whistle
 nm_none:     .null " is pottering about."
 nm_fridge:   .null " is getting some food."
 nm_meal:     .null " is eating."
@@ -1116,6 +1118,7 @@ nm_dogwalk:  .null " is taking the dog for a walk."
 nm_recstop:  .null " is stopping the record."
 nm_dishes:   .null " is washing the dishes."
 nm_phonecall: .null " is making a phone call."
+nm_whistle:  .null " is whistling for the dog."
 nm_getfood:  .null " is fetching something to cook."
 nm_prep:     .null " is getting a meal ready."
 nm_cook:     .null " is cooking."
@@ -1384,7 +1387,11 @@ l_ai_lonely:
         lda #A_KNOCK
         rts
 l_ai_letter:
-        lda letter_cd
+        lda sleep_plea          ; a letter asking to be let sleep
+        beq +
+        lda #A_LETTER
+        rts
++       lda letter_cd
         bne l_ai_fire
         lda #4
         jsr rnd_range
@@ -1941,6 +1948,23 @@ say_tired:     .null "Yawn... sorry, I'm just too tired."
 ; then he wants his bed again.
 night_wc:      .byte 0
 night_trip:    .byte 0     ; tonight's hour to get up for the bathroom (0 none)
+night_wakes:   .byte 0     ; times you woke him up tonight
+sleep_plea:    .byte 0     ; 1 = he'll write asking to be let sleep
+
+; The morning after: woken twice or more in the night, two times in three
+; he writes to you about it today.
+rest_plea_check:
+        lda night_wakes
+        cmp #2
+        bcc +
+        lda #3
+        jsr rnd_range
+        beq +
+        lda #1
+        sta sleep_plea
++       lda #0
+        sta night_wakes
+        rts
 night_tv:      .byte 0
 night_wake:
         jsr act_end
@@ -1948,6 +1972,11 @@ night_wake:
         sta p_state
         jsr is_night
         bcc l_nw_out
+        lda night_wakes         ; (counted: too many and he'll say so)
+        cmp #255
+        beq +
+        inc night_wakes
++
         lda #0                  ; (still pyjamas: no dressing)
         sta dress_todo
         lda #6
@@ -2069,6 +2098,17 @@ person_choose:
         stx p_pending
         bra ++
 +       jsr ai_choose
++       cmp #A_LEASH            ; the dog's not downstairs: whistle it down
+        bne +
+        ldx #1                  ; (a walk under way, however it began)
+        stx walk_stage
+        ldx dog_floor
+        bne l_pc_whistle
+        ldx dog_state
+        cpx #5
+        bne +
+l_pc_whistle:
+        lda #A_WHISTLE
 +       cmp #A_TV
         bne +
         ldx tv_on
@@ -2104,6 +2144,22 @@ person_choose:
         sta goal_x
         lda park_x+1
         sta goal_x+1
+        jmp l_pc_go
++       cpx #A_WHISTLE          ; on the ground floor, where he is (or
+        bne +                   ;  near the foot of the stairs)
+        lda #0
+        sta goal_floor
+        lda p_x
+        sta goal_x
+        lda p_x+1
+        sta goal_x+1
+        lda p_floor
+        beq l_pc_wh
+        lda #<200
+        sta goal_x
+        lda #>200
+        sta goal_x+1
+l_pc_wh:
         jmp l_pc_go
 +       cpx #A_LEASH
         bne ++
@@ -3085,14 +3141,21 @@ BOOK_X          = POSE_CHAIR_X + 1
 BOOK_Y          = POSE_CHAIR_Y + 10
 book_page:      .byte 0     ; ticks left showing the page turning over
 
+READ_CLOSE      = 6             ; he steps up this close to the bookcase
 st_read:
         lda #PM_BEND            ; bent over the shelf, looking for a good one
         sta p_mode
-        lda #114                ; hands along the bottom shelf
+        lda p_y
+        sec
+        sbc #READ_CLOSE
+        sta p_y
+        lda #114 - READ_CLOSE   ; hands along the bottom shelf
         jsr hands_rummage
         lda #3
         jmp set_timer_secs
 en_read:
+        lda #FLOOR1_Y           ; back out from the shelf
+        sta p_y
         lda #SFX_CLACK
         jsr sfx_play
         lda #A_READCHAIR
@@ -3235,7 +3298,13 @@ en_fire:
         jsr mood_up
         #SAY l_say_cozy
         rts
+; Going out: out through the front door like the dog walks (into the
+; doorway and behind the open door, which clicks shut), back the same way.
 st_goout:
+        jmp st_walkout
+tk_goout:
+        jmp tk_walkout
+st_goout_old:
         ldx #PATCH_DOOR
         jsr patch_apply
         lda #SFX_DOOR
@@ -3245,7 +3314,7 @@ st_goout:
         lda #>1200
         sta act_timer+1
         rts
-tk_goout:
+tk_goout_old:
         ; phase 0: step out, close door; phase 1: away; last second: door opens
         lda act_phase
         bne +
@@ -3276,6 +3345,10 @@ en_goout:
         sta p_mode
         ldx #PATCH_DOOR
         jsr patch_remove
+        lda #FLOOR0_Y           ; back on the floor
+        sta p_y
+        lda #0
+        sta dog_up
         lda #3
         jsr mood_up
         #SAY l_say_back
@@ -3665,6 +3738,7 @@ en_sleep:
         lda outfit              ; up out of pyjamas (a night's sleep, not a
         cmp #1                  ;  nap): the toilet first thing, then dressed
         bne +
+        jsr rest_plea_check     ; (woken up too often? a letter about it)
         lda #WC_EVERY
         sta wc_need
         lda #1
@@ -4639,6 +4713,13 @@ dog_up:         .byte 0     ; the dog drawn this much higher (going out)
 
 ; Going out of the door they rise towards its foot, as if walking off into
 ; the distance: him over his last 20px before it, the dog likewise.
+; the dog's place beside him, if it's on the lead
+wo_dog:
+        lda dog_lead
+        bne +
+        rts
++       jmp dog_on_lead
+
 wo_heights:
         sec
         lda p_x
@@ -4673,6 +4754,9 @@ wo_heights:
         cmp #7
         bcc +
         lda #6
++       ldx dog_lead            ; (only a dog on the lead goes out with him)
+        bne +
+        lda #0
 +       sta dog_up
         rts
 l_woh_t: .byte 0
@@ -4726,8 +4810,10 @@ l_two_out:                      ; 1: out they go, a step every other frame
         bne l_two_o1
         inc p_x+1
 l_two_o1:
-        jsr dog_on_lead         ; (the dog's place, then both heights)
+        jsr wo_dog              ; (the dog's place, then both heights)
         jsr wo_heights
+        lda dog_lead            ; (out on his own: no dog to see out)
+        beq l_two_o2
         lda dog_x+1             ; the dog's through (x >= 312: all but its
         beq l_two_o2            ;  tail behind the door)
         lda dog_x
@@ -4765,8 +4851,10 @@ l_two_away:                     ; 3: away; home with a bark near the end
         jsr patch_apply
         lda #SFX_DOOR
         jsr sfx_play
+        lda dog_lead            ; (a bark, if the dog's with him)
+        beq +
         jsr bark_play
-        lda #<WO_OUT_X
++       lda #<WO_OUT_X
         sta p_x
         lda #>WO_OUT_X
         sta p_x+1
@@ -4775,7 +4863,7 @@ l_two_away:                     ; 3: away; home with a bark near the end
         sta dog_out
         lda #PM_WALK
         sta p_mode
-        jsr dog_on_lead
+        jsr wo_dog
         jsr wo_heights
         inc wo_ph
         rts
@@ -4788,7 +4876,7 @@ l_two_in:                       ; 4: back in, a step every other frame
         dec p_x+1
 l_two_i1:
         dec p_x
-        jsr dog_on_lead
+        jsr wo_dog
         jsr wo_heights
         lda p_x+1
         cmp #>WO_IN_X
@@ -4984,6 +5072,56 @@ ck_plot:
         sta ZDST+3
         lda ck_col
         sta [ZDST],z
+        rts
+
+; Walking the dog but it's upstairs: facing you he whistles for it (again
+; every two and a half seconds) and it comes down to him; then the leash (or, if it
+; never comes, he fetches it after all).
+wh_t:           .byte 0
+st_whistle:
+        lda #PM_FRONT
+        sta p_mode
+        lda #1
+        sta dog_called
+        lda #0
+        sta wh_t
+        lda dog_state           ; (resting or wandering: it hears it now)
+        cmp #5
+        beq +
+        lda #2
+        sta dog_state
+        lda #1
+        sta dog_timer
++       jsr whistle_play
+        lda #15
+        jmp set_timer_secs
+tk_whistle:
+        lda dog_floor           ; here yet? (downstairs and stopped)
+        bne l_tkwh_more
+        lda dog_state
+        cmp #1
+        beq l_tkwh_more
+        cmp #5
+        beq l_tkwh_more
+        lda #0                  ; it's come: on with the leash
+        sta act_timer
+        sta act_timer+1
+        rts
+l_tkwh_more:
+        inc wh_t                ; whistle again every two and a half seconds
+        lda wh_t
+        cmp #125
+        bcc l_tkwh_out
+        lda #0
+        sta wh_t
+        jmp whistle_play
+l_tkwh_out:
+        rts
+en_whistle:
+        lda #0
+        sta dog_called
+        lda #PM_STAND
+        sta p_mode
         rts
 
 ; Washing his hands at the sink: back to you, elbows working, water running.
@@ -5191,7 +5329,10 @@ en_letter:
         sta letter_cd
         lda #PM_STAND
         sta p_mode
-        jmp letter_show
+        jsr letter_show
+        lda #0
+        sta sleep_plea          ; (said it)
+        rts
 
 ; --- attic -----------------------------------------------------------------------------
 ; Watching TV: sitting in the blue attic chair, facing the set.
@@ -5580,11 +5721,20 @@ dog_state:      .byte 0     ; 0 hidden, 1 walk, 2 rest, 3 eat, 4 beg
 DOG_EAT_X       = 9         ; eating: sprite left edge, nose in the bowl
 DOG_EAT_TIME    = 250       ; frames
 dog_beg:        .byte 0     ; 1 = hungry: going to him to beg
+dog_called:     .byte 0     ; 1 = he's whistled for it
 DOG_BEDSIDE_X   = 72        ; lying beside his bed (middle floor) while he sleeps
 dog_begt:       .byte 0     ; frames spent begging
 dog_gaveup:     .byte 0     ; 1 = begged in vain: waits by its bowl until fed
 dog_meals:      .byte 0     ; today: bit 0 morning, bit 1 evening
 dog_timer:      .byte 0
+
+; a bark, one time in five
+bark_now_and_then:
+        lda #5
+        jsr rnd_range
+        bne +
+        jmp bark_play
++       rts
 
 dog_init:
         lda #0
@@ -5896,7 +6046,7 @@ l_dg_begon:
         jmp l_dg_choose
 +       dec dog_timer
         bne l_dg_out
-        jsr bark_play
+        jsr bark_now_and_then
         jmp l_dg_choose
 +
         ; resting or eating: count down (chomp, chomp)
@@ -5929,7 +6079,13 @@ l_dg_choose:
         lda #1
         jmp dog_route
 l_dgc_up:
-        ; hungry (or its mealtime) and nothing in the bowl: go and beg
+        ; whistled for: down to him
+        lda dog_called
+        beq +
+        jsr dog_beg_x           ; (beside him)
+        lda #0
+        jmp dog_route
++       ; hungry (or its mealtime) and nothing in the bowl: go and beg
         lda bowl_full
         bne l_dg_bowl
         lda dog_beg
@@ -6054,7 +6210,7 @@ l_dg_walk:
         bcs +
         lda #1
         sta dog_flip
-+       jmp bark_play
++       jmp bark_now_and_then
 l_dg_nobeg:
         lda bowl_full
         beq +

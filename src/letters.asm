@@ -5,13 +5,13 @@
 
 ; Each topic: a condition routine (C = 1 to include) and a list of lines.
 topic_cond:
-        .word tc_water, tc_food, tc_dogfood, tc_book, tc_record, tc_sick, tc_lonely
-        .word tc_happy, tc_never, tc_never, tc_never, tc_never
+        .word tc_sleep, tc_water, tc_food, tc_dogfood, tc_book, tc_record, tc_sick
+        .word tc_lonely, tc_happy, tc_never, tc_never, tc_never, tc_never
 topic_text:
-        .word tt_water, tt_food, tt_dogfood, tt_book, tt_record, tt_sick, tt_lonely
-        .word tt_happy, tt_dog, tt_party, tt_piano, tt_weather
-TOPIC_COUNT     = 12
-TOPIC_RANDOM0   = 8         ; topics from here on are filler, chosen at random
+        .word tt_sleep, tt_water, tt_food, tt_dogfood, tt_book, tt_record, tt_sick
+        .word tt_lonely, tt_happy, tt_dog, tt_party, tt_piano, tt_weather
+TOPIC_COUNT     = 13
+TOPIC_RANDOM0   = 9         ; topics from here on are filler, chosen at random
 
 l_lt_n:     .byte 0
 l_lt_i:     .byte 0
@@ -26,7 +26,7 @@ letter_show:
         sta win_y0
         lda #36
         sta win_x1
-        lda #19
+        lda #21                 ; (room for a long topic and a short one)
         sta win_y1
         jsr window_open
         jsr sb_clear
@@ -84,7 +84,7 @@ l_lt_tail:
         sta gift_flags
         lda #5
         jsr mood_up
-        jsr wait_dismiss
+        jsr wait_dismiss_1min   ; (RETURN, or it goes after a minute)
         jmp window_close
 
 l_lt_cond:
@@ -107,6 +107,11 @@ l_lt_print:
         inc l_wl_row
         rts
 
+tc_sleep:                       ; woken up too often last night
+        lda sleep_plea
+        beq tc_never
+        sec
+        rts
 tc_water:
         lda water
         cmp #3
@@ -162,6 +167,12 @@ lt_tail:
         .null "          (PRESS RETURN)"
         .byte 0
 
+tt_sleep:
+        .null "I hope you don't mind me asking,"
+        .null "but could you let me sleep at"
+        .null "night? I really need my beauty"
+        .null "sleep!"
+        .byte 0
 tt_water:
         .null "My water bottle is almost"
         .null "empty. Could you fill it up?"

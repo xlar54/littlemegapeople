@@ -461,6 +461,61 @@ l_wpl_done:
         rts
 
 ; Wait for RETURN / ESC / SPACE (keeps sound running).
+; As wait_dismiss, but it also goes away by itself after a minute, the
+; seconds counting down (:59 ... :00) in the window's bottom right corner.
+wait_dismiss_1min:
+        lda #60
+        sta l_wd_s
+        lda #1                  ; (shows :59 straight away)
+        sta l_wd_f
+l_wd_loop:
+        jsr wait_frame
+        jsr sound_tick
+        dec l_wd_f              ; a second gone?
+        bne l_wd_key
+        lda #50
+        sta l_wd_f
+        lda l_wd_s
+        beq l_wd_out            ; (time's up)
+        dec l_wd_s
+        jsr l_wd_show
+l_wd_key:
+        jsr key_get
+        beq l_wd_loop
+        cmp #KEY_RETURN
+        beq l_wd_out
+        cmp #' '
+        beq l_wd_out
+        cmp #KEY_ESC
+        beq l_wd_out
+        cmp #KEY_F1
+        bne l_wd_loop
+l_wd_out:
+        rts
+l_wd_s:     .byte 0             ; seconds left
+l_wd_f:     .byte 0             ; frames left in this second
+l_wd_show:
+        lda #C_PAPER
+        sta txt_bg
+        lda #C_INK
+        sta txt_fg
+        jsr sb_clear
+        lda #':'
+        jsr sb_char
+        lda l_wd_s
+        jsr sb_num2
+        lda #<sb
+        sta ZPTR
+        lda #>sb
+        sta ZPTR+1
+        lda win_x1
+        sec
+        sbc #4
+        tax
+        ldy win_y1
+        dey
+        jmp print_str
+
 wait_dismiss:
 -       jsr wait_frame
         jsr sound_tick
@@ -498,11 +553,11 @@ help_lines:
         .byte 0
 
 help_show:
-        lda #3
+        lda #1                  ; (wide enough for the longest lines)
         sta win_x0
         lda #3
         sta win_y0
-        lda #36
+        lda #38
         sta win_x1
         lda #23
         sta win_y1

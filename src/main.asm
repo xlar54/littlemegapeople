@@ -67,6 +67,7 @@ main_entry:
         jsr image_from_attic
         jsr sim_init
         .if AUTOTEST != 0
+        jsr rtc_read            ; (the real date, as the title page would set)
         lda #AUTOTEST           ; test build: skip the arrival, go straight to it
         sta p_pending
         jsr dog_arrive          ; (the dog comes in with him)
@@ -107,7 +108,24 @@ AUTOHUNGER = 255                ;  with (255 = leave as normal)
 AUTOHEALTH = 255
 AUTODOGFOOD = 255
 AUTOTRIP = 255
+AUTOPLEA = 0
+AUTODOGUP = 0
         .endweak
+        .if AUTODOGUP != 0      ; (the dog starts upstairs, by the bed)
+        lda #1
+        sta dog_floor
+        sta dog_goal_floor
+        lda #FLOOR1_Y + 4
+        sta dog_yb
+        lda #80
+        sta dog_x
+        lda #0
+        sta dog_x+1
+        .endif
+        .if AUTOPLEA != 0
+        lda #1
+        sta sleep_plea
+        .endif
         .if AUTOTRIP != 255
         lda #AUTOTRIP
         sta night_trip

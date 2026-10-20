@@ -269,6 +269,10 @@ keyword_table:
         #KW "feed", REQ_FEEDDOG
         #KW "pet", REQ_PETDOG
         #KW "piano", REQ_PIANO
+        #KW "walk the dog", REQ_DOGWALK   ; (before "walk" and "dog")
+        #KW "walk dog", REQ_DOGWALK
+        #KW "dog for a walk", REQ_DOGWALK
+        #KW "walkies", REQ_DOGWALK
         #KW "stop", REQ_RECSTOP     ; (before "record": "stop the record")
         #KW "record", REQ_RECORD
         #KW "records", REQ_RECORD

@@ -1663,7 +1663,8 @@ def main():
               ('flush', 'flush.wav'),              # public domain, Wikimedia Commons
               ('bell', 'doorbell.wav'),            # CC0, Wikimedia Commons
               ('bark', 'bark.wav'),                # CC BY-SA 3.0, Amada44, Wikimedia Commons
-              ('alarm', 'alarm.wav', 10000)]       # CC BY-SA 4.0, Mathieu Kappler, Wikimedia Commons
+              ('alarm', 'alarm.wav', 10000),       # CC BY-SA 4.0, Mathieu Kappler, Wikimedia Commons
+              ('whistle', 'whistle.wav', 10000)]   # synthesised: a "fweet! fweet!" dog call
     # (the bell's ring needs the higher rate; everything else plays at SND_RATE)
     banks = [bytearray()]
     lines.append('SND_BUF                 = $%05X   ; chip-RAM play buffer (bank 1)' % SND_BASE)
