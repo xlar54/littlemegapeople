@@ -95,7 +95,10 @@ AUTOFLOOR = 0
         lda #FLOOR2_Y
         sta p_y
         .endif
-        lda #50
+        .weak
+AUTOMIN = 50
+        .endweak
+        lda #AUTOMIN
         sta clock_min
         .endif
         jsr lights_update

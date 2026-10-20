@@ -90,7 +90,8 @@ A_WALKOUT       = 51        ;   ...out of the front door and back
 A_UNLEASH       = 52        ;   ...and the leash off
 A_RECSTOP       = 53        ; stops the record (when asked)
 A_VACPICK       = 54        ; back to the vacuum he left, picks it up
-A_COUNT         = 55
+A_DISHES        = 55        ; washes up at the kitchen sink after eating
+A_COUNT         = 56
 
 REQ_EAT         = A_FRIDGE
 REQ_DRINK       = A_DRINK
@@ -284,6 +285,7 @@ sim_tick:
 l_st_real:
         jsr realtime_tick
 l_st_go:
+        jsr alarm_tick
         jsr record_tick
         jsr cook_tick
         jsr person_update
@@ -406,6 +408,13 @@ game_minute:
         jsr next_day
 l_gm_hour:
         jsr lights_update
+        ; the alarm clock: rings at his getting-up time if he's asleep
+        jsr wake_hour
+        cmp clock_hour
+        bne l_gm_needs
+        jsr person_sleeping
+        bcc l_gm_needs
+        jsr alarm_ring
 l_gm_needs:
         ; cooldowns
         ldx #complain_cd - complain_cd
@@ -976,15 +985,15 @@ l_fire_b: .byte 0,0,0
 ;---------------------------------------------------------------------------------------
 ;               floor  x     face(1=right)
 act_floor:
-        .byte 0, 0,0,0,0,0, 1,0,0, 1,1,1,1,1, 1,2, 2,2,2,2, 1,0,0, 0,0,0,0, 0, 2, 0, 2, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 1, 2, 0, 0, 0, 0, 2, 0
+        .byte 0, 0,0,0,0,0, 1,0,0, 1,1,1,1,1, 1,2, 2,2,2,2, 1,0,0, 0,0,0,0, 0, 2, 0, 2, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 1, 2, 0, 0, 0, 0, 2, 0, 0
 act_xl:
         .byte 0, <52,<122,<138,<28,<226, <252,<268,<302, <40,<113,<170,<196,<222, <278,<228
-        .byte <108,<73,<76,<154, <83,<122,<122, <160,0,0,<300, <226, <266, 0, <62, <62, <177, <294, 0, <78, <58, <28, <28, <58, <52, <56, <82, <82, 0, <186, <186, <141, <186, <177, 0, <268, <268, <73, 0
+        .byte <108,<73,<76,<154, <83,<122,<122, <160,0,0,<300, <226, <266, 0, <62, <62, <177, <294, 0, <78, <58, <28, <28, <58, <52, <56, <82, <82, 0, <186, <186, <141, <186, <177, 0, <268, <268, <73, 0, <82
 act_xh:
         .byte 0, >52,>122,>138,>28,>226, >252,>268,>302, >40,>113,>170,>196,>222, >278,>228
-        .byte >108,>73,>76,>154, >83,>122,>122, >160,0,0,>300, >226, >266, 0, >62, >62, >177, >294, 0, >78, >58, >28, >28, >58, >52, >56, >82, >82, 0, >186, >186, >141, >186, >177, 0, >268, >268, >73, 0
+        .byte >108,>73,>76,>154, >83,>122,>122, >160,0,0,>300, >226, >266, 0, >62, >62, >177, >294, 0, >78, >58, >28, >28, >58, >52, >56, >82, >82, 0, >186, >186, >141, >186, >177, 0, >268, >268, >73, 0, >82
 act_face:
-        .byte 0, 0,1,1,0,0, 1,1,1, 0,0,0,1,1, 1,1, 0,0,0,0, 0,1,1, 0,0,0,0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0
+        .byte 0, 0,1,1,0,0, 1,1,1, 0,0,0,1,1, 1,1, 0,0,0,0, 0,1,1, 0,0,0,0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0
 
 act_start_tbl:
         .word st_none, st_fridge, st_meal, st_drink, st_feeddog, st_phone, st_read, st_fire
@@ -994,7 +1003,7 @@ act_start_tbl:
         .word st_getfood, st_prep, st_stoveon, st_stoveoff, st_serve, st_fridgeget, st_dogfood
         .word st_getcup, st_cupsink, st_askwater
         .word st_vacget, st_vacsweep, st_vacsweep, st_vacput, st_vacsweep
-        .word st_leash, st_walkout, st_unleash, st_recstop, st_vacpick
+        .word st_leash, st_walkout, st_unleash, st_recstop, st_vacpick, st_dishes
 act_tick_tbl:
         .word tk_none, tk_none, tk_meal, tk_drink, tk_feeddog, tk_phone, tk_none, tk_none
         .word tk_goout, tk_sleep, tk_none, tk_brush, tk_wc, tk_bath, tk_computer
@@ -1003,7 +1012,7 @@ act_tick_tbl:
         .word tk_getfood, tk_prep, tk_stoveon, tk_stoveoff, tk_prep, tk_fridgeget, tk_dogfood
         .word tk_getcup, tk_cupsink, tk_none
         .word tk_vacget, tk_vacsweep, tk_vacsweep, tk_vacput, tk_vacsweep
-        .word tk_leash, tk_walkout, tk_leash, tk_recstop, tk_vacpick
+        .word tk_leash, tk_walkout, tk_leash, tk_recstop, tk_vacpick, tk_none
 act_end_tbl:
         .word en_none, en_fridge, en_meal, en_drink, en_feeddog, en_phone, en_read, en_fire
         .word en_goout, en_sleep, en_exercise, en_brush, en_wc, en_bath, en_computer
@@ -1012,7 +1021,7 @@ act_end_tbl:
         .word en_getfood, en_prep, en_stoveon, en_stoveoff, en_serve, en_fridgeget, en_dogfood
         .word en_getcup, en_none, en_none
         .word en_vacget, en_vacsweep, en_vacsweep, en_vacput, en_vacsweep
-        .word en_leash, en_walkout, en_unleash, en_none, en_vacpick
+        .word en_leash, en_walkout, en_unleash, en_none, en_vacpick, en_dishes
 
 act_names:
         .word nm_none, nm_fridge, nm_meal, nm_drink, nm_feeddog, nm_phone, nm_read, nm_fire
@@ -1022,7 +1031,7 @@ act_names:
         .word nm_getfood, nm_prep, nm_cook, nm_stoveoff, nm_serve, nm_getfood, nm_feeddog
         .word nm_drink, nm_drink, nm_askwater
         .word nm_vacuum, nm_vacuum, nm_vacuum, nm_vacuum, nm_vacuum
-        .word nm_dogwalk, nm_dogwalk, nm_dogwalk, nm_recstop, nm_vacuum
+        .word nm_dogwalk, nm_dogwalk, nm_dogwalk, nm_recstop, nm_vacuum, nm_dishes
 nm_none:     .null " is pottering about."
 nm_fridge:   .null " is getting some food."
 nm_meal:     .null " is eating."
@@ -1041,6 +1050,7 @@ nm_askwater: .null " is asking you for water."
 nm_vacuum:   .null " is vacuuming."
 nm_dogwalk:  .null " is taking the dog for a walk."
 nm_recstop:  .null " is stopping the record."
+nm_dishes:   .null " is washing the dishes."
 nm_getfood:  .null " is fetching something to cook."
 nm_prep:     .null " is getting a meal ready."
 nm_cook:     .null " is cooking."
@@ -1119,6 +1129,12 @@ ai_choose:
         bne l_pc_dlv
         lda #A_DELIVERY
 l_pc_dlv:
+        rts
++       ; an empty plate in his hands: to the sink with it
+        lda held
+        cmp #HELD_PLATEE
+        bne +
+        lda #A_DISHES
         rts
 +       ; a drink under way: carry on with it
         ldx drink_stage
@@ -1717,8 +1733,9 @@ phone_call:
         ldy #>l_say_ring2
         jmp ui_note
 alarm_ring:
-        lda #SFX_ALARM
-        jsr sfx_play
+        jsr alarm_play
+        lda #ALARM_TIME
+        sta alarm_t
         jsr person_sleeping
         bcc +
         jsr act_end
@@ -1746,6 +1763,33 @@ l_say_ring:    .null "Ring ring! The phone is ringing."
 l_say_ring2:   .null "Ring ring... he sleeps right through it."
 l_say_midnight: .null "Hey! It's the middle of the night!"
 l_say_morning: .null "Yawn... good morning!"
+
+; The alarm clock rattling on the bedside table while it rings (two pictures
+; of it a pixel left and right, swapped every few frames).
+ALARM_TIME      = 100
+alarm_t:        .byte 0
+alarm_tick:
+        lda alarm_t
+        beq l_alt_out
+        dec alarm_t
+        beq l_alt_stop
+        and #4
+        beq +
+        ldx #PATCH_ALARM + 1
+        jsr patch_remove
+        ldx #PATCH_ALARM
+        jmp patch_apply
++       ldx #PATCH_ALARM
+        jsr patch_remove
+        ldx #PATCH_ALARM + 1
+        jmp patch_apply
+l_alt_stop:
+        ldx #PATCH_ALARM
+        jsr patch_remove
+        ldx #PATCH_ALARM + 1
+        jmp patch_remove
+l_alt_out:
+        rts
 
 ;---------------------------------------------------------------------------------------
 ; Body: the per-tick state machine
@@ -2344,10 +2388,47 @@ en_meal:
         sta hunger
         lda #1
         sta brush_todo
+        lda #HELD_PLATEE        ; the empty plate to the sink
+        sta held
+        lda #A_DISHES
+        sta p_pending
         lda #3
         jsr mood_up
         #SAY l_say_yum
         rts
+
+; Washing up: at the kitchen sink, back to you, hands busy, the tap running.
+HELD_PLATEE     = 8
+DISH_CLOSE      = 5             ; he steps right up to the sink
+st_dishes:
+        lda #PM_BACKSTAND
+        sta p_mode
+        lda p_y
+        sec
+        sbc #DISH_CLOSE
+        sta p_y
+        lda #0                  ; (in the sink)
+        sta held
+        lda #COUNTER_HANDS_Y - DISH_CLOSE
+        jsr hands_rummage
+        lda #$90                ; the tap
+        sta shower_pitch
+        lda #1
+        sta shower_on
+        lda #5
+        jmp set_timer_secs
+en_dishes:
+        lda #FLOOR0_Y           ; back out to the middle of the floor
+        sta p_y
+        lda #0
+        sta shower_on
+        sta held
+        lda #$C0
+        sta shower_pitch
+        lda #PM_STAND
+        sta p_mode
+        lda #1
+        jmp mood_up
 ; A drink of water: a cup from beside the sink, filled at the cooler (the
 ; bottle's level drops), drunk facing you with the cup tipped up, then back
 ; in the sink. A dry bottle makes him glum; the third time running he asks
@@ -3216,11 +3297,11 @@ tk_sleep:
         bne l_tks_wake
 +       ; otherwise wake in the daytime: in the morning, or after a nap of an
         ; hour (or once rested)
-        jsr wake_hour
+        jsr wake_hour           ; (at his getting-up hour the alarm wakes him)
         cmp clock_hour
-        beq +
+        beq l_tks_out
         bcs l_tks_out
-+       jsr bedtime_hour
+        jsr bedtime_hour
         cmp clock_hour
         beq l_tks_out
         bcc l_tks_out
@@ -3586,8 +3667,8 @@ HELD_JAR        = 1
 HELD_POT        = 2
 HELD_PLATE      = 3
 HELD_CAN        = 4
-held_l:         .byte <SPR_HELDJAR, <SPR_HELDPOT, <SPR_HELDPLATE, <SPR_HELDCAN, <SPR_HELDCUP, <SPR_HELDCUPFULL, <SPR_HELDVAC
-held_h:         .byte >SPR_HELDJAR, >SPR_HELDPOT, >SPR_HELDPLATE, >SPR_HELDCAN, >SPR_HELDCUP, >SPR_HELDCUPFULL, >SPR_HELDVAC
+held_l:         .byte <SPR_HELDJAR, <SPR_HELDPOT, <SPR_HELDPLATE, <SPR_HELDCAN, <SPR_HELDCUP, <SPR_HELDCUPFULL, <SPR_HELDVAC, <SPR_HELDPLATEE
+held_h:         .byte >SPR_HELDJAR, >SPR_HELDPOT, >SPR_HELDPLATE, >SPR_HELDCAN, >SPR_HELDCUP, >SPR_HELDCUPFULL, >SPR_HELDVAC, >SPR_HELDPLATEE
 COUNTER_HANDS_Y = 174         ; just above his waist
 
 ; C = 1 if it's time for a meal he hasn't had today (and marks it had):

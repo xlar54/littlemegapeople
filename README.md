@@ -167,7 +167,8 @@ recording on YouTube) and played through MEGA65 audio DMA; the toilet flush is
 "Flushing the toilet" by gradha (public domain, Wikimedia Commons) and the
 doorbell is "Sound Effect - Door Bell" (CC0, Wikimedia Commons); the dog's
 bark is cut from "Barking of a dog" by Amada44 (CC BY-SA 3.0, Wikimedia
-Commons), pitched up for a little dog. Digital
+Commons), pitched up for a little dog; the alarm clock is cut from "Alarm
+clock - 01" by Mathieu Kappler (CC BY-SA 4.0, Wikimedia Commons). Digital
 sounds live in Attic RAM and are DMA'd into a chip-RAM buffer to play. Reference
 screenshots of the Amiga version came from dazeland.com,
 mastertronic.co.uk and habr.com; gameplay details from ST-News' review and the

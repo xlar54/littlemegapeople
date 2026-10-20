@@ -123,6 +123,9 @@ PATCHES = {
     # the attic closet open (Amiga 'piano' frame), with / without the vacuum
     'vac_closet': (22, 3, 3, 4, ('ATTICCLOSET', 1)),
     'vac_closet_empty': (22, 3, 3, 4, ('ATTICCLOSET', 0)),
+    # the bedside alarm clock rattling, a pixel to one side and the other
+    'alarm_l': (6, 12, 3, 2, ('ALARMCLOCK', -1)),
+    'alarm_r': (6, 12, 3, 2, ('ALARMCLOCK', 1)),
     # a pot on the stove's right burner, a flame under it
     'pot_on': (0, 20, 3, 2, ('POT', 0)),
     'fire_lit': (32, 21, 3, 2, 'cards'),
@@ -294,6 +297,18 @@ def draw_atticcloset(img, vac):
                     img[44 + dy][188 + dx] = C[ch]
 
 
+def draw_alarmclock(img, dx):
+    """The bedside alarm clock (x 55-66, y 102-111) moved dx pixels: it
+    rattles on the table when it rings."""
+    C = {ch: i for i, ch in enumerate(A.AMIGA_CH)}
+    d = C['d']
+    clock = {(x, y): img[y][x] for y in range(102, 112) for x in range(55, 67) if img[y][x] != d}
+    for (x, y) in clock:
+        img[y][x] = d
+    for (x, y), v in clock.items():
+        img[y][x + dx] = v
+
+
 def draw_phone_off(img, _):
     """The phone on the side table (handset on rows 172-173, x 196-207) with
     the handset lifted: wall shows through, the cradle hooks remain, and the
@@ -408,7 +423,8 @@ def build_house():
             {'CURTAIN': draw_curtain, 'DRAWER': draw_drawer, 'PHONE': draw_phone_off,
              'WCDOOR': draw_wcdoor, 'CUPBOARD': draw_cupboard,
              'DOGCAB': draw_dogcab, 'BEDCLOSET': draw_bedcloset,
-             'POT': draw_pot, 'ATTICCLOSET': draw_atticcloset}[src[0]](f, src[1])
+             'POT': draw_pot, 'ATTICCLOSET': draw_atticcloset,
+             'ALARMCLOCK': draw_alarmclock}[src[0]](f, src[1])
         else:
             f = open_rows if src is None else A.frame(src)
         pix = [[house_index(x, y, f[y][x], sky, name == 'fire_lit') for x in range(cx * 8, (cx + cw) * 8)]
@@ -1095,6 +1111,7 @@ ASCII_SPRITES = {
     'heldjar': ['.lll.', 'kRRRk', 'kwwwk', 'kRRRk', 'kRRRk', '.kkk.'],
     'heldpot': ['.kkkkkkk.', 'kklllllkk', '.kdddddk.', '.kdddddk.', '..kkkkk..'],
     'heldplate': ['..OvRO...', '.OnOvRO..', 'kwwwwwwwk', '.kkkkkkk.'],
+    'heldplatee': ['.........', '.........', 'kwwwwwwwk', '.kkkkkkk.'],   # eaten
     'heldcan': ['.lll.', 'kOOOk', 'kwnwk', 'kOOOk', 'kOOOk', '.kkk.'],
     # his cup: empty, full of water, and tipped up at his lips (two angles)
     'heldcup': ['k..k', 'kwwk', 'kwwk', '.kk.'],
@@ -1610,12 +1627,17 @@ def main():
     sounds = [('talk', 'phone_talk.wav'),          # his voice (the Amiga original)
               ('flush', 'flush.wav'),              # public domain, Wikimedia Commons
               ('bell', 'doorbell.wav'),            # CC0, Wikimedia Commons
-              ('bark', 'bark.wav')]                # CC BY-SA 3.0, Amada44, Wikimedia Commons
+              ('bark', 'bark.wav'),                # CC BY-SA 3.0, Amada44, Wikimedia Commons
+              ('alarm', 'alarm.wav', 10000)]       # CC BY-SA 4.0, Mathieu Kappler, Wikimedia Commons
+    # (the bell's ring needs the higher rate; everything else plays at SND_RATE)
     sblob = bytearray()
     lines.append('SND_BUF                 = $%05X   ; chip-RAM play buffer (bank 1)' % SND_BASE)
     lines.append('SND_FREQ                = $%06X   ; audio DMA step: rate * 2^24 / 40.5 MHz' % round(SND_RATE * 16777216 / 40500000))
-    for i, (name, fn) in enumerate(sounds):
-        snd = load_sound(os.path.join(ROOT, 'art', 'sound', fn), SND_RATE)
+    for i, sd in enumerate(sounds):
+        name, fn = sd[0], sd[1]
+        rate = sd[2] if len(sd) > 2 else SND_RATE
+        snd = load_sound(os.path.join(ROOT, 'art', 'sound', fn), rate)
+        lines.append('SND_%-20s= $%06X   ; %d Hz' % (name.upper() + '_FREQ', round(rate * 16777216 / 40500000), rate))
         assert SND_BASE + len(snd) < 0x1F800, name + ' sample is bigger than the play buffer'
         lines.append('SND_%-20s= %d' % (name.upper(), i))
         lines.append('SND_%-20s= $%05X   ; offset in Attic sound bank, %d bytes' % (name.upper() + '_OFS', len(sblob), len(snd)))

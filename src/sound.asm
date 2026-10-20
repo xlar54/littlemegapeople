@@ -45,10 +45,13 @@ SFX_SHUT        = 17        ; a door shutting: a soft thud, the latch clicks
 ;---------------------------------------------------------------------------------------
 ; His voice and the other digital sounds live in Attic RAM; sample_play DMAs
 ; one into the chip-RAM buffer SND_BUF and starts audio DMA channel 0 on it.
-snd_ofs_l:  .byte <SND_TALK_OFS, <SND_FLUSH_OFS, <SND_BELL_OFS, <SND_BARK_OFS
-snd_ofs_h:  .byte >SND_TALK_OFS, >SND_FLUSH_OFS, >SND_BELL_OFS, >SND_BARK_OFS
-snd_len_l:  .byte <SND_TALK_LEN, <SND_FLUSH_LEN, <SND_BELL_LEN, <SND_BARK_LEN
-snd_len_h:  .byte >SND_TALK_LEN, >SND_FLUSH_LEN, >SND_BELL_LEN, >SND_BARK_LEN
+snd_ofs_l:  .byte <SND_TALK_OFS, <SND_FLUSH_OFS, <SND_BELL_OFS, <SND_BARK_OFS, <SND_ALARM_OFS
+snd_ofs_h:  .byte >SND_TALK_OFS, >SND_FLUSH_OFS, >SND_BELL_OFS, >SND_BARK_OFS, >SND_ALARM_OFS
+snd_len_l:  .byte <SND_TALK_LEN, <SND_FLUSH_LEN, <SND_BELL_LEN, <SND_BARK_LEN, <SND_ALARM_LEN
+snd_len_h:  .byte >SND_TALK_LEN, >SND_FLUSH_LEN, >SND_BELL_LEN, >SND_BARK_LEN, >SND_ALARM_LEN
+snd_fq0:    .byte <SND_TALK_FREQ, <SND_FLUSH_FREQ, <SND_BELL_FREQ, <SND_BARK_FREQ, <SND_ALARM_FREQ
+snd_fq1:    .byte >SND_TALK_FREQ, >SND_FLUSH_FREQ, >SND_BELL_FREQ, >SND_BARK_FREQ, >SND_ALARM_FREQ
+snd_fq2:    .byte `SND_TALK_FREQ, `SND_FLUSH_FREQ, `SND_BELL_FREQ, `SND_BARK_FREQ, `SND_ALARM_FREQ
 
 talk_play:
         ldx #SND_TALK
@@ -60,6 +63,9 @@ bark_play:
         bcc +
         rts
 +       ldx #SND_BARK
+        jmp sample_play
+alarm_play:
+        ldx #SND_ALARM
         jmp sample_play
 doorbell_play:
         ldx #SND_BELL
@@ -110,11 +116,11 @@ sample_play:
         lda #>SND_BUF
         adc snd_len_h,x
         sta $D728
-        lda #<SND_FREQ
+        lda snd_fq0,x           ; this sound's playback rate
         sta $D724
-        lda #>SND_FREQ
+        lda snd_fq1,x
         sta $D725
-        lda #SND_FREQ >> 16
+        lda snd_fq2,x
         sta $D726
         lda #$FF
         sta $D729
