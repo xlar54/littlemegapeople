@@ -41,6 +41,10 @@ DOTS_SHIRT, DOTS_PANTS = 48, 49
 # The attic stereo while a record plays: the tone-arm bar shimmers (two
 # alternating entries), the front-panel lights flicker, a green power light.
 SPIN_A, SPIN_B, VU_R1, VU_R2, VU_B, LED = range(50, 56)
+# The water cooler's bottle in five bands, bottom up: each blue while the
+# water reaches it, so the level drops as he drinks.
+BOTTLE_BANDS = list(range(56, 61))
+BOTTLE_ROWS = ((173, 175), (171, 172), (169, 170), (167, 168), (165, 166))
 UI = 32                     # 32..47 UI colours
 TITLE0 = 64                 # 64..71 guestbook colours
 LOGO0 = 80                  # 80..143 logo gradient x antialias
@@ -325,7 +329,9 @@ def house_index(x, y, v, sky, fire=False):
     if 291 <= x <= 307 and 97 <= y <= 108 and v == 9:
         return MONITOR
     if 146 <= x <= 159 and 165 <= y <= 175 and v == 1:
-        return BOTTLE
+        for band, (y0, y1) in enumerate(BOTTLE_ROWS):
+            if y0 <= y <= y1:
+                return BOTTLE_BANDS[band]
     if fire and 258 <= x <= 280 and 170 <= y <= 184 and v in (14, 3, 10, 15, 4):
         return (FIRE_A, FIRE_B, FIRE_C)[(x * 7 + y * 3) % 3]
     if y == 42 and 70 <= x <= 83 and v == 3:
@@ -379,6 +385,8 @@ def build_house():
     img = [[house_index(x, y, bg[y][x], sky) for x in range(320)] for y in range(200)]
     for slot, v in ((SPIN_A, 3), (SPIN_B, 3), (VU_R1, 14), (VU_R2, 14), (VU_B, 1), (LED, 6)):
         PAL[slot] = PAL[HOUSE0 + v]
+    for slot in BOTTLE_BANDS:
+        PAL[slot] = PAL[BOTTLE]
     return img, patches
 
 
@@ -927,6 +935,17 @@ def jack_art(arms, spread):
     return [''.join(r) for r in g]
 
 
+# Facing you, drinking: his left arm (screen right) raised, the hand (and the
+# cup, drawn over it) at his mouth.
+FRONT_DRINK_ART = [ln for ln in FRONT_ART]
+FRONT_DRINK_ART[9] = '....kkSSSSSSkTk...'
+FRONT_DRINK_ART[10] = '......kSSSSk.kTk..'
+FRONT_DRINK_ART[11] = '....kkTwwwwTkkTk..'
+FRONT_DRINK_ART[12] = '...kTTTTwwTTTTTk..'
+for _y in (13, 14, 15, 16):
+    FRONT_DRINK_ART[_y] = '..kTTktTTTTtk.....'
+FRONT_DRINK_ART[17] = '..kSSkTTTTTTk.....'
+FRONT_DRINK_ART[18] = '...kk.kTTTTk......'
 FRONT_KNOCK_ART = [ln for ln in FRONT_ART]
 FRONT_KNOCK_ART[11] = '....kkTwwwwTkkkk..'
 FRONT_KNOCK_ART[12] = '...kTTTTwwTTTTTTk.'
@@ -1045,6 +1064,11 @@ ASCII_SPRITES = {
     'heldpot': ['.kkkkkkk.', 'kklllllkk', '.kdddddk.', '.kdddddk.', '..kkkkk..'],
     'heldplate': ['..OvRO...', '.OnOvRO..', 'kwwwwwwwk', '.kkkkkkk.'],
     'heldcan': ['.lll.', 'kOOOk', 'kwnwk', 'kOOOk', 'kOOOk', '.kkk.'],
+    # his cup: empty, full of water, and tipped up at his lips (two angles)
+    'heldcup': ['k..k', 'kwwk', 'kwwk', '.kk.'],
+    'heldcupfull': ['kBBk', 'kwwk', 'kwwk', '.kk.'],
+    'cuptilt0': ['...kk', '..kBk', '.kwwk', 'kwwk.', '.kk..'],
+    'cuptilt1': ['.....', 'kkkkk', 'Bwwwk', 'kwwwk', '.kkk.'],
     # the dog sitting up begging, a puppy side-on: round head with a floppy
     # ear, big black nose, both front paws held up (bobbing), tail wagging
     'dogbeg0': [
@@ -1212,6 +1236,7 @@ def build_sprites():
     for n, rows in PACKAGES.items():
         sprites.append((n, remap(A.from_ascii(rows), lambda x, y, v: amiga(v))))
     sprites.append(('front', art(FRONT_ART)))
+    sprites.append(('frontdrink', art(FRONT_DRINK_ART)))
     # jumping jacks in front of the bedroom dresser
     sprites.append(('jack0', art(jack_art('down', 0))))
     sprites.append(('jack1', art(jack_art('side', 2))))

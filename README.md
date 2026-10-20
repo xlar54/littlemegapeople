@@ -41,7 +41,7 @@ bed, go out*. You can also just say *hello*, *how are you* or *thank you*.
 | Key      | Effect                                              |
 |----------|-----------------------------------------------------|
 | CTRL-F   | deliver groceries (food supply +3)                  |
-| CTRL-W   | top up his water bottle                             |
+| CTRL-W   | fill his water cooler bottle right up               |
 | CTRL-D   | deliver dog food                                    |
 | CTRL-B   | deliver a book (he shelves it, then reads it)       |
 | CTRL-R   | deliver a record (he puts it on and dances)         |
@@ -71,7 +71,8 @@ Life in the house
 -----------------
 
 * **Needs:** hunger, thirst, energy, mood and health. He eats from the fridge,
-  drinks from the water cooler and sleeps at night (lights go down, pyjamas on):
+  drinks a cup of water from the cooler (its level drops; a dry bottle makes
+  him glum, and he'll ask you for more) and sleeps at night (lights go down, pyjamas on):
   bed at 9pm, up at 7 — or 11pm and 8 at the weekend, when Friday and Saturday
   evenings often mean TV. He may take an afternoon nap when tired.
   Starve him or let the water run dry and his health falls â€” he turns green and

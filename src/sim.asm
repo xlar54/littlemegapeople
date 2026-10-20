@@ -77,7 +77,10 @@ A_STOVEOFF      = 38        ;   ...and off again when it's done
 A_SERVE         = 39        ;   ...dishing up at the counter (then A_MEAL)
 A_FRIDGEGET     = 40        ;   ...sometimes something from the fridge too
 A_DOGFOOD       = 41        ; a can from the dog-food cupboard (then A_FEEDDOG)
-A_COUNT         = 42
+A_GETCUP        = 42        ; a cup from beside the sink (then A_DRINK)
+A_CUPSINK       = 43        ; the cup back in the sink
+A_ASKWATER      = 44        ; the bottle's dry: asks you for water
+A_COUNT         = 45
 
 REQ_EAT         = A_FRIDGE
 REQ_DRINK       = A_DRINK
@@ -431,9 +434,9 @@ l_gm_needs:
         jsr l_gm_up
         bra l_gm_dog
 l_gm_needs_awake:
-        ; awake: thirst every 4 minutes, hunger every 6
+        ; awake: thirst every 2 minutes, hunger every 6
         lda minute_count
-        and #3
+        and #1
         bne +
         lda #thirst - hunger
         jsr l_gm_up
@@ -838,19 +841,37 @@ palette_animate:
         lda #153
 +       ldx #C_SKIN
         jsr pal_set
-        ; water bottle: blue while there is water
+        ; water bottle: five bands, each blue while the water reaches it
+        ldx #0
+-       phx
+        txa
+        asl
+        cmp water               ; band i holds water while water > 2i
+        bcs l_pan_dry
         lda #0
         sta pe_g
         lda #221
         sta pe_b
         lda #0
-        ldx water
-        bne +
-        lda #204
+        bra l_pan_band
+l_pan_dry:
+        lda #221                ; empty: pale clear plastic
         sta pe_g
+        lda #238
         sta pe_b
-+       ldx #C_BOTTLE
+        lda #204
+l_pan_band:
+        pha
+        txa
+        clc
+        adc #C_BOTTLE0
+        tax
+        pla
         jsr pal_set
+        plx
+        inx
+        cpx #5
+        bne -
         ; attic TV
         lda tv_on
         beq l_pan_tvoff
@@ -936,15 +957,15 @@ l_fire_b: .byte 0,0,0
 ;---------------------------------------------------------------------------------------
 ;               floor  x     face(1=right)
 act_floor:
-        .byte 0, 0,0,0,0,0, 1,0,0, 1,1,1,1,1, 1,2, 2,2,2,2, 1,0,0, 0,0,0,0, 0, 2, 0, 2, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0
+        .byte 0, 0,0,0,0,0, 1,0,0, 1,1,1,1,1, 1,2, 2,2,2,2, 1,0,0, 0,0,0,0, 0, 2, 0, 2, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 act_xl:
         .byte 0, <52,<122,<138,<28,<226, <252,<268,<302, <40,<113,<170,<196,<222, <278,<228
-        .byte <108,<73,<76,<154, <83,<122,<122, <160,0,0,<300, <226, <266, 0, <62, <62, <177, <294, 0, <78, <58, <28, <28, <58, <52, <56
+        .byte <108,<73,<76,<154, <83,<122,<122, <160,0,0,<300, <226, <266, 0, <62, <62, <177, <294, 0, <78, <58, <28, <28, <58, <52, <56, <82, <82, 0
 act_xh:
         .byte 0, >52,>122,>138,>28,>226, >252,>268,>302, >40,>113,>170,>196,>222, >278,>228
-        .byte >108,>73,>76,>154, >83,>122,>122, >160,0,0,>300, >226, >266, 0, >62, >62, >177, >294, 0, >78, >58, >28, >28, >58, >52, >56
+        .byte >108,>73,>76,>154, >83,>122,>122, >160,0,0,>300, >226, >266, 0, >62, >62, >177, >294, 0, >78, >58, >28, >28, >58, >52, >56, >82, >82, 0
 act_face:
-        .byte 0, 0,1,1,0,0, 1,1,1, 0,0,0,1,1, 1,1, 0,0,0,0, 0,1,1, 0,0,0,0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0
+        .byte 0, 0,1,1,0,0, 1,1,1, 0,0,0,1,1, 1,1, 0,0,0,0, 0,1,1, 0,0,0,0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 
 act_start_tbl:
         .word st_none, st_fridge, st_meal, st_drink, st_feeddog, st_phone, st_read, st_fire
@@ -952,18 +973,21 @@ act_start_tbl:
         .word st_letter, st_tv, st_record, st_dance, st_piano, st_change, st_pool
         .word st_cards, st_knock, st_idle, st_petdog, st_arrive, st_readchair, st_files, st_chat, st_tvswitch, st_tvswitch, st_wash, st_delivery, st_stow
         .word st_getfood, st_prep, st_stoveon, st_stoveoff, st_serve, st_fridgeget, st_dogfood
+        .word st_getcup, st_cupsink, st_askwater
 act_tick_tbl:
-        .word tk_none, tk_none, tk_meal, tk_none, tk_feeddog, tk_phone, tk_none, tk_none
+        .word tk_none, tk_none, tk_meal, tk_drink, tk_feeddog, tk_phone, tk_none, tk_none
         .word tk_goout, tk_sleep, tk_none, tk_brush, tk_wc, tk_bath, tk_computer
         .word tk_typing, tk_none, tk_record, tk_none, tk_piano, tk_change, tk_pool
         .word tk_none, tk_knock, tk_none, tk_none, tk_arrive, tk_readchair, tk_files, tk_none, tk_none, tk_none, tk_none, tk_delivery, tk_stow
         .word tk_getfood, tk_prep, tk_stoveon, tk_stoveoff, tk_prep, tk_fridgeget, tk_dogfood
+        .word tk_getcup, tk_cupsink, tk_none
 act_end_tbl:
         .word en_none, en_fridge, en_meal, en_drink, en_feeddog, en_phone, en_read, en_fire
         .word en_goout, en_sleep, en_exercise, en_brush, en_wc, en_bath, en_computer
         .word en_letter, en_tv, en_record, en_dance, en_piano, en_change, en_pool
         .word en_cards, en_knock, en_none, en_petdog, en_arrive, en_readchair, en_files, en_chat, en_tvon, en_tvoff, en_wash, en_delivery, en_stow
         .word en_getfood, en_prep, en_stoveon, en_stoveoff, en_serve, en_fridgeget, en_dogfood
+        .word en_getcup, en_none, en_none
 
 act_names:
         .word nm_none, nm_fridge, nm_meal, nm_drink, nm_feeddog, nm_phone, nm_read, nm_fire
@@ -971,6 +995,7 @@ act_names:
         .word nm_letter, nm_tv, nm_record, nm_dance, nm_piano, nm_change, nm_pool
         .word nm_cards, nm_knock, nm_none, nm_petdog, nm_arrive, nm_readchair, nm_files, nm_chat, nm_tv, nm_tvoff, nm_wash, nm_delivery, nm_stow
         .word nm_getfood, nm_prep, nm_cook, nm_stoveoff, nm_serve, nm_getfood, nm_feeddog
+        .word nm_drink, nm_drink, nm_askwater
 nm_none:     .null " is pottering about."
 nm_fridge:   .null " is getting some food."
 nm_meal:     .null " is eating."
@@ -985,6 +1010,7 @@ nm_tvoff:    .null " is switching off the TV."
 nm_wash:     .null " is washing his hands."
 nm_delivery: .null " is answering the door."
 nm_stow:     .null " is putting the delivery away."
+nm_askwater: .null " is asking you for water."
 nm_getfood:  .null " is fetching something to cook."
 nm_prep:     .null " is getting a meal ready."
 nm_cook:     .null " is cooking."
@@ -1044,10 +1070,8 @@ ai_choose:
         lda thirst
         cmp #75
         bcc +
-        lda water
-        beq +
-        lda #A_DRINK
-        rts
+        jsr drink_go
+        bcs l_ai_ret
 +       lda cook_stage          ; (a meal on the way: no snacking)
         bne +
         lda hunger
@@ -1066,10 +1090,15 @@ ai_choose:
         lda #A_DELIVERY
 l_pc_dlv:
         rts
-+       ; cooking: carry on with the next step
++       ; a drink under way: carry on with it
+        ldx drink_stage
+        lda drink_act,x
+        bne l_ai_ret
+        ; cooking: carry on with the next step
         ldx cook_stage
         lda cook_act,x
         beq +
+l_ai_ret:
         rts
 +       ; fresh out of the shower: get dressed before anything else
         lda outfit
@@ -1136,13 +1165,10 @@ l_ai_bed:
         rts
 +       ; thirst
         lda thirst
-        cmp #50
+        cmp #40
         bcc l_ai_food
-        lda water
-        beq +
-        lda #A_DRINK
-        rts
-+       jsr complain_water
+        jsr drink_go
+        bcs l_ai_ret
 l_ai_food:
         lda hunger
         cmp #50
@@ -1504,11 +1530,11 @@ gift_food:
         ldy #>l_say_gfood
         jmp deliver
 gift_water:
-        lda water
-        cmp #9
-        bcs +
-        inc water
-+       lda gift_flags
+        lda #9                  ; the bottle filled right up
+        sta water
+        lda #0
+        sta dry_count
+        lda gift_flags
         ora #8
         sta gift_flags
         lda #SFX_GLUG
@@ -1700,6 +1726,8 @@ person_choose:
         sta goal_x+1
         bra l_pc_go
 +       cpx #A_CHAT
+        beq l_pc_front
+        cpx #A_ASKWATER
         beq l_pc_front
         cpx #A_KNOCK
         bne +
@@ -2194,20 +2222,182 @@ en_meal:
         jsr mood_up
         #SAY l_say_yum
         rts
-st_drink:
-        lda #SFX_GLUG
-        jsr sfx_play
-        lda #3
-        jmp set_timer_secs
-en_drink:
+; A drink of water: a cup from beside the sink, filled at the cooler (the
+; bottle's level drops), drunk facing you with the cup tipped up, then back
+; in the sink. A dry bottle makes him glum; the third time running he asks
+; you for water, out loud or in a letter.
+drink_stage:    .byte 0     ; 0 none, 1 cup in hand (to the cooler), 2 cup to the sink
+drink_act:      .byte 0, A_DRINK, A_CUPSINK
+drinking:       .byte 0     ; 1 = cup at his lips (front view)
+dry_count:      .byte 0     ; dry bottles in a row
+ask_water:      .byte 0     ; 1 = ask for water once the cup's put away
+dk_t:           .byte 0
+HELD_CUP        = 5
+HELD_CUPFULL    = 6
+
+; Thirsty: off for a drink? C = 1 with A = what to do. Not back to a dry
+; bottle more than every half hour or so.
+drink_go:
         lda water
+        bne +
+        lda complain_cd
         beq +
-        dec water
-+       lda #0
-        sta thirst
+        clc
+        rts
++       lda #A_GETCUP
+        sec
+        rts
+
+st_getcup:
+        lda #PM_BACKSTAND
+        sta p_mode
+        lda #0
+        sta dk_t
+        lda #1
+        jmp set_timer_secs
+tk_getcup:
+        inc dk_t
+        lda dk_t
+        cmp #25
+        bne +
+        lda #HELD_CUP
+        sta held
+        lda #1
+        sta drink_stage
+        lda #SFX_TINK
+        jmp sfx_play
++       rts
+en_getcup:
+        lda drink_stage
+        cmp #1
+        bne +
+        lda #A_DRINK
+        sta p_pending
++       rts
+
+st_drink:
+        lda #0
+        sta dk_t
+        lda #1                  ; facing the cooler
+        sta p_flip
+        lda #5
+        jmp set_timer_secs
+tk_drink:
+        inc dk_t
+        lda dk_t
+        cmp #15                 ; fill the cup
+        bne l_tkdr_1
+        lda held
+        cmp #HELD_CUPFULL
+        beq l_tkdr_out          ; (already filled)
+        lda water
+        bne +
+        jmp drink_dry
++       dec water
         lda #1
         sta ui_dirty
+        lda #HELD_CUPFULL
+        sta held
+        lda #SFX_GLUG
+        jmp sfx_play
+l_tkdr_1:
+        cmp #70                 ; turn round and drink
+        bne +
+        lda #PM_FRONT
+        sta p_mode
+        lda #1
+        sta drinking
+        lda #SFX_GLUG
+        jmp sfx_play
++       cmp #200                ; ahh
+        bne l_tkdr_out
+        lda #0
+        sta drinking
+        sta thirst
+        sta dry_count
+        lda #PM_STAND
+        sta p_mode
+        lda #HELD_CUP
+        sta held
+        lda #2
+        sta drink_stage
+        lda #1
+        sta ui_dirty
+l_tkdr_out:
         rts
+; the bottle's dry: glum, and after a few times, ask
+drink_dry:
+        lda #3
+        jsr mood_down
+        lda #30                 ; not back for a while
+        sta complain_cd
+        lda #2
+        sta drink_stage
+        inc dry_count
+        lda dry_count
+        cmp #3
+        bcc +
+        lda #0
+        sta dry_count
+        lda #1
+        sta ask_water
++       lda #0                  ; that's that
+        sta act_timer
+        sta act_timer+1
+        #SAY l_say_dry
+        rts
+en_drink:
+        lda #0
+        sta drinking
+        lda #PM_STAND
+        sta p_mode
+        lda drink_stage
+        cmp #2
+        bne +
+        lda #A_CUPSINK
+        sta p_pending
++       rts
+
+st_cupsink:
+        lda #PM_BACKSTAND
+        sta p_mode
+        lda #0
+        sta dk_t
+        lda #1
+        jmp set_timer_secs
+tk_cupsink:
+        inc dk_t
+        lda dk_t
+        cmp #25
+        bne l_tkcs_out
+        lda #0                  ; in the sink
+        sta held
+        sta drink_stage
+        lda #SFX_TINK
+        jsr sfx_play
+        lda ask_water           ; and now: please, some water
+        beq l_tkcs_out
+        lda #0
+        sta ask_water
+        lda #A_ASKWATER
+        sta p_pending
+        jsr rnd
+        and #1
+        beq l_tkcs_out
+        lda #A_LETTER           ; (or a letter about it)
+        sta p_pending
+l_tkcs_out:
+        rts
+
+st_askwater:
+        lda #PM_FRONT
+        sta p_mode
+        #SAY l_say_needwater
+        jsr speak
+        lda #4
+        jmp set_timer_secs
+l_say_dry:       .null "Empty! Not a drop left..."
+l_say_needwater: .null "I'm SO thirsty! Could you fill my water bottle? (CTRL-W)"
 ; Feeding the dog: a can from the dog-food cupboard (one fewer on the shelf),
 ; then beside the stove he leans down and fills the bowl.
 st_dogfood:
@@ -3263,8 +3453,8 @@ HELD_JAR        = 1
 HELD_POT        = 2
 HELD_PLATE      = 3
 HELD_CAN        = 4
-held_l:         .byte <SPR_HELDJAR, <SPR_HELDPOT, <SPR_HELDPLATE, <SPR_HELDCAN
-held_h:         .byte >SPR_HELDJAR, >SPR_HELDPOT, >SPR_HELDPLATE, >SPR_HELDCAN
+held_l:         .byte <SPR_HELDJAR, <SPR_HELDPOT, <SPR_HELDPLATE, <SPR_HELDCAN, <SPR_HELDCUP, <SPR_HELDCUPFULL
+held_h:         .byte >SPR_HELDJAR, >SPR_HELDPOT, >SPR_HELDPLATE, >SPR_HELDCAN, >SPR_HELDCUP, >SPR_HELDCUPFULL
 COUNTER_HANDS_Y = 174         ; just above his waist
 
 ; C = 1 if it's time for a meal he hasn't had today (and marks it had):
@@ -4548,7 +4738,10 @@ l_ab_notbend:
         beq l_ab_front_shut     ; (named: an anonymous + here hijacked the
         #SETACT 0, SPR_FRONTTALK ;  "not front" branch above it)
 l_ab_front_shut:
-        lda fx_kind
+        lda drinking
+        beq +
+        #SETACT 0, SPR_FRONTDRINK
++       lda fx_kind
         cmp #4
         bne l_ab_front_xy
         #SETACT 0, SPR_FRONTKNOCK
@@ -4856,7 +5049,30 @@ l_ab_dog_done:
         lda #0
         sta act_vis+2
         sta act_flip+2
-        ; something he's carrying while cooking (hidden when his back is to you)
+        ; drinking: the cup tipped up at his lips
+        lda drinking
+        beq l_ab_notdrinking
+        #SETACT 2, SPR_CUPTILT0
+        lda p_anim
+        and #32
+        beq +
+        #SETACT 2, SPR_CUPTILT1
++       clc
+        lda act_xl2+0
+        adc #10
+        sta act_xl2+2
+        lda act_xh2+0
+        adc #0
+        sta act_xh2+2
+        lda act_y+0
+        clc
+        adc #5
+        sta act_y+2
+        lda #1
+        sta act_vis+2
+        jmp l_ab_fx_done
+l_ab_notdrinking:
+        ; something he's carrying (hidden when his back is to you)
         lda held
         beq l_ab_noheld
         lda p_mode
