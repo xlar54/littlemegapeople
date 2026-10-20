@@ -211,7 +211,14 @@ boot_load:
         jsr stage_to_attic
         ; digital sounds: stage -> Attic (played via a chip-RAM buffer)
         #LOAD_FILE fn_sounds, fn_sounds_end
+        ldy #ATTIC_SOUNDS_BANK
         jsr stage_to_sounds
+        #LOAD_FILE fn_sounds2, fn_sounds2_end
+        ldy #ATTIC_SOUNDS_BANK + 1
+        jsr stage_to_sounds
+        ; cell patches: stage -> Attic (DMA'd into the house image)
+        #LOAD_FILE fn_patches, fn_patches_end
+        jsr stage_to_patches
         #LOAD_FILE fn_gfx, fn_gfx_end
         rts
 
@@ -292,9 +299,38 @@ fn_gfx:         .text "LMP-GFX"
 fn_gfx_end:
 fn_sounds:      .text "LMP-SOUNDS"
 fn_sounds_end:
+fn_sounds2:     .text "LMP-SOUNDS2"
+fn_sounds2_end:
+fn_patches:     .text "LMP-PATCHES"
+fn_patches_end:
+
+; copy the cell patches from the stage ($50002) to Attic ($8040000)
+stage_to_patches:
+        lda #0
+        sta dma_src_mb
+        lda #ATTIC_PATCH_MB
+        sta dma_dst_mb
+        lda #<2
+        sta dma_src
+        lda #0
+        sta dma_src+1
+        lda #STAGE_BANK
+        sta dma_src_bank
+        lda #0
+        sta dma_dst
+        sta dma_dst+1
+        lda #ATTIC_PATCH_BANK
+        sta dma_dst_bank
+        lda #<PATCHES_SIZE
+        sta dma_len
+        lda #>PATCHES_SIZE
+        sta dma_len+1
+        jmp dma_copy
 
 ; copy the sound bank from the stage ($50002) to Attic ($8030000)
+; Y = Attic bank: copy a sound bank (a whole 64K) from the stage ($50002)
 stage_to_sounds:
+        sty dma_dst_bank
         lda #0
         sta dma_src_mb
         lda #ATTIC_MB
@@ -308,11 +344,9 @@ stage_to_sounds:
         lda #0
         sta dma_dst
         sta dma_dst+1
-        lda #ATTIC_SOUNDS_BANK
-        sta dma_dst_bank
-        lda #<SOUNDS_SIZE
+        lda #<$FFF0
         sta dma_len
-        lda #>SOUNDS_SIZE
+        lda #>$FFF0
         sta dma_len+1
         jmp dma_copy
 

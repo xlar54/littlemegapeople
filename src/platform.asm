@@ -11,7 +11,9 @@
 ;   $8000000      Attic: working house image (patches applied)
 ;   $8010000      Attic: pristine house image (for undoing patches)
 ;   $8020000      Attic: guestbook title image
-;   $8030000      Attic: digital sounds (DMA'd to the chip-RAM play buffer)
+;   $8030000-     Attic: digital sounds, a bank per file (DMA'd to the chip-RAM
+;                 play buffer); room up to $80FFFFF
+;   $8100000      Attic: cell patches (DMA'd into the house image)
 ;   $18000        chip RAM: audio play buffer
 ;
 ; Palette (see tools/build_assets.py, which owns the colour values)
@@ -77,6 +79,8 @@ ATTIC_WORK_BANK         = $00       ; $8000000
 ATTIC_PRISTINE_BANK     = $01       ; $8010000
 ATTIC_TITLE_BANK        = $02       ; $8020000
 ATTIC_SOUNDS_BANK       = $03       ; $8030000: digital sounds
+ATTIC_PATCH_MB          = $81       ; $8100000: cell patches (doors open etc.)
+ATTIC_PATCH_BANK        = $00
 IMAGE_SIZE              = 64000
 
 ; --- screen geometry ---------------------------------------------------------------

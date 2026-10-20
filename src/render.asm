@@ -663,8 +663,8 @@ l_pa_loop:
         lda patch_cx,x
         tax
         jsr cell_off
-        ; source (bank 5) -> attic work
-        lda #0
+        ; source (the patch, in Attic RAM) -> attic work
+        lda #ATTIC_PATCH_MB
         sta dma_src_mb
         lda #ATTIC_MB
         sta dma_dst_mb

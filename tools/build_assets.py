@@ -6,7 +6,9 @@ Inputs : art/source/*.png    Amiga Little Computer People screenshots
          C128 character ROM  (8x8 font; path below, optional fallback)
 Outputs: assets/bg.prg       64000-byte FCM char image of the empty house
          assets/title.prg    64000-byte FCM char image of the guestbook title
-         assets/gfx.prg      font + software sprites + cell patches (bank 5)
+         assets/gfx.prg      font + foreground mask + software sprites (bank 5)
+         assets/patches.prg  cell patches (copied to Attic RAM at boot, DMA'd in)
+         assets/sounds*.prg  digital sounds, a 64K Attic bank per file
          src/gen/palette.asm 256-entry palette + nibble-swap table
          src/gen/assets.asm  sprite/patch addresses, pose anchors
          art/preview_*.png   visual checks of the generated data
@@ -26,6 +28,8 @@ CHARGEN = r'C:\Users\scott\repos\c128-emu-m65\src\chargen-390059-01.bin'
 CHARGEN_LOCAL = os.path.join(ROOT, 'art', 'chargen.bin')
 LOGO_FONT = r'C:\Windows\Fonts\ROCKEB.TTF'
 GFX_BASE = 0x50002          # gfx.prg body lands at $50000 + 2-byte PRG header
+PATCH_BASE = 0x00000        # patches: Attic megabyte $81 ($8100000), DMA'd from there
+SND_BANKS = 2               # Attic banks for sounds from $8030000 (one disk file each)
 SND_RATE = 5000             # phone voice sample rate
 SND_BASE = 0x18000          # where the voice lives in chip RAM (bank 1)
 
@@ -1623,19 +1627,27 @@ def main():
             blob += bytes(0 if v is None else v for v in r)
         lines.append('SPR_%-20s= $%05X   ; %dx%d' % (n.upper(), addr, w, h))
     lines.append('')
+    # The patches live in Attic RAM (megabyte $81, $8100000): they are only
+    # ever DMA'd into the house image, so they needn't take up bank 5.
+    pblob = bytearray()
     for n, (cx, cy, cw, ch, pix) in patches.items():
-        addr = GFX_BASE + len(blob)
-        blob += patch_cells(cw, ch, pix)
+        addr = PATCH_BASE + len(pblob)
+        pblob += patch_cells(cw, ch, pix)
         lines.append('PATCH_%-18s= $%05X' % (n.upper(), addr))
         lines.append('PATCH_%-18s= %d' % (n.upper() + '_CX', cx))
         lines.append('PATCH_%-18s= %d' % (n.upper() + '_CY', cy))
         lines.append('PATCH_%-18s= %d' % (n.upper() + '_CW', cw))
         lines.append('PATCH_%-18s= %d' % (n.upper() + '_CH', ch))
     lines.append('')
+    lines.append('PATCHES_SIZE            = %d' % len(pblob))
+    assert len(pblob) < 0xFFFE, 'patches are bigger than the boot stage'
+    write(os.path.join(ROOT, 'assets', 'patches.prg'), prg(pblob))
+    lines.append('')
     for n, (x, y) in anchors.items():
         lines.append('POSE_%-19s= %d' % (n.upper() + '_X', x))
         lines.append('POSE_%-19s= %d' % (n.upper() + '_Y', y))
-    # Digital sounds: all in one file, LMP-SOUNDS, which boot copies to Attic.
+    # Digital sounds: packed into 64K Attic banks from $8030000, one disk file
+    # per bank (LMP-SOUNDS, LMP-SOUNDS2...), which boot copies up to Attic.
     # To play one the game DMAs it into the chip-RAM play buffer SND_BUF
     # (audio DMA can only read chip RAM), then starts audio DMA on it.
     sounds = [('talk', 'phone_talk.wav'),          # his voice (the Amiga original)
@@ -1644,7 +1656,7 @@ def main():
               ('bark', 'bark.wav'),                # CC BY-SA 3.0, Amada44, Wikimedia Commons
               ('alarm', 'alarm.wav', 10000)]       # CC BY-SA 4.0, Mathieu Kappler, Wikimedia Commons
     # (the bell's ring needs the higher rate; everything else plays at SND_RATE)
-    sblob = bytearray()
+    banks = [bytearray()]
     lines.append('SND_BUF                 = $%05X   ; chip-RAM play buffer (bank 1)' % SND_BASE)
     lines.append('SND_FREQ                = $%06X   ; audio DMA step: rate * 2^24 / 40.5 MHz' % round(SND_RATE * 16777216 / 40500000))
     for i, sd in enumerate(sounds):
@@ -1653,13 +1665,22 @@ def main():
         snd = load_sound(os.path.join(ROOT, 'art', 'sound', fn), rate)
         lines.append('SND_%-20s= $%06X   ; %d Hz' % (name.upper() + '_FREQ', round(rate * 16777216 / 40500000), rate))
         assert SND_BASE + len(snd) < 0x1F800, name + ' sample is bigger than the play buffer'
+        if len(banks[-1]) + len(snd) > 0xFFF0:          # (no sound spans two banks)
+            banks.append(bytearray())
+        assert len(banks) <= SND_BANKS, 'out of sound banks: raise SND_BANKS (and boot)'
         lines.append('SND_%-20s= %d' % (name.upper(), i))
-        lines.append('SND_%-20s= $%05X   ; offset in Attic sound bank, %d bytes' % (name.upper() + '_OFS', len(sblob), len(snd)))
+        lines.append('SND_%-20s= $%05X   ; offset in its Attic bank, %d bytes' % (name.upper() + '_OFS', len(banks[-1]), len(snd)))
         lines.append('SND_%-20s= %d' % (name.upper() + '_LEN', len(snd)))
-        sblob += snd
-    lines.append('SOUNDS_SIZE             = %d' % len(sblob))
-    assert len(sblob) < 0xFFFE, 'sound bank is bigger than the boot stage'
-    write(os.path.join(ROOT, 'assets', 'sounds.prg'), prg(sblob))
+        lines.append('SND_%-20s= ATTIC_SOUNDS_BANK + %d' % (name.upper() + '_BANK', len(banks) - 1))
+        banks[-1] += snd
+    while len(banks) < SND_BANKS:
+        banks.append(bytearray())
+    for b, sb in enumerate(banks):
+        if not sb:
+            sb += bytes([128])                         # (an empty bank: a byte of silence)
+        tag = '' if b == 0 else str(b + 1)
+        lines.append('%-24s= %d' % ('SOUNDS%s_SIZE' % tag, len(sb)))
+        write(os.path.join(ROOT, 'assets', 'sounds%s.prg' % tag), prg(sb))
     lines.append('')
     lines.append('GFX_SIZE                = %d' % len(blob))
     assert GFX_BASE + len(blob) < 0x60000, 'gfx blob overflows bank 5'
