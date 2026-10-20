@@ -694,11 +694,18 @@ l_lu_set:
 l_lu_dim: .byte 255
 
 ; Sky colour per hour (r, g, b)
+; black from 8pm to 5am, dark navy before dawn, sunrise, day, sunset, dusk
 sky_rgb:
-        .byte 17,17,85, 17,17,85, 17,17,85, 17,17,85, 17,17,102, 51,34,136   ; 0-5
+        .byte 0,0,0, 0,0,0, 0,0,0, 0,0,0, 0,0,0, 17,17,85                   ; 0-5
         .byte 170,85,119, 68,102,238, 0,0,221, 0,0,221, 0,0,221, 0,0,221     ; 6-11
         .byte 0,0,221, 0,0,221, 0,0,221, 0,0,221, 0,0,221, 34,68,221         ; 12-17
-        .byte 204,102,68, 136,51,102, 51,34,119, 34,17,102, 17,17,85, 17,17,85 ; 18-23
+        .byte 204,102,68, 136,51,102, 0,0,0, 0,0,0, 0,0,0, 0,0,0             ; 18-23
+; Window glass: the same times of day, but its own light cyan by day
+win_rgb:
+        .byte 0,0,0, 0,0,0, 0,0,0, 0,0,0, 0,0,0, 17,17,85                   ; 0-5
+        .byte 221,136,170, 136,204,238, 0,204,204, 0,204,204, 0,204,204, 0,204,204 ; 6-11
+        .byte 0,204,204, 0,204,204, 0,204,204, 0,204,204, 0,204,204, 68,187,221    ; 12-17
+        .byte 238,153,85, 136,68,136, 0,0,0, 0,0,0, 0,0,0, 0,0,0             ; 18-23
 
 outfit_rgb:     ; shirt, shirt shade, pants, far trouser leg, shirt dots, pants dots
         .byte 34,102,255, 17,51,170, 255,255,255, 170,170,170, 34,102,255, 255,255,255  ; day
@@ -817,6 +824,13 @@ palette_animate:
         sta ZPTR+1
         ldy clock_hour
         ldx #C_SKY
+        jsr pal_set_from
+        lda #<win_rgb           ; the window glass
+        sta ZPTR
+        lda #>win_rgb
+        sta ZPTR+1
+        ldy clock_hour
+        ldx #C_WINSKY
         jsr pal_set_from
         ; clothes
         lda #<outfit_rgb
@@ -1197,9 +1211,14 @@ l_ai_ret:
         jsr rnd_range
         bne +
 l_ai_sleep:
+        jsr night_extras        ; (woken in the night: a few things first)
+        bcs l_ai_x
         lda #A_SLEEP
+l_ai_x:
         rts
 l_ai_bed:
+        jsr night_extras
+        bcs l_ai_x
         lda outfit              ; pyjamas on first
         cmp #1
         beq l_ai_sleep
@@ -1529,7 +1548,36 @@ l_ra_act:
         ldx #<say_norecord
         ldy #>say_norecord
         jmp ui_say
-+       ; will he? mood/2 + random(50) + 25 if polite, -15 if not
++       ; late at night (past his bedtime, before his getting-up time) or worn
+        ; out, he'll often be too tired -- though never too tired for bed,
+        ; a bite or a drink
+        lda l_ra_req
+        cmp #A_SLEEP
+        beq l_ra_awake
+        cmp #A_FRIDGE
+        beq l_ra_awake
+        cmp #A_DRINK
+        beq l_ra_awake
+        lda energy
+        cmp #15
+        bcc l_ra_tired
+        jsr bedtime_hour
+        cmp clock_hour
+        beq l_ra_tired
+        bcc l_ra_tired
+        jsr wake_hour
+        cmp clock_hour
+        beq l_ra_awake
+        bcc l_ra_awake
+l_ra_tired:
+        lda #3                  ; two times in three
+        jsr rnd_range
+        beq l_ra_awake
+        ldx #<say_tired
+        ldy #>say_tired
+        jmp ui_say
+l_ra_awake:
+        ; will he? mood/2 + random(50) + 25 if polite, -15 if not
         lda mood
         lsr
         sta l_ra_score
@@ -1706,8 +1754,9 @@ deliver:
 +       sta delivery
         jsr doorbell_play
         jsr person_sleeping
-        bcs l_dv_note
-        lda #A_DELIVERY
+        bcc +
+        jsr night_wake          ; (it gets him out of bed)
++       lda #A_DELIVERY
         jsr request_pending
 l_dv_note:
         ldx l_dv_msg
@@ -1745,7 +1794,14 @@ phone_call:
         lda #SFX_PHONE
         jsr sfx_play
         jsr person_sleeping
-        bcs +
+        bcc l_pc_awake
+        jsr night_wake          ; (it gets him out of bed)
+        lda #A_PHONE
+        jsr request_pending
+        ldx #<l_say_ring3
+        ldy #>l_say_ring3
+        jmp ui_note
+l_pc_awake:
         lda #A_PHONE
         jsr request_pending
         ldx #<l_say_ring
@@ -1760,9 +1816,7 @@ alarm_ring:
         sta alarm_t
         jsr person_sleeping
         bcc +
-        jsr act_end
-        lda #PS_IDLE
-        sta p_state
+        jsr night_wake
         jsr is_night
         bcc ++
         lda #12
@@ -1783,6 +1837,55 @@ l_say_grecord: .null "Ding dong! A parcel at the door."
 l_say_pet:     .null "Hee hee, that tickles!"
 l_say_ring:    .null "Ring ring! The phone is ringing."
 l_say_ring2:   .null "Ring ring... he sleeps right through it."
+l_say_ring3:   .null "Ring ring! He stumbles out of bed for it..."
+say_tired:     .null "Yawn... sorry, I'm just too tired."
+
+; Woken up in the night (alarm, doorbell, phone): out of bed -- not dressing
+; -- a bit grumpy; once he's seen to it maybe the bathroom, maybe some TV,
+; then he wants his bed again.
+night_wc:      .byte 0
+night_tv:      .byte 0
+night_wake:
+        jsr act_end
+        lda #PS_IDLE
+        sta p_state
+        jsr is_night
+        bcc l_nw_out
+        lda #0                  ; (still pyjamas: no dressing)
+        sta dress_todo
+        lda #6
+        jsr mood_down
+        jsr rnd                 ; half the time the bathroom
+        and #1
+        sta night_wc
+        lda #3                  ; a time in three, some TV
+        jsr rnd_range
+        cmp #0
+        bne l_nw_out
+        lda #1
+        sta night_tv
+l_nw_out:
+        rts
+; C = 1, A = what: the little extras before going back to bed
+night_extras:
+        lda night_wc
+        beq l_nx_tv
+        lda #0
+        sta night_wc
+        lda #A_WC
+        sec
+        rts
+l_nx_tv:
+        lda night_tv
+        beq l_nx_no
+        lda #0
+        sta night_tv
+        lda #A_TV
+        sec
+        rts
+l_nx_no:
+        clc
+        rts
 l_say_midnight: .null "Hey! It's the middle of the night!"
 l_say_morning: .null "Yawn... good morning!"
 

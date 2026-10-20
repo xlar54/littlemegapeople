@@ -4,7 +4,9 @@
 ; Memory map
 ;   $0002-$00FF   zero page (ours once boot loading is done; KERNAL is not used
 ;                 after boot and IRQs stay disabled)
-;   $2001-$9FFF   program (BASIC stub + code + tables), guarded at assemble time
+;   $2001-$BFFF   program (BASIC stub + code + tables), guarded at assemble time
+;                 (under BANK 0: SYS, $8000-$BFFF is bank 0 RAM -- MEGA65 book,
+;                 "BANK and SYS"; $C000-$CFFF is char ROM unless ROMC is cleared)
 ;   $16000        FCM screen RAM: 1000 cells x 2 bytes (16-bit char codes)
 ;   $40000        FCM char data: 1000 cells x 64 bytes, cell n = row n/40, col n%40
 ;   $50000        gfx.prg (font, sprites, patches); also the boot load stage
@@ -116,6 +118,7 @@ C_VU_B                  = 54
 C_LED                   = 55
 C_BOTTLE0               = 56        ; water cooler bottle, five bands bottom up
 C_DIM2_LAST             = 60
+C_WINSKY                = 61        ; window glass: the time of day (not dimmed)
 C_BAR                   = 32
 C_TEXT                  = 33
 C_SPEECH                = 34

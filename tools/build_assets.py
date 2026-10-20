@@ -49,6 +49,10 @@ SPIN_A, SPIN_B, VU_R1, VU_R2, VU_B, LED = range(50, 56)
 # water reaches it, so the level drops as he drinks.
 BOTTLE_BANDS = list(range(56, 61))
 BOTTLE_ROWS = ((173, 175), (171, 172), (169, 170), (167, 168), (165, 166))
+# Window glass (and the view out of the open front door): its own entry,
+# coloured by the time of day and not dimmed with the house lights.
+WINSKY = 61
+WINDOWS = ((105, 148, 122, 164), (199, 149, 216, 164), (294, 154, 303, 171))
 UI = 32                     # 32..47 UI colours
 TITLE0 = 64                 # 64..71 guestbook colours
 LOGO0 = 80                  # 80..143 logo gradient x antialias
@@ -379,6 +383,10 @@ def house_index(x, y, v, sky, fire=False):
         return TVSCR
     if 291 <= x <= 307 and 97 <= y <= 108 and v == 9:
         return MONITOR
+    if v == 12:
+        for x0, y0, x1, y1 in WINDOWS:
+            if x0 <= x <= x1 and y0 <= y <= y1:
+                return WINSKY
     if 146 <= x <= 159 and 165 <= y <= 175 and v == 1:
         for band, (y0, y1) in enumerate(BOTTLE_ROWS):
             if y0 <= y <= y1:
@@ -439,6 +447,7 @@ def build_house():
         PAL[slot] = PAL[HOUSE0 + v]
     for slot in BOTTLE_BANDS:
         PAL[slot] = PAL[BOTTLE]
+    PAL[WINSKY] = PAL[HOUSE0 + 12]
     return img, patches
 
 

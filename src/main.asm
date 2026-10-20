@@ -365,4 +365,4 @@ stage_to_sounds:
         .include "gen/palette.asm"
         .include "gen/notes.asm"
 
-        .cerror * > $A000, "program grew past $A000"
+        .cerror * > $C000, "program grew past $C000"
