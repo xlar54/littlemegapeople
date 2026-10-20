@@ -120,6 +120,9 @@ PATCHES = {
     'fridge_open': (3, 19, 3, 5, 'stairs'),
     # bedroom closet door open on his clothes (from the Amiga 'cards' frame)
     'closet_open': (9, 11, 3, 4, ('BEDCLOSET', 0)),
+    # the attic closet open (Amiga 'piano' frame), with / without the vacuum
+    'vac_closet': (22, 3, 3, 4, ('ATTICCLOSET', 1)),
+    'vac_closet_empty': (22, 3, 3, 4, ('ATTICCLOSET', 0)),
     # a pot on the stove's right burner, a flame under it
     'pot_on': (0, 20, 3, 2, ('POT', 0)),
     'fire_lit': (32, 21, 3, 2, 'cards'),
@@ -262,6 +265,35 @@ def draw_pot(img, _):
         img[174][x] = -1 - ((x + 2) % 3)
 
 
+VAC_IN = ['.kk...',
+          'kgk...',
+          '.kk...',
+          '.kk...',
+          'kRRk..',
+          'kRRk..',
+          'kRRk..',
+          'kRRk..',
+          'kRRk..',
+          'kkkkk.',
+          'kllllk',
+          'kkkkkk']
+
+
+def draw_atticcloset(img, vac):
+    """The attic closet (door x 177-196, y 26-55) standing open as in the
+    Amiga original, and the upright vacuum cleaner kept in it if `vac`."""
+    f = A.frame('piano')
+    for y in range(27, 56):
+        for x in range(178, 196):
+            img[y][x] = f[y][x]
+    if vac:
+        C = {ch: i for i, ch in enumerate(A.AMIGA_CH)}
+        for dy, row in enumerate(VAC_IN):
+            for dx, ch in enumerate(row):
+                if ch != '.':
+                    img[44 + dy][188 + dx] = C[ch]
+
+
 def draw_phone_off(img, _):
     """The phone on the side table (handset on rows 172-173, x 196-207) with
     the handset lifted: wall shows through, the cradle hooks remain, and the
@@ -376,7 +408,7 @@ def build_house():
             {'CURTAIN': draw_curtain, 'DRAWER': draw_drawer, 'PHONE': draw_phone_off,
              'WCDOOR': draw_wcdoor, 'CUPBOARD': draw_cupboard,
              'DOGCAB': draw_dogcab, 'BEDCLOSET': draw_bedcloset,
-             'POT': draw_pot}[src[0]](f, src[1])
+             'POT': draw_pot, 'ATTICCLOSET': draw_atticcloset}[src[0]](f, src[1])
         else:
             f = open_rows if src is None else A.frame(src)
         pix = [[house_index(x, y, f[y][x], sky, name == 'fire_lit') for x in range(cx * 8, (cx + cw) * 8)]
@@ -1066,6 +1098,20 @@ ASCII_SPRITES = {
     'heldcan': ['.lll.', 'kOOOk', 'kwnwk', 'kOOOk', 'kOOOk', '.kkk.'],
     # his cup: empty, full of water, and tipped up at his lips (two angles)
     'heldcup': ['k..k', 'kwwk', 'kwwk', '.kk.'],
+    # the vacuum cleaner he pushes along (head on the floor in front of him)
+    'heldvac': ['......kk',
+                '.....kgk',
+                '.....kk.',
+                '....kk..',
+                '....kk..',
+                '...kk...',
+                '..kRRk..',
+                '..kRRk..',
+                '..kRRk..',
+                '..kRRk..',
+                '.kkkkkk.',
+                'kllllllk',
+                'kkkkkkkk'],
     'heldcupfull': ['kBBk', 'kwwk', 'kwwk', '.kk.'],
     'cuptilt0': ['...kk', '..kBk', '.kwwk', 'kwwk.', '.kk..'],
     'cuptilt1': ['.....', 'kkkkk', 'Bwwwk', 'kwwwk', '.kkk.'],

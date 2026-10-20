@@ -80,7 +80,12 @@ A_DOGFOOD       = 41        ; a can from the dog-food cupboard (then A_FEEDDOG)
 A_GETCUP        = 42        ; a cup from beside the sink (then A_DRINK)
 A_CUPSINK       = 43        ; the cup back in the sink
 A_ASKWATER      = 44        ; the bottle's dry: asks you for water
-A_COUNT         = 45
+A_VACGET        = 45        ; (rare) the vacuum from the attic closet...
+A_VACATTIC      = 46        ;   ...vacuums the attic
+A_VACMID        = 47        ;   ...and the middle floor
+A_VACPUT        = 48        ;   ...and puts it away
+A_VACGROUND     = 49        ;   ...and the ground floor
+A_COUNT         = 50
 
 REQ_EAT         = A_FRIDGE
 REQ_DRINK       = A_DRINK
@@ -566,6 +571,7 @@ l_mod9:
 ; Midnight: the calendar moves on.
 next_day:
         lda #0
+        sta vac_done
         sta meals_done
         sta showered
         sta dog_meals
@@ -963,15 +969,15 @@ l_fire_b: .byte 0,0,0
 ;---------------------------------------------------------------------------------------
 ;               floor  x     face(1=right)
 act_floor:
-        .byte 0, 0,0,0,0,0, 1,0,0, 1,1,1,1,1, 1,2, 2,2,2,2, 1,0,0, 0,0,0,0, 0, 2, 0, 2, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+        .byte 0, 0,0,0,0,0, 1,0,0, 1,1,1,1,1, 1,2, 2,2,2,2, 1,0,0, 0,0,0,0, 0, 2, 0, 2, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 1, 2, 0
 act_xl:
         .byte 0, <52,<122,<138,<28,<226, <252,<268,<302, <40,<113,<170,<196,<222, <278,<228
-        .byte <108,<73,<76,<154, <83,<122,<122, <160,0,0,<300, <226, <266, 0, <62, <62, <177, <294, 0, <78, <58, <28, <28, <58, <52, <56, <82, <82, 0
+        .byte <108,<73,<76,<154, <83,<122,<122, <160,0,0,<300, <226, <266, 0, <62, <62, <177, <294, 0, <78, <58, <28, <28, <58, <52, <56, <82, <82, 0, <186, <186, <141, <186, <177
 act_xh:
         .byte 0, >52,>122,>138,>28,>226, >252,>268,>302, >40,>113,>170,>196,>222, >278,>228
-        .byte >108,>73,>76,>154, >83,>122,>122, >160,0,0,>300, >226, >266, 0, >62, >62, >177, >294, 0, >78, >58, >28, >28, >58, >52, >56, >82, >82, 0
+        .byte >108,>73,>76,>154, >83,>122,>122, >160,0,0,>300, >226, >266, 0, >62, >62, >177, >294, 0, >78, >58, >28, >28, >58, >52, >56, >82, >82, 0, >186, >186, >141, >186, >177
 act_face:
-        .byte 0, 0,1,1,0,0, 1,1,1, 0,0,0,1,1, 1,1, 0,0,0,0, 0,1,1, 0,0,0,0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+        .byte 0, 0,1,1,0,0, 1,1,1, 0,0,0,1,1, 1,1, 0,0,0,0, 0,1,1, 0,0,0,0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 
 act_start_tbl:
         .word st_none, st_fridge, st_meal, st_drink, st_feeddog, st_phone, st_read, st_fire
@@ -980,6 +986,7 @@ act_start_tbl:
         .word st_cards, st_knock, st_idle, st_petdog, st_arrive, st_readchair, st_files, st_chat, st_tvswitch, st_tvswitch, st_wash, st_delivery, st_stow
         .word st_getfood, st_prep, st_stoveon, st_stoveoff, st_serve, st_fridgeget, st_dogfood
         .word st_getcup, st_cupsink, st_askwater
+        .word st_vacget, st_vacsweep, st_vacsweep, st_vacput, st_vacsweep
 act_tick_tbl:
         .word tk_none, tk_none, tk_meal, tk_drink, tk_feeddog, tk_phone, tk_none, tk_none
         .word tk_goout, tk_sleep, tk_none, tk_brush, tk_wc, tk_bath, tk_computer
@@ -987,6 +994,7 @@ act_tick_tbl:
         .word tk_none, tk_knock, tk_none, tk_none, tk_arrive, tk_readchair, tk_files, tk_none, tk_none, tk_none, tk_none, tk_delivery, tk_stow
         .word tk_getfood, tk_prep, tk_stoveon, tk_stoveoff, tk_prep, tk_fridgeget, tk_dogfood
         .word tk_getcup, tk_cupsink, tk_none
+        .word tk_vacget, tk_vacsweep, tk_vacsweep, tk_vacput, tk_vacsweep
 act_end_tbl:
         .word en_none, en_fridge, en_meal, en_drink, en_feeddog, en_phone, en_read, en_fire
         .word en_goout, en_sleep, en_exercise, en_brush, en_wc, en_bath, en_computer
@@ -994,6 +1002,7 @@ act_end_tbl:
         .word en_cards, en_knock, en_none, en_petdog, en_arrive, en_readchair, en_files, en_chat, en_tvon, en_tvoff, en_wash, en_delivery, en_stow
         .word en_getfood, en_prep, en_stoveon, en_stoveoff, en_serve, en_fridgeget, en_dogfood
         .word en_getcup, en_none, en_none
+        .word en_vacget, en_vacsweep, en_vacsweep, en_vacput, en_vacsweep
 
 act_names:
         .word nm_none, nm_fridge, nm_meal, nm_drink, nm_feeddog, nm_phone, nm_read, nm_fire
@@ -1002,6 +1011,7 @@ act_names:
         .word nm_cards, nm_knock, nm_none, nm_petdog, nm_arrive, nm_readchair, nm_files, nm_chat, nm_tv, nm_tvoff, nm_wash, nm_delivery, nm_stow
         .word nm_getfood, nm_prep, nm_cook, nm_stoveoff, nm_serve, nm_getfood, nm_feeddog
         .word nm_drink, nm_drink, nm_askwater
+        .word nm_vacuum, nm_vacuum, nm_vacuum, nm_vacuum, nm_vacuum
 nm_none:     .null " is pottering about."
 nm_fridge:   .null " is getting some food."
 nm_meal:     .null " is eating."
@@ -1017,6 +1027,7 @@ nm_wash:     .null " is washing his hands."
 nm_delivery: .null " is answering the door."
 nm_stow:     .null " is putting the delivery away."
 nm_askwater: .null " is asking you for water."
+nm_vacuum:   .null " is vacuuming."
 nm_getfood:  .null " is fetching something to cook."
 nm_prep:     .null " is getting a meal ready."
 nm_cook:     .null " is cooking."
@@ -1099,6 +1110,10 @@ l_pc_dlv:
 +       ; a drink under way: carry on with it
         ldx drink_stage
         lda drink_act,x
+        bne l_ai_ret
+        ; the vacuuming under way: carry on with it
+        ldx vac_stage
+        lda vac_act,x
         bne l_ai_ret
         ; cooking: carry on with the next step
         ldx cook_stage
@@ -1278,11 +1293,23 @@ l_ai_fun:
         ldx record_left+1
         bne +
         lda #A_RECORD
-+       rts
++       cmp #A_VACGET           ; vacuuming: rare, and once a day at most
+        bne l_ai_funout
+        ldx vac_done
+        bne l_ai_nofun
+        jsr rnd
+        and #1
+        bne l_ai_nofun
+        lda #A_VACGET
+        rts
+l_ai_nofun:
+        lda #A_IDLE
+l_ai_funout:
+        rts
 l_fun_list:
         .byte A_TV, A_TV, A_RECORD, A_PIANO, A_PIANO, A_READ, A_READ, A_COMPUTER
         .byte A_EXERCISE, A_POOL, A_READ, A_COMPUTER, A_IDLE, A_IDLE, A_IDLE, A_PETDOG
-        .byte A_GOOUT, A_DANCE, A_IDLE, A_READ, A_CARDS, A_FILES, A_CHAT
+        .byte A_GOOUT, A_DANCE, A_IDLE, A_READ, A_CARDS, A_FILES, A_CHAT, A_VACGET
 l_fun_count = * - l_fun_list
 
 complain_water:
@@ -3491,8 +3518,8 @@ HELD_JAR        = 1
 HELD_POT        = 2
 HELD_PLATE      = 3
 HELD_CAN        = 4
-held_l:         .byte <SPR_HELDJAR, <SPR_HELDPOT, <SPR_HELDPLATE, <SPR_HELDCAN, <SPR_HELDCUP, <SPR_HELDCUPFULL
-held_h:         .byte >SPR_HELDJAR, >SPR_HELDPOT, >SPR_HELDPLATE, >SPR_HELDCAN, >SPR_HELDCUP, >SPR_HELDCUPFULL
+held_l:         .byte <SPR_HELDJAR, <SPR_HELDPOT, <SPR_HELDPLATE, <SPR_HELDCAN, <SPR_HELDCUP, <SPR_HELDCUPFULL, <SPR_HELDVAC
+held_h:         .byte >SPR_HELDJAR, >SPR_HELDPOT, >SPR_HELDPLATE, >SPR_HELDCAN, >SPR_HELDCUP, >SPR_HELDCUPFULL, >SPR_HELDVAC
 COUNTER_HANDS_Y = 174         ; just above his waist
 
 ; C = 1 if it's time for a meal he hasn't had today (and marks it had):
@@ -3748,6 +3775,162 @@ en_stoveoff:
         lda #A_SERVE
         sta p_pending
 +       rts
+
+; Vacuuming (now and then): the vacuum cleaner from the attic closet, back
+; and forth over the attic floor and the middle floor with it humming, then
+; back in the closet.
+vac_stage:      .byte 0     ; 0 none, 1 fetch, 2 attic, 3 middle floor,
+                            ; 4 ground floor, 5 put away
+vac_act:        .byte 0, A_VACGET, A_VACATTIC, A_VACMID, A_VACGROUND, A_VACPUT
+vac_done:       .byte 0     ; 1 = done today
+vac_t:          .byte 0
+vac_lo:         .byte 0     ; this floor's sweep: from, to, passes left
+vac_hi:         .byte 0
+vac_pass:       .byte 0
+HELD_VAC        = 7
+;                 ground  middle (up to the bed)  attic (between the slopes)
+vac_lo_tbl:     .byte 40,     74,                     36
+vac_hi_tbl:     .byte 250,    250,                    250
+VAC_PITCH       = $28       ; the hum: low noise
+
+st_vacget:
+        lda #1
+        sta vac_stage
+        lda #PM_BACKSTAND
+        sta p_mode
+        lda #0
+        sta vac_t
+        ldx #PATCH_VACCLOSET
+        jsr patch_apply
+        lda #SFX_DOOR
+        jsr sfx_play
+        lda #3
+        jmp set_timer_secs
+tk_vacget:
+        inc vac_t
+        lda vac_t
+        cmp #60                 ; out it comes
+        bne +
+        lda #HELD_VAC
+        sta held
+        lda #2
+        sta vac_stage
+        ldx #PATCH_VACCLOSET + 1
+        jmp patch_apply
++       cmp #120
+        bne +
+        jmp vac_closet_shut
++       rts
+en_vacget:
+vac_closet_shut:
+        ldx #PATCH_VACCLOSET    ; (both pictures: whichever is up)
+        jsr patch_remove
+        ldx #PATCH_VACCLOSET + 1
+        jsr patch_remove
+        lda #SFX_DOOR
+        jmp sfx_play
+
+; 2, 3: back and forth across the floor, twice over, humming
+st_vacsweep:
+        lda held
+        cmp #HELD_VAC
+        beq +
+        lda #0                  ; (lost it somehow: put it away)
+        sta vac_stage
+        lda #1
+        jmp set_timer_secs
++       ldx p_floor             ; this floor's stretch (the vacuum's head
+        lda vac_lo_tbl,x        ;  runs 15px ahead of him)
+        sta vac_lo
+        lda vac_hi_tbl,x
+        sta vac_hi
+        lda #3
+        sta vac_pass
+        lda #PM_WALK
+        sta p_mode
+        lda #VAC_PITCH
+        sta shower_pitch
+        lda #1
+        sta shower_on
+        lda #60
+        jmp set_timer_secs
+tk_vacsweep:
+        lda vac_pass
+        bne +
+        rts
++       lda p_anim              ; a step every other frame
+        and #1
+        bne l_tkv_out
+        lda p_flip
+        bne l_tkv_right
+        lda p_x                 ; left
+        cmp vac_lo
+        bcc l_tkv_turn
+        beq l_tkv_turn
+        dec p_x
+        rts
+l_tkv_right:
+        lda p_x
+        cmp vac_hi
+        bcs l_tkv_turn
+        inc p_x
+        rts
+l_tkv_turn:
+        lda p_flip
+        eor #1
+        sta p_flip
+        dec vac_pass
+        bne l_tkv_out
+        lda #0                  ; this floor's done
+        sta act_timer
+        sta act_timer+1
+        lda vac_stage
+        clc
+        adc #1
+        sta vac_stage
+l_tkv_out:
+        rts
+en_vacsweep:
+        lda #0
+        sta shower_on
+        lda #$C0
+        sta shower_pitch
+        lda #PM_STAND
+        sta p_mode
+        rts
+
+; 4: back in the closet
+st_vacput:
+        lda #PM_BACKSTAND
+        sta p_mode
+        lda #0
+        sta vac_t
+        ldx #PATCH_VACCLOSET + 1
+        jsr patch_apply
+        lda #SFX_DOOR
+        jsr sfx_play
+        lda #3
+        jmp set_timer_secs
+tk_vacput:
+        inc vac_t
+        lda vac_t
+        cmp #60                 ; in it goes
+        bne +
+        lda #0
+        sta held
+        sta vac_stage
+        lda #1
+        sta vac_done
+        ldx #PATCH_VACCLOSET + 1
+        jsr patch_remove
+        ldx #PATCH_VACCLOSET
+        jmp patch_apply
++       cmp #120
+        bne +
+        jmp vac_closet_shut
++       rts
+en_vacput:
+        jmp vac_closet_shut
 
 ; Washing his hands at the sink: back to you, elbows working, water running.
 st_wash:
@@ -5171,7 +5354,10 @@ l_ab_notdrinking:
         cmp #PM_HIDDEN
         beq l_ab_noheld
         ldx held
-        lda held_l-1,x
+        cpx #HELD_VAC
+        bne +
+        jmp ab_vacuum
++       lda held_l-1,x
         sta act_sprl+2
         lda held_h-1,x
         sta act_sprh+2
@@ -5324,6 +5510,44 @@ l_ab_fx_done:
         lda #187
         sta act_y+3
         rts
+
+; The vacuum cleaner, its head on the floor in front of him (the side he's
+; facing); hidden on the stairs.
+ab_vacuum:
+        lda p_mode
+        cmp #PM_CLIMB
+        bne +
+        jmp l_ab_fx_done
++       cmp #PM_DOWNSTEP
+        bne +
+        jmp l_ab_fx_done
++       #SETACT 2, SPR_HELDVAC
+        lda #1
+        sta act_vis+2
+        lda p_y
+        sec
+        sbc #12
+        sta act_y+2
+        lda p_flip
+        sta act_flip+2
+        bne l_abv_right
+        sec                     ; facing left: out in front, to the left
+        lda p_x
+        sbc #15
+        sta act_xl2+2
+        lda p_x+1
+        sbc #0
+        sta act_xh2+2
+        jmp l_ab_fx_done
+l_abv_right:
+        clc
+        lda p_x
+        adc #7
+        sta act_xl2+2
+        lda p_x+1
+        adc #0
+        sta act_xh2+2
+        jmp l_ab_fx_done
 
 ; The delivery: on the step, in his hands (in front of him, the side he's
 ; facing), or where he is putting it. Hidden while his back is to you on
