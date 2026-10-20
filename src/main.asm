@@ -100,6 +100,7 @@ AUTOMIN = 50
         .endweak
         lda #AUTOMIN
         sta clock_min
+        jsr clock_hands
         .endif
         jsr lights_update
         jsr pal_apply_all

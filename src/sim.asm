@@ -266,6 +266,7 @@ sim_init:
         lda #FLOOR0_Y
         sta p_y
         jsr dog_init
+        jsr clock_hands
         jmp shirt_pick
 
 ; The clock runs in real time, paced by the real-time clock's seconds (or,
@@ -416,6 +417,7 @@ l_gm_hour:
         bcc l_gm_needs
         jsr alarm_ring
 l_gm_needs:
+        jsr clock_hands         ; the office clock keeps time
         ; cooldowns
         ldx #complain_cd - complain_cd
         jsr l_gm_dec
@@ -1913,6 +1915,8 @@ l_pc_front:
         bra l_pc_go
 +       cpx #A_PETDOG
         bne +
+        lda dog_floor           ; (whichever floor it's on)
+        sta goal_floor
         lda dog_x
         clc
         adc #18
@@ -4152,6 +4156,8 @@ DOG_LEAD_DX     = 24        ; the dog this far ahead of him
 ; C = 1 at walk time (9-11am, 2-4pm, 7-9pm) if not walked then (and marks
 ; it); only with the dog in, and not begging or eating.
 dog_walk_due:
+        lda dog_floor           ; (it's downstairs)
+        bne l_dwd_no
         lda dog_state
         beq l_dwd_no
         cmp #3
@@ -4481,6 +4487,164 @@ en_walkout:
         sta p_pending
         rts
 l_say_walkies: .null "Good walk, boy!"
+
+; The office wall clock keeps the real time: its face is repainted each
+; minute with a minute hand (3px) and an hour hand (2px) in black, pointing
+; to one of twelve positions round the dial (x 274-282, y 82-88, centre
+; 278,85). Pixels go into the house image in Attic RAM and onto the screen.
+CK_X            = 278
+CK_Y            = 85
+ck_m1x: .byte 0, 0, 1, 1, 1, 0, 0, 0, 255, 255, 255, 255
+ck_m1y: .byte 255, 255, 0, 0, 0, 1, 1, 1, 0, 0, 0, 255
+ck_m2x: .byte 0, 1, 2, 2, 2, 1, 0, 255, 254, 254, 254, 255
+ck_m2y: .byte 254, 255, 255, 0, 1, 1, 2, 1, 1, 0, 255, 255
+ck_m3x: .byte 0, 2, 3, 3, 3, 2, 0, 254, 253, 253, 253, 254
+ck_m3y: .byte 254, 254, 255, 0, 1, 2, 2, 2, 1, 0, 255, 254
+ck_h1x: .byte 0, 0, 1, 1, 1, 0, 0, 0, 255, 255, 255, 255
+ck_h1y: .byte 255, 255, 0, 0, 0, 1, 1, 1, 0, 0, 0, 255
+ck_h2x: .byte 0, 1, 2, 2, 2, 1, 0, 255, 254, 254, 254, 255
+ck_h2y: .byte 254, 255, 255, 0, 1, 1, 2, 1, 1, 0, 255, 255
+ck_px:          .byte 0
+ck_py:          .byte 0
+ck_col:         .byte 0
+ck_dir:         .byte 0
+
+clock_hands:
+        lda #1                  ; fresh face (the painted hands too)
+        sta patch_state + PATCH_CLOCKFACE
+        ldx #PATCH_CLOCKFACE
+        jsr patch_remove
+        lda #C_WHITE            ; white out the face's painted-on hand
+        sta ck_col
+        ldx #<(CK_X - 1)
+        ldy #CK_Y
+        jsr ck_plot
+        lda #C_BLACK
+        sta ck_col
+        ; minute hand: minutes / 5
+        lda clock_min
+        ldx #0
+-       cmp #5
+        bcc +
+        sbc #5
+        inx
+        bra -
++       stx ck_dir
+        lda ck_m1x,x
+        ldy ck_m1y,x
+        jsr ck_plot_rel
+        ldx ck_dir
+        lda ck_m2x,x
+        ldy ck_m2y,x
+        jsr ck_plot_rel
+        ldx ck_dir
+        lda ck_m3x,x
+        ldy ck_m3y,x
+        jsr ck_plot_rel
+        ; hour hand: hour mod 12, a step on after half past
+        lda clock_hour
+-       cmp #12
+        bcc +
+        sbc #12
+        bra -
++       ldx clock_min
+        cpx #30
+        bcc +
+        clc
+        adc #1
+        cmp #12
+        bcc +
+        lda #0
++       tax
+        stx ck_dir
+        lda ck_h1x,x
+        ldy ck_h1y,x
+        jsr ck_plot_rel
+        ldx ck_dir
+        lda ck_h2x,x
+        ldy ck_h2y,x
+        jsr ck_plot_rel
+        ldx #<CK_X              ; the centre pin
+        ldy #CK_Y
+        jmp ck_plot
+; A = dx, Y = dy (signed) from the centre
+ck_plot_rel:
+        clc
+        adc #<CK_X
+        tax
+        tya
+        clc
+        adc #CK_Y
+        tay
+; X, Y = pixel (x 256..287 assumed: x is CK_X-relative low byte), colour ck_col
+ck_plot:
+        stx ck_px
+        sty ck_py
+        ; offset = (y>>3)*2560 + (x>>3)*64 + (y&7)*8 + (x&7), x here + 256
+        lda #0
+        sta ZDST+1
+        lda ck_py
+        and #7
+        asl
+        asl
+        asl
+        sta ZDST
+        lda ck_px
+        and #7
+        ora ZDST
+        sta ZDST
+        lda ck_px               ; (x>>3) + 32 (x is 256+low byte) -> *64
+        lsr
+        lsr
+        lsr
+        clc
+        adc #32
+        ; *64 = <<6: high gets >>2, low gets <<6
+        pha
+        lsr
+        lsr
+        clc
+        adc ZDST+1
+        sta ZDST+1
+        pla
+        asl
+        asl
+        asl
+        asl
+        asl
+        asl
+        clc
+        adc ZDST
+        sta ZDST
+        bcc +
+        inc ZDST+1
++       lda ck_py               ; (y>>3) * 2560 = (y>>3) * 10 * 256
+        lsr
+        lsr
+        lsr
+        sta MULTINA
+        lda #10
+        sta MULTINB
+        lda MULTOUT
+        clc
+        adc ZDST+1
+        sta ZDST+1
+        ; screen character data
+        lda #`CHAR_DATA
+        sta ZDST+2
+        lda #0
+        sta ZDST+3
+        ldz #0
+        lda ck_col
+        sta [ZDST],z
+        ; the house image in Attic RAM (so it stays when restored)
+        lda #ATTIC_WORK_BANK
+        sta ZDST+2
+        lda #ATTIC_MB >> 4
+        sta ZDST+3
+        lda ck_col
+        sta [ZDST],z
+        rts
 
 ; Washing his hands at the sink: back to you, elbows working, water running.
 st_wash:
@@ -5054,6 +5218,180 @@ dog_init:
         lda #0
         sta dog_state
         sta dog_beg
+        sta dog_floor
+        sta dog_goal_floor
+        lda #DOG_Y
+        sta dog_yb
+        rts
+
+; The dog about the house: dog_tx is where it's going on floor A. To another
+; floor it heads for the stairs first, climbs them (state 5) along the same
+; flights he uses, and carries on from there.
+dog_floor:      .byte 0
+dog_goal_floor: .byte 0
+dog_yb:         .byte DOG_Y     ; its feet: the floor's line, or on the stairs
+dog_final:      .word 0
+dog_path:       .word 0
+dog_sdir:       .byte 0         ; 1 up, 0 down
+dog_seg:        .byte 0         ; 0 a front block of steps, 1 a side flight
+dog_fy:         .byte DOG_Y, FLOOR1_Y + 4, FLOOR2_Y + 3
+; the flights (x, feet y), from the foot / head: up from the ground floor,
+; down to it, up from the middle floor, down to it
+dog_up0:        .byte 177, 163, 166, 161, 136, 141, 128, FLOOR1_Y + 4, $FF
+dog_down0:      .byte 136, 141, 166, 161, 177, 163, 177, DOG_Y, $FF
+dog_up1:        .byte 141, 100, 152, 98, 183, 76, 190, FLOOR2_Y + 3, $FF
+dog_down1:      .byte 183, 76, 152, 98, 141, 100, 141, FLOOR1_Y + 4, $FF
+
+; keep dog_tx inside the house (30..290)
+dog_clamp_tx:
+        lda dog_tx+1
+        bne +
+        lda dog_tx
+        cmp #30
+        bcs l_dct_out
+        lda #30
+        sta dog_tx
+        rts
++       lda dog_tx
+        cmp #<290
+        bcc l_dct_out
+        lda #<290
+        sta dog_tx
+l_dct_out:
+        rts
+
+dog_route:
+        sta dog_goal_floor
+        lda dog_tx
+        sta dog_final
+        lda dog_tx+1
+        sta dog_final+1
+        lda #1
+        sta dog_state
+; dog_tx: the final spot if it's on that floor, else this floor's stairs
+dog_next_leg:
+        lda dog_floor
+        cmp dog_goal_floor
+        bne +
+        lda dog_final
+        sta dog_tx
+        lda dog_final+1
+        sta dog_tx+1
+        rts
++       ldx #177                ; ground floor: up
+        lda dog_floor
+        beq l_dnl_x
+        ldx #190                ; attic: down
+        cmp #2
+        beq l_dnl_x
+        ldx #141                ; middle floor: up...
+        lda dog_goal_floor
+        cmp #2
+        beq l_dnl_x
+        ldx #128                ; ...or down
+l_dnl_x:
+        stx dog_tx
+        lda #0
+        sta dog_tx+1
+        rts
+
+dog_stairs_start:
+        ldx #<dog_up0
+        ldy #>dog_up0
+        lda #1
+        sta dog_sdir
+        lda dog_floor
+        beq l_dss_go            ; ground floor: up
+        ldx #<dog_down1
+        ldy #>dog_down1
+        lda #0
+        sta dog_sdir
+        lda dog_floor
+        cmp #2
+        beq l_dss_go            ; attic: down
+        ldx #<dog_up1           ; middle floor: up or down
+        ldy #>dog_up1
+        lda #1
+        sta dog_sdir
+        lda dog_goal_floor
+        cmp #2
+        beq l_dss_go
+        ldx #<dog_down0
+        ldy #>dog_down0
+        lda #0
+        sta dog_sdir
+l_dss_go:
+        stx dog_path
+        sty dog_path+1
+        lda #5
+        sta dog_state
+        rts
+
+; state 5: a step every other frame towards the next point of the flight
+dog_stairs:
+        lda p_anim
+        and #1
+        bne l_dst_out
+        lda dog_path
+        sta ZPTR2
+        lda dog_path+1
+        sta ZPTR2+1
+        ldy #0
+        lda (ZPTR2),y
+        cmp #$FF
+        beq l_dst_end
+        ldx #0                  ; straight up/down (a front block) or across?
+        cmp dog_x
+        beq +
+        inx
++       stx dog_seg
+        cmp dog_x               ; across
+        beq l_dst_y
+        bcc +
+        inc dog_x
+        lda #1
+        sta dog_flip
+        bra l_dst_y
++       dec dog_x
+        lda #0
+        sta dog_flip
+l_dst_y:
+        iny                     ; and up / down
+        lda (ZPTR2),y
+        cmp dog_yb
+        beq l_dst_here
+        bcc +
+        inc dog_yb
+        rts
++       dec dog_yb
+        rts
+l_dst_here:
+        dey                     ; at this point? on to the next
+        lda (ZPTR2),y
+        cmp dog_x
+        bne l_dst_out
+        clc
+        lda dog_path
+        adc #2
+        sta dog_path
+        bcc l_dst_out
+        inc dog_path+1
+l_dst_out:
+        rts
+l_dst_end:                      ; off the stairs: on the new floor
+        lda dog_sdir
+        beq +
+        inc dog_floor
+        bra ++
++       dec dog_floor
++       ldx dog_floor
+        lda dog_fy,x
+        sta dog_yb
+        lda #0
+        sta dog_x+1
+        jsr dog_next_leg
+        lda #1
+        sta dog_state
         rts
 
 ; C = 1 at the dog's mealtime (8-10am, 5-7pm) if it hasn't been fed then
@@ -5086,14 +5424,11 @@ l_dmd_no:
 ; Where to beg: beside him on the ground floor (whichever side the dog is
 ; on), else at the foot of the stairs.
 dog_beg_target:
+        jsr dog_beg_x
         lda p_floor
-        beq +
-        lda #<190
-        sta dog_tx
-        lda #>190
-        sta dog_tx+1
-        rts
-+       lda dog_x
+        jmp dog_route
+dog_beg_x:
+        lda dog_x
         cmp p_x
         lda dog_x+1
         sbc p_x+1
@@ -5134,6 +5469,11 @@ l_dbt_out:
         rts
 
 dog_arrive:
+        lda #0
+        sta dog_floor
+        sta dog_goal_floor
+        lda #DOG_Y
+        sta dog_yb
         lda #<280
         sta dog_x
         lda #>280
@@ -5157,7 +5497,10 @@ l_dg_free:
         rts
 +       cmp #1
         beq l_dg_walk
-        cmp #4
+        cmp #5
+        bne +
+        jmp dog_stairs
++       cmp #4
         bne +
         ; begging: until the bowl's filled; every so often a bark, and
         ; after him if he's moved off
@@ -5207,37 +5550,62 @@ l_dg_begto:
         sta dog_state
         rts
 l_dg_bowl:
-        ; food in the bowl?
+        ; food in the bowl? (downstairs)
         lda bowl_full
         beq +
         lda #<30
         sta dog_tx
         lda #0
         sta dog_tx+1
-        lda #1
-        sta dog_state
-        rts
-+       ; follow him around the ground floor, or wander
+        lda #0
+        jmp dog_route
++       ; the fire's lit: often it goes and lies in front of it
+        lda fire_time
+        beq l_dgc_him
+        jsr rnd
+        and #1
+        beq l_dgc_him
+        lda #<262
+        sta dog_tx
+        lda #>262
+        sta dog_tx+1
+        lda #0
+        jsr dog_route
+        bra l_dg_go
+l_dgc_him:
+        ; mostly it keeps him company: somewhere near him, on his floor
         lda #3
         jsr rnd_range
-        bne +
-        lda p_floor
-        bne +
-        lda p_x
+        beq l_dgc_about
+        lda #60
+        jsr rnd_range
+        sec
+        sbc #30
+        clc
+        adc p_x
         sta dog_tx
-        lda p_x+1
+        lda #0
         sta dog_tx+1
+        lda p_x+1
+        beq +
+        lda #1
+        sta dog_tx+1
++       jsr dog_clamp_tx
+        lda p_floor
+        jsr dog_route
         bra l_dg_go
-+       lda #230
+l_dgc_about:
+        ; or it potters about this floor
+        lda #210
         jsr rnd_range
         clc
         adc #40
         sta dog_tx
         lda #0
         sta dog_tx+1
+        lda dog_floor
+        jsr dog_route
 l_dg_go:
-        lda #1
-        sta dog_state
         lda #10
         jsr rnd_range
         bne l_dg_out
@@ -5255,7 +5623,11 @@ l_dg_walk:
         cmp dog_tx
         bne l_dg_move
         ; arrived
-        lda dog_beg             ; at his feet: sit up and beg
+        lda dog_floor           ; at the stairs, on the way to another floor
+        cmp dog_goal_floor
+        beq +
+        jmp dog_stairs_start
++       lda dog_beg             ; at his feet: sit up and beg
         beq l_dg_nobeg
         lda bowl_full
         bne l_dg_nobeg
@@ -5266,6 +5638,7 @@ l_dg_walk:
         lda #0                  ; face him
         sta dog_flip
         lda p_floor
+        cmp dog_floor
         bne +
         lda dog_x
         cmp p_x
@@ -5837,9 +6210,15 @@ l_ab_nomosaic:
         lda dog_x+1
         sbc #0
         sta act_xh2+1
-        lda #DOG_Y - 14
+        lda dog_yb
+        sec
+        sbc #14
         sta act_y+1
         lda dog_state
+        cmp #5
+        bne l_ab_dog_notstairs
+        jmp ab_dog_stairs
+l_ab_dog_notstairs:
         cmp #1
         bne l_ab_dog_rest
         ; trotting: four leg frames, one every 3 pixels
@@ -5865,7 +6244,9 @@ l_ab_nomosaic:
         bne +
         dec act_xh2+1
 +       dec act_xl2+1
-        lda #DOG_Y - 15
+        lda dog_yb
+        sec
+        sbc #15
         sec
         sbc dog_up              ; (raised, heading out of the door)
         sta act_y+1
@@ -5883,7 +6264,9 @@ l_ab_dog_rest:
         lda #0
         sta act_xh2+1
         sta act_flip+1
-        lda #DOG_Y - 14
+        lda dog_yb
+        sec
+        sbc #14
         sta act_y+1
         bra l_ab_dog_done
 l_ab_dog_noeat:
@@ -5894,12 +6277,16 @@ l_ab_dog_noeat:
         and #8
         beq +
         #SETACT 1, SPR_DOGBEG1
-+       lda #DOG_Y - 18
++       lda dog_yb
+        sec
+        sbc #18
         sta act_y+1
         bra l_ab_dog_done
 l_ab_dog_sit:
         #SETACT 1, SPR_DOG3
-        lda #DOG_Y - 12
+        lda dog_yb
+        sec
+        sbc #12
         sta act_y+1
 l_ab_dog_done:
         ; --- effect ---
@@ -6170,6 +6557,67 @@ l_ab_fx_done:
         sta act_xh2+6
 l_ab_novac:
         rts
+
+; The dog on the stairs: on a front-facing block of steps its walk with the
+; head turning left and right every few steps; on a side flight tilted head
+; up going up, head down going down.
+dogtu_l:    .byte <SPR_DOGTU0, <SPR_DOGTU1
+dogtu_h:    .byte >SPR_DOGTU0, >SPR_DOGTU1
+dogtd_l:    .byte <SPR_DOGTD0, <SPR_DOGTD1
+dogtd_h:    .byte >SPR_DOGTD0, >SPR_DOGTD1
+ab_dog_stairs:
+        lda dog_x               ; the step: from how far it has come
+        clc
+        adc dog_yb
+        lsr
+        lsr
+        sta l_abds_step
+        lda dog_seg
+        bne l_abds_side
+        ; the front steps: walking frames, head turning side to side
+        lda l_abds_step
+        and #3
+        tax
+        lda dogw_l,x
+        sta act_sprl+1
+        lda dogw_h,x
+        sta act_sprh+1
+        lda #`SPR_DOGW0
+        sta act_sprb+1
+        lda dog_yb
+        lsr
+        lsr
+        lsr
+        and #1
+        sta act_flip+1
+        lda dog_yb
+        sec
+        sbc #15
+        sta act_y+1
+        jmp l_ab_dog_done
+l_abds_side:
+        lda l_abds_step
+        and #1
+        tax
+        lda dog_sdir
+        beq +
+        lda dogtu_l,x           ; going up: head up
+        sta act_sprl+1
+        lda dogtu_h,x
+        sta act_sprh+1
+        bra ++
++       lda dogtd_l,x           ; going down: head down
+        sta act_sprl+1
+        lda dogtd_h,x
+        sta act_sprh+1
++       lda #`SPR_DOGTU0
+        sta act_sprb+1
+        lda dog_yb              ; (taller: feet line through its middle)
+        sec
+        sbc #19
+        sta act_y+1
+        jmp l_ab_dog_done
+l_abds_step: .byte 0
 
 ; The vacuum cleaner, its head on the floor in front of him (the side he's
 ; facing); hidden on the stairs.

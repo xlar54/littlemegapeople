@@ -1365,8 +1365,22 @@ def build_sprites():
             rows = [r[::-1] for r in rows]   # this screenshot's dog faces right; all face left
         sprites.append((n, rows))
         if n == 'dog1':
-            for i, fr in enumerate(dog_walk_frames(rows)):
+            walk = dog_walk_frames(rows)
+            for i, fr in enumerate(walk):
                 sprites.append(('dogw%d' % i, fr))
+            # On the side flights of the stairs: two of the walking frames
+            # tilted head up (going up) and head down (going down) -- a shear,
+            # the head end (left) raised or lowered up to 8px.
+            for tag, up in (('u', True), ('d', False)):
+                for j, fr in enumerate((walk[0], walk[2])):
+                    w, h, S = len(fr[0]), len(fr), 8
+                    out = [[None] * w for _ in range(h + S)]
+                    for x in range(w):
+                        sh = round((w - 1 - x) * S / (w - 1))      # head end most
+                        off = (S - sh) if up else sh
+                        for y in range(h):
+                            out[y + off][x] = fr[y][x]
+                    sprites.append(('dogt%s%d' % (tag, j), out))
     for n, rows in ASCII_SPRITES.items():
         sprites.append((n, remap(A.from_ascii(rows), lambda x, y, v: amiga(v))))
     for n, rows in PACKAGES.items():
