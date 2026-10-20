@@ -354,6 +354,10 @@ pal_dimmed:
         bcc l_pd_no
         cpx #C_DIM2_LAST+1
         bcc l_pd_yes
+        cpx #C_FR_SKIN
+        bcc l_pd_no
+        cpx #C_FR_LAST+1
+        bcc l_pd_yes
 l_pd_no:
         clc
         rts
@@ -775,6 +779,7 @@ spr_x:     .word 0
 spr_y:     .byte 0
 spr_flip:  .byte 0
 spr_mask:  .byte 0      ; 1 = furniture in the foreground mask hides this sprite
+spr_remap: .byte 0      ; 1 = Larry's colours drawn as his friend's
 spr_cx0:   .byte 0
 spr_cy0:   .byte 0
 spr_cx1:   .byte 0
@@ -985,6 +990,33 @@ l_ds_have:
         bcc +
         inw ZSRC+1
 +
+        lda spr_remap
+        beq l_ds_dest
+        ldy #0                  ; his friend: skin, hair, clothes recoloured
+l_ds_rm:
+        lda rowbuf,y
+        cmp #C_SKIN
+        bcc l_ds_rmnext
+        cmp #C_PANTS2 + 1
+        bcs l_ds_rmdots
+        adc #C_FR_SKIN - C_SKIN
+        bra l_ds_rmput
+l_ds_rmdots:
+        cmp #C_DOTS_SHIRT
+        bne l_ds_rmd2
+        lda #C_FR_SKIN + 2
+        bra l_ds_rmput
+l_ds_rmd2:
+        cmp #C_DOTS_PANTS
+        bne l_ds_rmnext
+        lda #C_FR_SKIN + 4
+l_ds_rmput:
+        sta rowbuf,y
+l_ds_rmnext:
+        iny
+        cpy l_ds_w
+        bne l_ds_rm
+l_ds_dest:
         ; --- destination address of the first pixel in this row ---
         lda l_ds_yy
         cmp #200

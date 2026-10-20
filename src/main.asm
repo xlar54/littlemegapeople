@@ -10,6 +10,7 @@
         .cpu "45gs02"
         .weak
 AUTOTEST = 0                    ; 64tass -D AUTOTEST=<activity> for test builds
+AUTOFRIEND = 0                  ; 1: his friend rings in a few seconds, stays 3 min
         .endweak
         ; All text is plain ASCII: the in-game font is ASCII-indexed.
         .enc "ascii"
@@ -76,6 +77,14 @@ AUTOHOUR = 8
         .endweak
         lda #AUTOHOUR
         sta clock_hour
+        .if AUTOFRIEND != 0
+        lda #FRS_COMING
+        sta fr_state
+        lda #<1400
+        sta fr_t
+        lda #>1400
+        sta fr_t+1
+        .endif
         .weak
 AUTODLV = 1                     ; with AUTOTEST=A_DELIVERY: what's on the step
         .endweak
@@ -402,6 +411,7 @@ stage_to_sounds:
         .include "ui.asm"
         .include "input.asm"
         .include "sim.asm"
+        .include "friend.asm"
         .include "letters.asm"
         .include "cards.asm"
         .include "poker.asm"

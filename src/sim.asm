@@ -93,7 +93,9 @@ A_VACPICK       = 54        ; back to the vacuum he left, picks it up
 A_DISHES        = 55        ; washes up at the kitchen sink after eating
 A_PHONECALL     = 56        ; rings someone up himself
 A_WHISTLE       = 57        ; whistles the dog down for its walk
-A_COUNT         = 58
+A_GREET         = 58        ; lets his friend in at the front door
+A_SEEOFF        = 59        ; sees him out again
+A_COUNT         = 60
 
 REQ_EAT         = A_FRIDGE
 REQ_DRINK       = A_DRINK
@@ -294,6 +296,7 @@ l_st_go:
         jsr record_tick
         jsr cook_tick
         jsr person_update
+        jsr friend_update
         jsr dog_update
         jsr fx_update
         rts
@@ -395,6 +398,7 @@ weekend_evening:
         rts
 
 game_minute:
+        jsr friend_minute
         inc minute_count
         lda #1
         sta ui_dirty
@@ -900,6 +904,7 @@ palette_animate:
         ldx #C_DOTS_PANTS
         jsr pal_set_from
         jsr stereo_animate
+        jsr friend_palette
         ; skin and hair: green when he's sick (face, and the back of his head)
         lda health
         cmp #40
@@ -1051,15 +1056,15 @@ l_fire_b: .byte 0,0,0
 ;---------------------------------------------------------------------------------------
 ;               floor  x     face(1=right)
 act_floor:
-        .byte 0, 0,0,0,0,0, 1,0,0, 1,1,1,1,1, 1,2, 2,2,2,2, 1,0,0, 0,0,0,0, 0, 2, 0, 2, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 1, 2, 0, 0, 0, 0, 2, 0, 0, 0, 0
+        .byte 0, 0,0,0,0,0, 1,0,0, 1,1,1,1,1, 1,2, 2,2,2,2, 1,0,0, 0,0,0,0, 0, 2, 0, 2, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 1, 2, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0
 act_xl:
         .byte 0, <52,<122,<138,<28,<226, <252,<268,<268, <40,<113,<170,<196,<222, <278,<228
-        .byte <108,<73,<76,<154, <83,<122,<122, <160,0,0,<300, <226, <266, 0, <62, <62, <177, <294, 0, <78, <58, <28, <28, <58, <52, <56, <82, <82, 0, <186, <186, <141, <186, <177, 0, <268, <268, <73, 0, <82, <226, 0
+        .byte <108,<73,<76,<154, <83,<122,<122, <160,0,0,<300, <226, <266, 0, <62, <62, <177, <294, 0, <78, <58, <28, <28, <58, <52, <56, <82, <82, 0, <186, <186, <141, <186, <177, 0, <268, <268, <73, 0, <82, <226, 0, <268, <268
 act_xh:
         .byte 0, >52,>122,>138,>28,>226, >252,>268,>268, >40,>113,>170,>196,>222, >278,>228
-        .byte >108,>73,>76,>154, >83,>122,>122, >160,0,0,>300, >226, >266, 0, >62, >62, >177, >294, 0, >78, >58, >28, >28, >58, >52, >56, >82, >82, 0, >186, >186, >141, >186, >177, 0, >268, >268, >73, 0, >82, >226, 0
+        .byte >108,>73,>76,>154, >83,>122,>122, >160,0,0,>300, >226, >266, 0, >62, >62, >177, >294, 0, >78, >58, >28, >28, >58, >52, >56, >82, >82, 0, >186, >186, >141, >186, >177, 0, >268, >268, >73, 0, >82, >226, 0, >268, >268
 act_face:
-        .byte 0, 0,1,1,0,0, 1,1,1, 0,0,0,1,1, 1,1, 0,0,0,0, 0,1,1, 0,0,0,0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0
+        .byte 0, 0,1,1,0,0, 1,1,1, 0,0,0,1,1, 1,1, 0,0,0,0, 0,1,1, 0,0,0,0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1
 
 act_start_tbl:
         .word st_none, st_fridge, st_meal, st_drink, st_feeddog, st_phone, st_read, st_fire
@@ -1069,7 +1074,7 @@ act_start_tbl:
         .word st_getfood, st_prep, st_stoveon, st_stoveoff, st_serve, st_fridgeget, st_dogfood
         .word st_getcup, st_cupsink, st_askwater
         .word st_vacget, st_vacsweep, st_vacsweep, st_vacput, st_vacsweep
-        .word st_leash, st_walkout, st_unleash, st_recstop, st_vacpick, st_dishes, st_phonecall, st_whistle
+        .word st_leash, st_walkout, st_unleash, st_recstop, st_vacpick, st_dishes, st_phonecall, st_whistle, st_greet, st_seeoff
 act_tick_tbl:
         .word tk_none, tk_none, tk_meal, tk_drink, tk_feeddog, tk_phone, tk_none, tk_none
         .word tk_goout, tk_sleep, tk_none, tk_brush, tk_wc, tk_bath, tk_computer
@@ -1078,7 +1083,7 @@ act_tick_tbl:
         .word tk_getfood, tk_prep, tk_stoveon, tk_stoveoff, tk_prep, tk_fridgeget, tk_dogfood
         .word tk_getcup, tk_cupsink, tk_none
         .word tk_vacget, tk_vacsweep, tk_vacsweep, tk_vacput, tk_vacsweep
-        .word tk_leash, tk_walkout, tk_leash, tk_recstop, tk_vacpick, tk_none, tk_phonecall, tk_whistle
+        .word tk_leash, tk_walkout, tk_leash, tk_recstop, tk_vacpick, tk_none, tk_phonecall, tk_whistle, tk_greet, tk_seeoff
 act_end_tbl:
         .word en_none, en_fridge, en_meal, en_drink, en_feeddog, en_phone, en_read, en_fire
         .word en_goout, en_sleep, en_exercise, en_brush, en_wc, en_bath, en_computer
@@ -1087,7 +1092,7 @@ act_end_tbl:
         .word en_getfood, en_prep, en_stoveon, en_stoveoff, en_serve, en_fridgeget, en_dogfood
         .word en_getcup, en_none, en_none
         .word en_vacget, en_vacsweep, en_vacsweep, en_vacput, en_vacsweep
-        .word en_leash, en_walkout, en_unleash, en_none, en_vacpick, en_dishes, en_phone, en_whistle
+        .word en_leash, en_walkout, en_unleash, en_none, en_vacpick, en_dishes, en_phone, en_whistle, en_greet, en_seeoff
 
 act_names:
         .word nm_none, nm_fridge, nm_meal, nm_drink, nm_feeddog, nm_phone, nm_read, nm_fire
@@ -1097,7 +1102,7 @@ act_names:
         .word nm_getfood, nm_prep, nm_cook, nm_stoveoff, nm_serve, nm_getfood, nm_feeddog
         .word nm_drink, nm_drink, nm_askwater
         .word nm_vacuum, nm_vacuum, nm_vacuum, nm_vacuum, nm_vacuum
-        .word nm_dogwalk, nm_dogwalk, nm_dogwalk, nm_recstop, nm_vacuum, nm_dishes, nm_phonecall, nm_whistle
+        .word nm_dogwalk, nm_dogwalk, nm_dogwalk, nm_recstop, nm_vacuum, nm_dishes, nm_phonecall, nm_whistle, nm_greet, nm_seeoff
 nm_none:     .null " is pottering about."
 nm_fridge:   .null " is getting some food."
 nm_meal:     .null " is eating."
@@ -1119,6 +1124,8 @@ nm_recstop:  .null " is stopping the record."
 nm_dishes:   .null " is washing the dishes."
 nm_phonecall: .null " is making a phone call."
 nm_whistle:  .null " is whistling for the dog."
+nm_greet:    .null " is letting Joey in."
+nm_seeoff:   .null " is seeing Joey out."
 nm_getfood:  .null " is fetching something to cook."
 nm_prep:     .null " is getting a meal ready."
 nm_cook:     .null " is cooking."
@@ -3102,6 +3109,8 @@ tk_phonecall:
 +       lda call_t
         cmp #110                ; they pick up: he talks
         bne +
+        jsr friend_invite       ; (or it's his friend, and he's coming over)
+        bcs l_tpc_said
         lda #5
         jsr rnd_range
         asl
@@ -3112,6 +3121,7 @@ tk_phonecall:
         sta l_tpc_p+1
         pla
         sta l_tpc_p
+l_tpc_said:
         jsr sb_clear
         jsr sb_lcp
         ldx l_tpc_p
@@ -6358,7 +6368,7 @@ l_fu_out:
 ; Actor renderer: erase last frame's sprites, draw this frame's.
 ; Actor 0 = person, 1 = dog, 2 = effect, 3 = dog bowl food, 4 = sleeping head.
 ;---------------------------------------------------------------------------------------
-ACTORS          = 7         ; 5 = censor mosaic, 6 = the vacuum left standing
+ACTORS          = 8         ; 5 = censor mosaic, 6 = the vacuum left standing, 7 his friend
 act_vis:        .fill ACTORS, 0
 act_sprl:       .fill ACTORS, 0
 act_sprh:       .fill ACTORS, 0
@@ -6368,7 +6378,7 @@ act_xh2:        .fill ACTORS, 0
 act_y:          .fill ACTORS, 0
 act_flip:       .fill ACTORS, 0
 prev_valid:     .fill ACTORS, 0
-act_masked:     .byte 1, 0, 0, 0, 0, 1, 1  ; him, his mosaic and the vacuum go behind furniture
+act_masked:     .byte 1, 0, 0, 0, 0, 1, 1, 1  ; him, his mosaic, the vacuum, his friend go behind furniture
 prev_cx0:       .fill ACTORS, 0
 prev_cy0:       .fill ACTORS, 0
 prev_cx1:       .fill ACTORS, 0
@@ -6404,10 +6414,16 @@ walk_sprh: .byte >SPR_WALK0, >SPR_WALK1, >SPR_WALK2, >SPR_WALK3
 bounce:    .byte 0, 1, 3, 4, 5, 4, 3, 1
 
 actors_build:
-        ; --- person ---
+        lda #0
+        sta act_vis+4
+        jsr friend_sprite       ; (his friend: the same, on his state)
+        jsr person_sprite
+        jmp l_ab_after_person
+
+; The person (Larry, or his friend swapped in) into actor 0.
+person_sprite:
         lda #0
         sta act_vis+0
-        sta act_vis+4
         lda p_mode
         cmp #PM_HIDDEN
         bne +
@@ -6647,6 +6663,8 @@ l_ab_dance:
         and #1
         sta act_flip+0
 l_ab_person_done:
+        rts
+l_ab_after_person:
         ; actor 5: his hands on the piano keys while he plays...
         lda #0
         sta act_vis+5
@@ -7338,6 +7356,8 @@ l_ar_erase:
         jsr l_ar_draw
         ldx #4
         jsr l_ar_draw
+        ldx #7
+        jsr l_ar_draw
         ldx #0
         jsr l_ar_draw
         ldx #5
@@ -7376,6 +7396,11 @@ l_ar_draw:
 l_ard_nomask:
         lda #0
 +       sta spr_mask
+        lda #0                  ; (his friend: in his own colours)
+        cpx #7
+        bne +
+        lda #1
++       sta spr_remap
         phx
         jsr draw_sprite
         plx
