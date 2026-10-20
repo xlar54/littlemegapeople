@@ -515,6 +515,10 @@ l_cd_row: .byte 0
 l_cd_card: .byte 0
 
 cards_draw_all:
+        lda cards_mode          ; poker: its own layout (hand names, no totals)
+        beq +
+        jmp poker_draw
++
         ; his hand on rows 4..6, yours on rows 11..13 (window-relative +1)
         lda #CW_Y0 + 4
         sta l_cd_row
