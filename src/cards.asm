@@ -54,12 +54,11 @@ cards_play:
         ; which game?
         lda #0
         sta cards_mode
-        jsr cards_clear_table
-        ldx #<cs_choose
-        ldy #>cs_choose
-        jsr cards_msg
+        jsr cards_menu
 l_cp_choose:
         jsr l_cp_key
+        cmp #'1'
+        beq l_cp_poker
         cmp #'p'
         beq l_cp_poker
         cmp #'t'
@@ -426,13 +425,89 @@ cards_clear_table:
         jsr cards_print
         jmp cards_chips
 
-; print sb on window row Y (relative), col +2
+; The opening menu: which game? A hand of cards beside each.
+cards_menu:
+        lda #CW_X0 + 1
+        sta rc_x0
+        lda #CW_Y0 + 1
+        sta rc_y0
+        lda #CW_X1 - 1
+        sta rc_x1
+        lda #CW_Y1 - 1
+        sta rc_y1
+        lda #C_FELT
+        jsr fill_cells
+        lda #C_FELT
+        sta txt_bg
+        lda #C_UIWHITE
+        sta txt_fg
+        jsr sb_clear
+        ldx #<cs_mtitle
+        ldy #>cs_mtitle
+        jsr sb_strxy
+        jsr sb_lcp
+        ldy #0
+        jsr cards_print
+        ldx #<cs_mask
+        ldy #>cs_mask
+        jsr sb_set
+        ldx #CW_X0 + 1
+        ldy #2
+        jsr cards_print_x
+        lda #C_YELLOW
+        sta txt_fg
+        ldx #<cs_m1
+        ldy #>cs_m1
+        jsr sb_set
+        ldy #5
+        jsr cards_print
+        ldx #<cs_m2
+        ldy #>cs_m2
+        jsr sb_set
+        ldy #9
+        jsr cards_print
+        ldx #<cs_mq
+        ldy #>cs_mq
+        jsr sb_set
+        ldy #14
+        jsr cards_print
+        ; the hands: three aces by Poker, ace-king (21) by Blackjack
+        ldx #4
+l_cmn_card:
+        lda l_cmn_col,x
+        sta l_cd_i
+        lda l_cmn_row,x
+        sta l_cd_row
+        lda l_cmn_card_tbl,x
+        sta l_cd_card
+        phx
+        lda #0
+        jsr draw_card
+        plx
+        dex
+        bpl l_cmn_card
+        rts
+l_cmn_col:      .byte 5, 6, 7, 6, 7
+l_cmn_row:      .byte CW_Y0 + 5, CW_Y0 + 5, CW_Y0 + 5, CW_Y0 + 9, CW_Y0 + 9
+l_cmn_card_tbl: .byte $11, $31, $21, $01, $1D
+
+; X/Y = a string: sb = it
+sb_set:
+        phx
+        phy
+        jsr sb_clear
+        ply
+        plx
+        jmp sb_strxy
+
+; print sb on window row Y (relative), col +2 (or screen column X)
 cards_print:
+        ldx #CW_X0 + 2
+cards_print_x:
         tya
         clc
         adc #CW_Y0 + 1
         tay
-        ldx #CW_X0 + 2
         lda #<sb
         sta ZPTR
         lda #>sb
@@ -684,7 +759,11 @@ rank_ch:  .text "?A23456789"
 
 cs_title:  .null "   TWENTY-ONE with "
 cs_ptitle: .null "   POKER with "
-cs_choose: .null "Poker or Twenty-One? (P/T, Q=no)"
+cs_mtitle: .null "   CARD GAMES with "
+cs_mask:   .null "Which game would you like to play?"
+cs_m1:     .null "  1. Poker"
+cs_m2:     .null "  2. Blackjack"
+cs_mq:     .null "  Q. Quit"
 cs_aww:    .null "Aww, maybe some other time then."
 cs_his:    .null "'s cards:"
 cs_yours:  .null "Your cards:"
