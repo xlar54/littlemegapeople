@@ -581,6 +581,45 @@ patch_lo:  .byte <PATCH_DOOR_OPEN, <PATCH_FRIDGE_OPEN, <PATCH_CLOSET_OPEN, <PATC
 patch_hi:  .byte >PATCH_DOOR_OPEN, >PATCH_FRIDGE_OPEN, >PATCH_CLOSET_OPEN, >PATCH_FIRE_LIT, >PATCH_CURTAIN_1, >PATCH_CURTAIN_2, >PATCH_CURTAIN_3, >PATCH_DRAWER_1, >PATCH_DRAWER_2, >PATCH_PHONE_OFF, >PATCH_WC_OPEN, >PATCH_CUPBOARD_0, >PATCH_CUPBOARD_1, >PATCH_CUPBOARD_2, >PATCH_CUPBOARD_3, >PATCH_CUPBOARD_4, >PATCH_DOGCAB_0, >PATCH_DOGCAB_1, >PATCH_DOGCAB_2, >PATCH_DOGCAB_3, >PATCH_DOGCAB_4, >PATCH_POT_ON, >PATCH_VAC_CLOSET, >PATCH_VAC_CLOSET_EMPTY
 patch_bk:  .byte `PATCH_DOOR_OPEN, `PATCH_FRIDGE_OPEN, `PATCH_CLOSET_OPEN, `PATCH_FIRE_LIT, `PATCH_CURTAIN_1, `PATCH_CURTAIN_2, `PATCH_CURTAIN_3, `PATCH_DRAWER_1, `PATCH_DRAWER_2, `PATCH_PHONE_OFF, `PATCH_WC_OPEN, `PATCH_CUPBOARD_0, `PATCH_CUPBOARD_1, `PATCH_CUPBOARD_2, `PATCH_CUPBOARD_3, `PATCH_CUPBOARD_4, `PATCH_DOGCAB_0, `PATCH_DOGCAB_1, `PATCH_DOGCAB_2, `PATCH_DOGCAB_3, `PATCH_DOGCAB_4, `PATCH_POT_ON, `PATCH_VAC_CLOSET, `PATCH_VAC_CLOSET_EMPTY
 patch_state: .fill 24, 0
+; 1 = a door (or drawer...) that clicks shut when the patch comes off
+patch_click: .byte 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1
+             .byte 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1
+
+; A = $FF / 0: the open front door (x 304-311, y 152-191, down to its foot
+; where they step through) and the strip of wall beyond it (to x 319) in the
+; foreground mask or not -- two columns of cells, so whole mask bytes.
+door_mask_set:
+        sta l_dm_v
+        ldx #0
+l_dm_row:
+        lda l_dm_al,x
+        sta ZMASK
+        lda l_dm_ah,x
+        sta ZMASK+1
+        lda l_dm_ab,x
+        sta ZMASK+2
+        lda #0
+        sta ZMASK+3
+        lda l_dm_n,x
+        sta l_dm_c
+        ldz #0
+        lda l_dm_v
+-       sta [ZMASK],z
+        inz
+        dec l_dm_c
+        bne -
+        inx
+        cpx #6
+        bne l_dm_row
+        ldz #0
+        rts
+l_dm_v:  .byte 0
+l_dm_c:  .byte 0
+DOOR_MASK0 = GFX_MASK + (19 * 40 + 38) * 8
+l_dm_al: .byte <DOOR_MASK0, <(DOOR_MASK0 + 320), <(DOOR_MASK0 + 640), <(DOOR_MASK0 + 960), <(DOOR_MASK0 + 1280), <(DOOR_MASK0 + 1288)
+l_dm_ah: .byte >DOOR_MASK0, >(DOOR_MASK0 + 320), >(DOOR_MASK0 + 640), >(DOOR_MASK0 + 960), >(DOOR_MASK0 + 1280), >(DOOR_MASK0 + 1288)
+l_dm_ab: .byte `DOOR_MASK0, `(DOOR_MASK0 + 320), `(DOOR_MASK0 + 640), `(DOOR_MASK0 + 960), `(DOOR_MASK0 + 1280), `(DOOR_MASK0 + 1288)
+l_dm_n:  .byte 16, 16, 16, 16, 8, 8     ; (cells 38 and 39 are adjacent)
 
 l_pa_id:   .byte 0
 l_pa_row:  .byte 0
@@ -593,6 +632,12 @@ patch_apply:
         lda #1
         sta patch_state,x
         stx l_pa_id
+        cpx #PATCH_DOOR         ; the open front door: whoever goes out passes
+        bne +                   ; behind it
+        lda #$FF
+        jsr door_mask_set
+        ldx l_pa_id
++
         lda patch_lo,x
         sta l_pa_src
         lda patch_hi,x
@@ -665,6 +710,17 @@ patch_remove:
         lda #0
         sta patch_state,x
         stx l_pa_id
+        lda patch_click,x       ; doors click shut
+        beq +
+        lda #SFX_SHUT
+        jsr sfx_play
+        ldx l_pa_id
++       cpx #PATCH_DOOR         ; the front door no longer in front of anyone
+        bne +
+        lda #0
+        jsr door_mask_set
+        ldx l_pa_id
++
         lda patch_cw,x
         jsr cells_len
         lda #0

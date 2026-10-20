@@ -85,7 +85,10 @@ A_VACATTIC      = 46        ;   ...vacuums the attic
 A_VACMID        = 47        ;   ...and the middle floor
 A_VACPUT        = 48        ;   ...and puts it away
 A_VACGROUND     = 49        ;   ...and the ground floor
-A_COUNT         = 50
+A_LEASH         = 50        ; walking the dog: the leash on...
+A_WALKOUT       = 51        ;   ...out of the front door and back
+A_UNLEASH       = 52        ;   ...and the leash off
+A_COUNT         = 53
 
 REQ_EAT         = A_FRIDGE
 REQ_DRINK       = A_DRINK
@@ -572,6 +575,7 @@ l_mod9:
 next_day:
         lda #0
         sta vac_done
+        sta dog_walks
         sta meals_done
         sta showered
         sta dog_meals
@@ -969,15 +973,15 @@ l_fire_b: .byte 0,0,0
 ;---------------------------------------------------------------------------------------
 ;               floor  x     face(1=right)
 act_floor:
-        .byte 0, 0,0,0,0,0, 1,0,0, 1,1,1,1,1, 1,2, 2,2,2,2, 1,0,0, 0,0,0,0, 0, 2, 0, 2, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 1, 2, 0
+        .byte 0, 0,0,0,0,0, 1,0,0, 1,1,1,1,1, 1,2, 2,2,2,2, 1,0,0, 0,0,0,0, 0, 2, 0, 2, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 1, 2, 0, 0, 0, 0
 act_xl:
         .byte 0, <52,<122,<138,<28,<226, <252,<268,<302, <40,<113,<170,<196,<222, <278,<228
-        .byte <108,<73,<76,<154, <83,<122,<122, <160,0,0,<300, <226, <266, 0, <62, <62, <177, <294, 0, <78, <58, <28, <28, <58, <52, <56, <82, <82, 0, <186, <186, <141, <186, <177
+        .byte <108,<73,<76,<154, <83,<122,<122, <160,0,0,<300, <226, <266, 0, <62, <62, <177, <294, 0, <78, <58, <28, <28, <58, <52, <56, <82, <82, 0, <186, <186, <141, <186, <177, 0, <268, <268
 act_xh:
         .byte 0, >52,>122,>138,>28,>226, >252,>268,>302, >40,>113,>170,>196,>222, >278,>228
-        .byte >108,>73,>76,>154, >83,>122,>122, >160,0,0,>300, >226, >266, 0, >62, >62, >177, >294, 0, >78, >58, >28, >28, >58, >52, >56, >82, >82, 0, >186, >186, >141, >186, >177
+        .byte >108,>73,>76,>154, >83,>122,>122, >160,0,0,>300, >226, >266, 0, >62, >62, >177, >294, 0, >78, >58, >28, >28, >58, >52, >56, >82, >82, 0, >186, >186, >141, >186, >177, 0, >268, >268
 act_face:
-        .byte 0, 0,1,1,0,0, 1,1,1, 0,0,0,1,1, 1,1, 0,0,0,0, 0,1,1, 0,0,0,0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+        .byte 0, 0,1,1,0,0, 1,1,1, 0,0,0,1,1, 1,1, 0,0,0,0, 0,1,1, 0,0,0,0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1
 
 act_start_tbl:
         .word st_none, st_fridge, st_meal, st_drink, st_feeddog, st_phone, st_read, st_fire
@@ -987,6 +991,7 @@ act_start_tbl:
         .word st_getfood, st_prep, st_stoveon, st_stoveoff, st_serve, st_fridgeget, st_dogfood
         .word st_getcup, st_cupsink, st_askwater
         .word st_vacget, st_vacsweep, st_vacsweep, st_vacput, st_vacsweep
+        .word st_leash, st_walkout, st_unleash
 act_tick_tbl:
         .word tk_none, tk_none, tk_meal, tk_drink, tk_feeddog, tk_phone, tk_none, tk_none
         .word tk_goout, tk_sleep, tk_none, tk_brush, tk_wc, tk_bath, tk_computer
@@ -995,6 +1000,7 @@ act_tick_tbl:
         .word tk_getfood, tk_prep, tk_stoveon, tk_stoveoff, tk_prep, tk_fridgeget, tk_dogfood
         .word tk_getcup, tk_cupsink, tk_none
         .word tk_vacget, tk_vacsweep, tk_vacsweep, tk_vacput, tk_vacsweep
+        .word tk_leash, tk_walkout, tk_leash
 act_end_tbl:
         .word en_none, en_fridge, en_meal, en_drink, en_feeddog, en_phone, en_read, en_fire
         .word en_goout, en_sleep, en_exercise, en_brush, en_wc, en_bath, en_computer
@@ -1003,6 +1009,7 @@ act_end_tbl:
         .word en_getfood, en_prep, en_stoveon, en_stoveoff, en_serve, en_fridgeget, en_dogfood
         .word en_getcup, en_none, en_none
         .word en_vacget, en_vacsweep, en_vacsweep, en_vacput, en_vacsweep
+        .word en_leash, en_walkout, en_unleash
 
 act_names:
         .word nm_none, nm_fridge, nm_meal, nm_drink, nm_feeddog, nm_phone, nm_read, nm_fire
@@ -1012,6 +1019,7 @@ act_names:
         .word nm_getfood, nm_prep, nm_cook, nm_stoveoff, nm_serve, nm_getfood, nm_feeddog
         .word nm_drink, nm_drink, nm_askwater
         .word nm_vacuum, nm_vacuum, nm_vacuum, nm_vacuum, nm_vacuum
+        .word nm_dogwalk, nm_dogwalk, nm_dogwalk
 nm_none:     .null " is pottering about."
 nm_fridge:   .null " is getting some food."
 nm_meal:     .null " is eating."
@@ -1028,6 +1036,7 @@ nm_delivery: .null " is answering the door."
 nm_stow:     .null " is putting the delivery away."
 nm_askwater: .null " is asking you for water."
 nm_vacuum:   .null " is vacuuming."
+nm_dogwalk:  .null " is taking the dog for a walk."
 nm_getfood:  .null " is fetching something to cook."
 nm_prep:     .null " is getting a meal ready."
 nm_cook:     .null " is cooking."
@@ -1115,6 +1124,10 @@ l_pc_dlv:
         ldx vac_stage
         lda vac_act,x
         bne l_ai_ret
+        ; a dog walk under way: carry on with it
+        ldx walk_stage
+        lda walk_act,x
+        bne l_ai_ret
         ; cooking: carry on with the next step
         ldx cook_stage
         lda cook_act,x
@@ -1189,6 +1202,13 @@ l_ai_bed:
         lda #1
         sta cook_stage
         lda #A_GETFOOD
+        rts
++       ; walkies, three times a day
+        jsr dog_walk_due
+        bcc +
+        lda #1
+        sta walk_stage
+        lda #A_LEASH
         rts
 +       ; a shower every morning, once breakfast is done
         lda showered
@@ -1772,6 +1792,27 @@ person_choose:
         lda #0
         sta goal_x+1
         bra l_pc_go
++       cpx #A_LEASH
+        bne ++
+        lda #0
+        sta goal_floor
+        sec                     ; just to the dog's left
+        lda dog_x
+        sbc #DOG_LEAD_DX
+        sta goal_x
+        lda dog_x+1
+        sbc #0
+        sta goal_x+1
+        bcs +
+        lda #20                 ; (not off the left of the house)
+        sta goal_x
+        lda #0
+        sta goal_x+1
++       lda #1                  ; (the dog stays put for him)
+        sta dog_hold
+        lda #2
+        sta dog_state
+        jmp l_pc_go
 +       cpx #A_STOW
         bne +
         ldy delivery
@@ -2486,8 +2527,6 @@ tk_dogfood:
         jmp cupboard_show
 +       cmp #110
         bne l_tkdf_out
-        lda #SFX_DOOR
-        jsr sfx_play
         jmp cupboard_close
 l_tkdf_out:
         rts
@@ -2717,7 +2756,7 @@ l_tkf_end:
         jmp drawer_set
 +       cmp #42
         bne +
-        lda #SFX_DOOR           ; thunk
+        lda #SFX_SHUT           ; thunk-click
         jsr sfx_play
         lda #0
         jmp drawer_set
@@ -3251,9 +3290,7 @@ tk_wc:
 +       cmp #32                 ; door shut behind him
         bne +
         ldx #PATCH_WC
-        jsr patch_remove
-        lda #SFX_DOOR
-        jmp sfx_play
+        jmp patch_remove
 +       ; the way out, counted down from the end of the visit
         lda act_timer+1
         bne l_tkw_out
@@ -3275,9 +3312,7 @@ tk_wc:
 +       cmp #16                 ; and the door closes
         bne l_tkw_out
         ldx #PATCH_WC
-        jsr patch_remove
-        lda #SFX_DOOR
-        jmp sfx_play
+        jmp patch_remove
 l_tkw_out:
         rts
 en_wc:
@@ -3336,9 +3371,7 @@ tk_delivery:
 +       cmp #110
         bne +
         ldx #PATCH_DOOR         ; shut the door
-        jsr patch_remove
-        lda #SFX_DOOR
-        jmp sfx_play
+        jmp patch_remove
 +       rts
 en_delivery:
         ldx #PATCH_DOOR
@@ -3394,8 +3427,6 @@ tk_stow:
         jmp cupboard_show
 +       cmp #120
         bne l_tkst_out
-        lda #SFX_DOOR
-        jsr sfx_play
         jmp cupboard_close
 l_tkst_out:
         rts
@@ -3603,8 +3634,6 @@ tk_getfood:
         jmp cupboard_show
 +       cmp #110
         bne l_tkg_out
-        lda #SFX_DOOR
-        jsr sfx_play
         jmp cupboard_close
 l_tkg_out:
         rts
@@ -3649,9 +3678,7 @@ tk_fridgeget:
 +       cmp #80
         bne +
         ldx #PATCH_FRIDGE
-        jsr patch_remove
-        lda #SFX_DOOR
-        jmp sfx_play
+        jmp patch_remove
 +       rts
 en_fridgeget:
         ldx #PATCH_FRIDGE
@@ -3826,9 +3853,7 @@ vac_closet_shut:
         ldx #PATCH_VACCLOSET    ; (both pictures: whichever is up)
         jsr patch_remove
         ldx #PATCH_VACCLOSET + 1
-        jsr patch_remove
-        lda #SFX_DOOR
-        jmp sfx_play
+        jmp patch_remove
 
 ; 2, 3: back and forth across the floor, twice over, humming
 st_vacsweep:
@@ -3931,6 +3956,351 @@ tk_vacput:
 +       rts
 en_vacput:
         jmp vac_closet_shut
+
+; Walking the dog, three times a day: he bends to clip the leash on, the
+; dog leads him to the front door, out they go; back a while later, and the
+; leash comes off.
+walk_stage:     .byte 0     ; 0 none, 1 leash on, 2 out, 3 leash off
+walk_act:       .byte 0, A_LEASH, A_WALKOUT, A_UNLEASH
+dog_walks:      .byte 0     ; today: bits 0 morning, 1 afternoon, 2 evening
+dog_lead:       .byte 0     ; 1 = on the lead
+dog_hold:       .byte 0     ; 1 = staying put for him
+dog_out:        .byte 0     ; 1 = outside
+lead_t:         .byte 0
+DOG_LEAD_DX     = 24        ; the dog this far ahead of him
+
+; C = 1 at walk time (9-11am, 2-4pm, 7-9pm) if not walked then (and marks
+; it); only with the dog in, and not begging or eating.
+dog_walk_due:
+        lda dog_state
+        beq l_dwd_no
+        cmp #3
+        beq l_dwd_no
+        lda dog_beg
+        bne l_dwd_no
+        lda clock_hour
+        ldx #1
+        cmp #9
+        bcc l_dwd_no
+        cmp #11
+        bcc l_dwd_check
+        ldx #2
+        cmp #14
+        bcc l_dwd_no
+        cmp #16
+        bcc l_dwd_check
+        ldx #4
+        cmp #19
+        bcc l_dwd_no
+        cmp #21
+        bcs l_dwd_no
+l_dwd_check:
+        txa
+        and dog_walks
+        bne l_dwd_no
+        txa
+        ora dog_walks
+        sta dog_walks
+        sec
+        rts
+l_dwd_no:
+        clc
+        rts
+
+; every frame on the lead: the dog trots just ahead of him (or is out)
+dog_on_lead:
+        lda #1                  ; (and it goes behind the open door)
+        sta act_masked+1
+        lda dog_out
+        beq +
+        lda #0
+        sta dog_state
+        rts
++       lda #1
+        sta dog_state
+        lda p_flip
+        sta dog_flip
+        bne +
+        sec
+        lda p_x
+        sbc #DOG_LEAD_DX
+        sta dog_x
+        lda p_x+1
+        sbc #0
+        sta dog_x+1
+        rts
++       clc
+        lda p_x
+        adc #DOG_LEAD_DX
+        sta dog_x
+        lda p_x+1
+        adc #0
+        sta dog_x+1
+        rts
+
+; 1 and 3: bent down beside the dog, clipping the leash on / off
+st_leash:
+        lda #1                  ; the dog's to his right
+        sta p_flip
+st_unleash:                     ; (the dog's ahead of him, the way he faces)
+        lda #PM_BENDSIDE
+        sta p_mode
+        lda #0
+        sta lead_t
+        lda #2
+        jmp set_timer_secs
+tk_leash:
+        inc lead_t
+        lda lead_t
+        cmp #50                 ; click
+        bne +
+        lda #SFX_TINK
+        jsr sfx_play
+        lda p_act
+        cmp #A_LEASH
+        bne l_tkl_off
+        lda #1
+        sta dog_lead
+        lda #0
+        sta dog_hold
+        lda #2
+        sta walk_stage
+        rts
+l_tkl_off:
+        lda #0
+        sta dog_lead
+        sta act_masked+1
+        sta walk_stage
+        lda #2                  ; free: a rest, then off it goes
+        sta dog_state
+        lda #120
+        sta dog_timer
+        rts
++       cmp #75
+        bne +
+        lda #PM_STAND
+        sta p_mode
++       rts
+en_leash:
+        lda #0
+        sta dog_hold
+        lda #PM_STAND
+        sta p_mode
+        lda walk_stage
+        cmp #2
+        bne +
+        lda #A_WALKOUT
+        sta p_pending
++       rts
+en_unleash:
+        lda #PM_STAND
+        sta p_mode
+        lda #0
+        sta dog_lead
+        sta act_masked+1
+        lda walk_stage
+        bne +
+        lda #3
+        jsr mood_up
+        #SAY l_say_walkies
++       rts
+
+; 2: out of the front door with the dog: the door opens, they step forward,
+; the dog goes out behind the door, then him, and it clicks shut. Half a
+; minute later the door opens, they come back in, it clicks shut again.
+wo_ph:          .byte 0
+dog_up:         .byte 0     ; the dog drawn this much higher (going out)
+
+; Going out of the door they rise towards its foot, as if walking off into
+; the distance: him over his last 20px before it, the dog likewise.
+wo_heights:
+        sec
+        lda p_x
+        sbc #<280
+        tax
+        lda p_x+1
+        sbc #>280
+        bcs +
+        ldx #0
++       txa
+        lsr
+        lsr
+        cmp #6
+        bcc +
+        lda #5
++       sta l_woh_t
+        lda #FLOOR0_Y
+        sec
+        sbc l_woh_t
+        sta p_y
+        sec
+        lda dog_x
+        sbc #<288
+        tax
+        lda dog_x+1
+        sbc #>288
+        bcs +
+        ldx #0
++       txa
+        lsr
+        lsr
+        cmp #7
+        bcc +
+        lda #6
++       sta dog_up
+        rts
+l_woh_t: .byte 0
+WO_OUT_X        = 308           ; out of sight behind the door from here
+WO_IN_X         = 268
+
+st_walkout:
+        lda #1
+        sta p_flip
+        ldx #PATCH_DOOR
+        jsr patch_apply
+        lda #SFX_DOOR
+        jsr sfx_play
+        lda #0
+        sta lead_t
+        sta wo_ph
+        lda #<1500
+        sta act_timer
+        lda #>1500
+        sta act_timer+1
+        rts
+tk_walkout:
+        ldx wo_ph
+        beq l_two_open
+        cpx #1
+        beq l_two_out
+        cpx #2
+        beq l_two_shut1
+        cpx #3
+        beq l_two_away
+        cpx #4
+        beq l_two_in
+        cpx #5
+        beq l_two_shut2
+l_two_rts:
+        rts
+l_two_open:                     ; 0: the door swings open
+        inc lead_t
+        lda lead_t
+        cmp #20
+        bcc l_two_rts
+        inc wo_ph
+        lda #PM_WALK
+        sta p_mode
+        rts
+l_two_out:                      ; 1: out they go, a step every other frame
+        lda p_anim
+        and #1
+        bne l_two_rts
+        inc p_x
+        bne l_two_o1
+        inc p_x+1
+l_two_o1:
+        jsr dog_on_lead         ; (the dog's place, then both heights)
+        jsr wo_heights
+        lda dog_x+1             ; the dog's through (x >= 312: all but its
+        beq l_two_o2            ;  tail behind the door)
+        lda dog_x
+        cmp #<312
+        bcc l_two_o2
+        lda #1
+        sta dog_out
+l_two_o2:
+        lda p_x+1               ; and him (x >= WO_OUT_X)
+        beq l_two_rts
+        lda p_x
+        cmp #<WO_OUT_X
+        bcc l_two_rts
+        lda #PM_HIDDEN
+        sta p_mode
+        lda #0
+        sta lead_t
+        inc wo_ph
+        rts
+l_two_shut1:                    ; 2: the door shuts behind them
+        inc lead_t
+        lda lead_t
+        cmp #20
+        bne l_two_rts
+        inc wo_ph
+        ldx #PATCH_DOOR
+        jmp patch_remove
+l_two_away:                     ; 3: away; home with a bark near the end
+        lda act_timer+1
+        bne l_two_rts
+        lda act_timer
+        cmp #110
+        bcs l_two_rts
+        ldx #PATCH_DOOR
+        jsr patch_apply
+        lda #SFX_DOOR
+        jsr sfx_play
+        jsr bark_play
+        lda #<WO_OUT_X
+        sta p_x
+        lda #>WO_OUT_X
+        sta p_x+1
+        lda #0
+        sta p_flip
+        sta dog_out
+        lda #PM_WALK
+        sta p_mode
+        jsr dog_on_lead
+        jsr wo_heights
+        inc wo_ph
+        rts
+l_two_in:                       ; 4: back in, a step every other frame
+        lda p_anim
+        and #1
+        bne l_two_rts
+        lda p_x
+        bne l_two_i1
+        dec p_x+1
+l_two_i1:
+        dec p_x
+        jsr dog_on_lead
+        jsr wo_heights
+        lda p_x+1
+        cmp #>WO_IN_X
+        bne l_two_rts
+        lda p_x
+        cmp #<WO_IN_X
+        bne l_two_rts
+        lda #PM_STAND
+        sta p_mode
+        lda #0
+        sta lead_t
+        inc wo_ph
+        rts
+l_two_shut2:                    ; 5: the door shuts
+        inc lead_t
+        lda lead_t
+        cmp #15
+        bne l_two_rts
+        inc wo_ph
+        ldx #PATCH_DOOR
+        jmp patch_remove
+en_walkout:
+        ldx #PATCH_DOOR         ; (whatever happened, they're home)
+        jsr patch_remove
+        lda #FLOOR0_Y           ; back on the floor
+        sta p_y
+        lda #0
+        sta dog_up
+        lda #0
+        sta dog_out
+        lda #PM_STAND
+        sta p_mode
+        lda #3
+        sta walk_stage
+        lda #A_UNLEASH
+        sta p_pending
+        rts
+l_say_walkies: .null "Good walk, boy!"
 
 ; Washing his hands at the sink: back to you, elbows working, water running.
 st_wash:
@@ -4343,9 +4713,7 @@ tk_change:
 +       cmp #215                ; door shut
         bne +
         ldx #PATCH_CLOSET
-        jsr patch_remove
-        lda #SFX_DOOR
-        jmp sfx_play
+        jmp patch_remove
 +       rts
 en_change:
         ldx #PATCH_CLOSET
@@ -4566,7 +4934,14 @@ dog_arrive:
         jmp bark_play
 
 dog_update:
-        lda dog_state
+        lda dog_lead            ; on the lead: just ahead of him
+        beq l_dg_free
+        jmp dog_on_lead
+l_dg_free:
+        lda dog_hold            ; waiting for him (the leash going on)
+        beq +
+        rts
++       lda dog_state
         bne +
         rts
 +       cmp #1
@@ -5280,6 +5655,8 @@ l_ab_nomosaic:
         dec act_xh2+1
 +       dec act_xl2+1
         lda #DOG_Y - 15
+        sec
+        sbc dog_up              ; (raised, heading out of the door)
         sta act_y+1
         bra l_ab_dog_done
 l_ab_dog_rest:
@@ -5318,6 +5695,48 @@ l_ab_dog_done:
         lda #0
         sta act_vis+2
         sta act_flip+2
+        ; walking the dog: the leash from his hand to its collar (behind the
+        ; door with the dog when it goes out)
+        lda #0
+        sta act_masked+2
+        lda dog_lead
+        beq l_ab_noleash
+        lda p_mode
+        cmp #PM_HIDDEN
+        beq l_ab_noleash
+        cmp #PM_CLIMB
+        beq l_ab_noleash
+        #SETACT 2, SPR_LEASH
+        lda #1
+        sta act_vis+2
+        sta act_masked+2
+        lda p_flip              ; drawn for the dog on his right: mirror it
+        eor #1                  ;  only when the dog is on his left
+        sta act_flip+2
+        lda p_y
+        sec
+        sbc #14
+        sta act_y+2
+        lda p_flip
+        beq l_ab_leashl
+        clc                     ; dog to his right
+        lda p_x
+        adc #4
+        sta act_xl2+2
+        lda p_x+1
+        adc #0
+        sta act_xh2+2
+        jmp l_ab_fx_done
+l_ab_leashl:
+        sec                     ; dog to his left
+        lda p_x
+        sbc #24
+        sta act_xl2+2
+        lda p_x+1
+        sbc #0
+        sta act_xh2+2
+        jmp l_ab_fx_done
+l_ab_noleash:
         ; drinking: the cup tipped up at his lips
         lda drinking
         beq l_ab_notdrinking

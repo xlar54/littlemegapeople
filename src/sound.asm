@@ -35,6 +35,7 @@ SFX_STEP        = 13
 SFX_TINK        = 14
 SFX_TALK        = 15
 SFX_BRUSH       = 16
+SFX_SHUT        = 17        ; a door shutting: a soft thud, the latch clicks
 
 ;---------------------------------------------------------------------------------------
 ; Digital sample playback on audio DMA channel 0 (his voice on the phone).
@@ -397,7 +398,7 @@ l_sh_out:
 sfx_table:
         .word sfxd_phone, sfxd_alarm, sfxd_knock, sfxd_flush, sfxd_splash, sfxd_bark
         .word sfxd_type, sfxd_door, sfxd_glug, sfxd_chime, sfxd_clack, sfxd_blip
-        .word sfxd_step, sfxd_tink, sfxd_talk, sfxd_brush
+        .word sfxd_step, sfxd_tink, sfxd_talk, sfxd_brush, sfxd_shut
 
 ; frame, freq hi, control, attack/decay, sustain/release
 sfxd_phone:
@@ -474,6 +475,12 @@ sfxd_chime:
         .byte 8, $2B, $11, $09, $00
         .byte 16, $33, $11, $09, $00
         .byte 30, $33, $10, $09, $00
+        .byte $FF
+sfxd_shut:
+        .byte 0, $05, $81, $06, $06
+        .byte 4, $05, $80, $06, $06
+        .byte 6, $70, $81, $00, $01
+        .byte 7, $70, $80, $00, $01
         .byte $FF
 sfxd_clack:
         .byte 0, $70, $81, $00, $02

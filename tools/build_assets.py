@@ -1098,6 +1098,9 @@ ASCII_SPRITES = {
     'heldcan': ['.lll.', 'kOOOk', 'kwnwk', 'kOOOk', 'kOOOk', '.kkk.'],
     # his cup: empty, full of water, and tipped up at his lips (two angles)
     'heldcup': ['k..k', 'kwwk', 'kwwk', '.kk.'],
+    # the dog's leash, a dotted white line from his hand (top left) to its
+    # neck (bottom right)
+    'leash': ['w....................', '.....................', '..w..................', '....w................', '......w..............', '........w............', '..........w.w.....w.w', '..............w.w....', '.....................', '.....................'],
     # the vacuum cleaner he pushes along (head on the floor in front of him)
     'heldvac': ['......kk',
                 '.....kgk',
