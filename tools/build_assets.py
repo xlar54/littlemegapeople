@@ -819,6 +819,83 @@ def load_sound(path, rate):
 CHAIR_X0, CHAIR_Y0, CHAIR_X1, CHAIR_Y1 = 99, 44, 118, 59   # attic chair back, arm and seat
 
 
+def sit_table(stand, hand_up):
+    """Sitting up on a kitchen chair, side view facing left (at the end of the
+    table): upper body as standing, thighs level forward to the knee, shins
+    straight down, the near arm reaching forward onto the table (or the hand
+    raised a little: playing a card). 2 columns of padding on the left."""
+    k = HOUSE0 + 9
+    pad = 2
+    w = len(stand[0]) + pad
+    h = 29
+    rows = [[None] * w for _ in range(h)]
+    for y in range(19):
+        for x, v in enumerate(stand[y]):
+            if v is not None:
+                rows[y][x + pad] = v
+    for y in (19, 20):                          # thigh: hip back to the knee
+        for x in range(2, 14):
+            rows[y][x] = PANTS
+    for y in range(21, 28):                     # shin
+        rows[y][2] = PANTS2
+        rows[y][3] = PANTS2
+    for x in range(0, 5):                       # shoe, toe to the left
+        rows[28][x] = SHOES
+    # the near arm: shoulder (row 12, col 9) forward to the hand at the table
+    hy = 14 if hand_up else 16
+    pts = [(12, 9), (13, 8), (13, 7), (14, 6), (14, 5)] + \
+          ([(14, 4)] if hand_up else [(15, 4), (15, 3)])
+    for y, x in pts:
+        rows[y][x] = SHIRT2
+        rows[y + 1][x] = SHIRT2
+    for x in (1, 2):
+        rows[hy][x] = SKIN
+        rows[hy + 1][x] = SKIN
+    out = [r[:] for r in rows]
+    for y in range(h):
+        for x in range(w):
+            if rows[y][x] is None:
+                for nx, ny in ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)):
+                    if 0 <= nx < w and 0 <= ny < h and rows[ny][nx] in (PANTS, PANTS2, SHOES, SHIRT2, SKIN):
+                        out[y][x] = k
+    return out
+
+
+def sit_chew(rows):
+    """The same, chewing: his mouth open at the front of his face."""
+    rows = [r[:] for r in rows]
+    rows[7][3] = HOUSE0 + 9
+    rows[7][4] = HOUSE0 + 9
+    return rows
+
+
+def chair_side(g, gd):
+    """A plain kitchen chair side on, its back on the right (for a guest
+    sitting facing left): 10 wide, 21 tall, seat at rows 12-13."""
+    k = HOUSE0 + 9
+    w, h = 10, 21
+    rows = [[None] * w for _ in range(h)]
+    for y in range(0, h):                       # back post / back leg
+        rows[y][7] = g
+        rows[y][8] = g
+    for y in (3, 6):                            # slats
+        rows[y][6] = gd
+    for y in (12, 13):                          # seat
+        for x in range(0, 9):
+            rows[y][x] = g if y == 12 else gd
+    for y in range(14, h):                      # front leg
+        rows[y][0] = g
+        rows[y][1] = g
+    out = [r[:] for r in rows]
+    for y in range(h):
+        for x in range(w):
+            if rows[y][x] is None:
+                for nx, ny in ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)):
+                    if 0 <= nx < w and 0 <= ny < h and rows[ny][nx] is not None and rows[ny][nx] != k:
+                        out[y][x] = k
+    return out
+
+
 def sit_side(stand):
     """Sitting back in a reclining chair, side view facing left (the attic TV),
     as in the Amiga original: sunk low and leaning back, knees raised towards
@@ -1328,12 +1405,18 @@ def build_sprites():
     armless = [r[:] for r in stand]     # seated in the attic chair: the chair's
     draw_arm(stand, 7)                  # own arms show instead of his
     sprites = [('stand', stand), ('sittv', sit_side(armless)),
+               ('sitside0', sit_table(armless, False)),     # his friend at the table
+               ('sitside1', sit_table(armless, True)),
+               ('sitsidechew', sit_chew(sit_table(armless, False))),
                ('bendside', bend_frame(stand))]     # leaning over to the TV knob
     # The attic chair's back and arm, drawn over him while he sits in it.
     bgh = A.empty_house()
     chair = [[HOUSE0 + bgh[y][x] if A.AMIGA_CH[bgh[y][x]] in 'Bb' else None
               for x in range(CHAIR_X0, CHAIR_X1 + 1)] for y in range(CHAIR_Y0, CHAIR_Y1 + 1)]
     sprites.append(('chairfront', chair))
+    # the chair that appears for his friend at the end of the kitchen table,
+    # in the table's browns
+    sprites.append(('chairside', chair_side(HOUSE0 + A.AMIGA_CH.index('n'), HOUSE0 + A.AMIGA_CH.index('r'))))
     for i, fr in enumerate(walks):
         sprites.append(('walk%d' % i, fr))
     anchors = {}

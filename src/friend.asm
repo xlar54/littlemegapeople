@@ -151,6 +151,9 @@ fr_body:
 +       cmp #FRS_EXIT
         bne +
         jmp fr_exit
++       jsr fr_seat_tick
+        bcc +
+        rts
 +       lda p_state
         cmp #PS_IDLE
         beq fr_choose
@@ -170,6 +173,8 @@ fr_body:
         lda p_state
         cmp #PS_ACT
         bne l_fb_out
+        jsr fr_seat_arrive
+        bcs l_fb_out
         ; got there: stand about a while (2-8 s), facing either way
         lda #2
         jsr rnd_range
@@ -206,6 +211,8 @@ l_fb_stand:
 
 ; Somewhere to go: anywhere in the house, or the door when it's time.
 fr_choose:
+        lda #0                  ; (the seat: fr_seat_tick sends him if need be)
+        sta fr_to_seat
         lda fr_state
         cmp #FRS_LEAVE
         bne l_fc_wander
@@ -531,6 +538,7 @@ l_fm_here:
         bcc l_fm_go
         rts
 l_fm_go:
+        jsr fr_stand_up
         lda #0
         sta fr_bye
         jsr fr_can_ring         ; (Larry up and about: he sees him to the door)
@@ -658,6 +666,40 @@ l_fct_cd:
         bcc l_fct_out
         jsr fr_larry_free
         bcc l_fct_out
+        lda p_act               ; at cards: card talk
+        cmp #A_CARDSF
+        bne +
+        lda #CV_CARDS
+        jsr rnd_range
+        ldx #<cv_cards_tbl
+        ldy #>cv_cards_tbl
+        jsr fr_convo_start
+        bra l_fct_on
++       lda fr_games            ; a game of cards? (twice a visit at most)
+        cmp #2
+        bcs l_fct_chat
+        lda p_act
+        cmp #A_MEAL
+        beq l_fct_chat
+        cmp #A_CARDS
+        beq l_fct_chat
+        .if AUTOFRIEND < 2      ; (test builds 2/3: straight to cards/a meal)
+        lda #3
+        jsr rnd_range
+        bne l_fct_chat
+        .endif
+        inc fr_games
+        lda #A_CARDSF
+        .if AUTOFRIEND == 3
+        lda #A_MEAL
+        .endif
+        sta fr_after
+        lda #0
+        ldx #<cv_invite_tbl
+        ldy #>cv_invite_tbl
+        jsr fr_convo_start
+        bra l_fct_on
+l_fct_chat:
         lda #CV_CHATS
         jsr rnd_range
         ldx #<cv_chat_tbl
@@ -666,6 +708,8 @@ l_fct_cd:
 l_fct_on:
         jsr fr_near             ; (one of them's walked off: that's that)
         bcc l_fct_end
+        lda fr_seated           ; (sat at the table: as he is)
+        bne l_fct_say
         lda #PS_ACT             ; he stays put, facing Larry
         sta FR(p_state)
         lda #PM_STAND
@@ -697,7 +741,9 @@ l_fct_on:
         bne +
 l_fct_face:
         stx p_flip
-+       dec fr_ct
++
+l_fct_say:
+        dec fr_ct
         bne l_fct_out
         lda #FR_LINE_T
         sta fr_ct
@@ -709,6 +755,24 @@ l_fct_end:
         lda #0
         sta fr_cptr
         sta fr_cptr+1
+        lda fr_after            ; (agreed on something: off Larry goes)
+        beq +
+        ldx #0
+        stx fr_after
+        jsr request_pending
++       lda p_act               ; at cards: the next remark sooner (5-10 s)
+        cmp #A_CARDSF
+        bne +
+        lda #250
+        jsr rnd_range
+        clc
+        adc #250
+        sta fr_chat_cd
+        lda #0
+        adc #0
+        sta fr_chat_cd+1
+        rts
++
         lda #60                 ; he'll wander off in a moment
         sta fr_pause
         lda #0
@@ -891,6 +955,245 @@ cv_ch9:
         .null "Best trip ever."
         .byte $FF
 
+;---------------------------------------------------------------------------------------
+; A seat at the end of the kitchen table: whenever Larry's there (cards, or a
+; meal) he comes and sits with him, side on, on a chair that appears for him.
+;---------------------------------------------------------------------------------------
+SEAT_X          = 146       ; where he stands to sit down
+SIT_X           = 135       ; the sitting sprite (knees under the table end)
+SIT_Y           = 163
+CHAIRSIDE_X     = 141
+CHAIRSIDE_Y     = 172
+FR_PLATE_X      = 127       ; his plate on the table, in front of him
+FR_PLATE_Y      = 177
+fr_seated:      .byte 0
+fr_to_seat:     .byte 0     ; on his way to the seat
+fr_after:       .byte 0     ; what Larry does once this conversation's over
+fr_games:       .byte 0     ; card games this visit
+
+; (his state swapped in) C = 1: Larry's at the table, or on his way there.
+fr_larry_table:
+        lda FR(p_state)
+        cmp #PS_ACT
+        bne +
+        lda FR(p_act)
+        bra l_flt_is
++       cmp #PS_IDLE
+        beq l_flt_no
+        lda FR(p_goal)
+l_flt_is:
+        cmp #A_CARDSF
+        beq l_flt_yes
+        cmp #A_MEAL
+        beq l_flt_yes
+        cmp #A_CARDS
+        beq l_flt_yes
+l_flt_no:
+        clc
+        rts
+l_flt_yes:
+        sec
+        rts
+
+; (swapped) Each frame: to the table, sit, play; up again when Larry goes.
+; C = 1: that's all for this frame.
+fr_seat_tick:
+        lda fr_state
+        cmp #FRS_VISIT
+        bne l_fst_no
+        lda fr_seated
+        beq l_fst_not
+        jsr fr_larry_table
+        bcs l_fst_stay
+        lda #0                  ; Larry's gone: up he gets
+        sta fr_seated
+        lda #PM_STAND
+        sta p_mode
+        lda #FLOOR0_Y
+        sta p_y
+        lda #PS_ACT
+        sta p_state
+        lda #60
+        sta fr_pause
+        lda #0
+        sta fr_pause+1
+        sec
+        rts
+l_fst_stay:
+        ldx #<SPR_SITSIDE0      ; playing cards: now and then a card goes down
+        ldy #>SPR_SITSIDE0
+        lda FR(p_act)
+        cmp #A_MEAL             ; eating with him: chewing
+        bne l_fst_cards
+        lda p_anim
+        and #16
+        beq l_fst_set
+        ldx #<SPR_SITSIDECHEW
+        ldy #>SPR_SITSIDECHEW
+        bra l_fst_set
+l_fst_cards:
+        cmp #A_CARDSF
+        bne l_fst_set
+        lda p_anim
+        and #$60
+        cmp #$60
+        bne l_fst_set
+        ldx #<SPR_SITSIDE1
+        ldy #>SPR_SITSIDE1
+l_fst_set:
+        stx pose_spr
+        sty pose_spr+1
+        lda #`SPR_SITSIDE0
+        sta pose_spr+2
+        sec
+        rts
+l_fst_not:
+        lda fr_to_seat
+        bne l_fst_no
+        jsr fr_larry_table
+        bcc l_fst_no
+        lda p_state
+        cmp #PS_CLIMB
+        beq l_fst_no
+        lda #1                  ; over to the table
+        sta fr_to_seat
+        lda #0
+        sta goal_floor
+        lda #<SEAT_X
+        sta goal_x
+        lda #>SEAT_X
+        sta goal_x+1
+        lda #A_NONE
+        sta p_goal
+        jsr set_walk_target
+        lda #PS_WALK
+        sta p_state
+l_fst_no:
+        clc
+        rts
+
+; (swapped) Got somewhere: if it's the seat (and Larry's still there), sit.
+; C = 1: sat down.
+fr_seat_arrive:
+        lda fr_to_seat
+        beq l_fsa_no
+        lda #0
+        sta fr_to_seat
+        lda p_floor
+        bne l_fsa_no
+        lda p_x+1
+        cmp #>SEAT_X
+        bne l_fsa_no
+        lda p_x
+        cmp #<SEAT_X
+        bne l_fsa_no
+        jsr fr_larry_table
+        bcc l_fsa_no
+        lda #1
+        sta fr_seated
+        lda #PM_POSE
+        sta p_mode
+        lda #0
+        sta p_flip
+        lda #<SIT_X
+        sta pose_x
+        lda #>SIT_X
+        sta pose_x+1
+        lda #SIT_Y
+        sta pose_y
+        lda #<SPR_SITSIDE0
+        sta pose_spr
+        lda #>SPR_SITSIDE0
+        sta pose_spr+1
+        lda #`SPR_SITSIDE0
+        sta pose_spr+2
+        sec
+        rts
+l_fsa_no:
+        clc
+        rts
+
+; (unswapped) Up from the table at once (he's off home).
+fr_stand_up:
+        lda #0
+        sta fr_to_seat
+        lda fr_seated
+        beq +
+        lda #0
+        sta fr_seated
+        lda #PM_STAND
+        sta FR(p_mode)
+        lda #FLOOR0_Y
+        sta FR(p_y)
++       rts
+
+; Larry plays cards with him at the kitchen table: sat as for a hand with
+; you, the cards out, a good while.
+st_cardsf:
+        #POSE SPR_EATSHUT, POSE_EAT_X, POSE_EAT_Y
+        lda #9
+        sta fx_kind
+        lda #45
+        jmp set_timer_secs
+en_cardsf:
+        lda #0
+        sta fx_kind
+        lda #PM_STAND
+        sta p_mode
+        rts
+
+CV_CARDS        = 7
+cv_cards_tbl:   .word cv_cd0, cv_cd1, cv_cd2, cv_cd3, cv_cd4, cv_cd5, cv_cd6
+cv_invite_tbl:  .word cv_invite
+cv_cd0:
+        .byte 0
+        .null "Your deal, Joey."
+        .byte 1
+        .null "Okay... five cards each."
+        .byte $FF
+cv_cd1:
+        .byte 1
+        .null "Got any sevens?"
+        .byte 0
+        .null "Go fish!"
+        .byte $FF
+cv_cd2:
+        .byte 0
+        .null "Ha! Gin!"
+        .byte 1
+        .null "Again? You're too good."
+        .byte $FF
+cv_cd3:
+        .byte 1
+        .null "I'll raise you a pretzel."
+        .byte 0
+        .null "Ha! I'm in."
+        .byte $FF
+cv_cd4:
+        .byte 0
+        .null "Hmm... I'll take two cards."
+        .byte 1
+        .null "Feeling lucky, huh?"
+        .byte $FF
+cv_cd5:
+        .byte 1
+        .null "Read 'em and weep! Full house!"
+        .byte 0
+        .null "Aw, nuts. Nice hand."
+        .byte $FF
+cv_cd6:
+        .byte 0
+        .null "No peeking at my cards!"
+        .byte 1
+        .null "I would never! ...Much."
+        .byte $FF
+cv_invite:
+        .byte 0
+        .null "Want to play some cards?"
+        .byte 1
+        .null "Sure, deal me in!"
+        .byte $FF
+
 ; Larry, ringing someone up: now and then it's him, and he's coming over.
 ; C = 1: l_tpc_p = what Larry says.
 friend_invite:
@@ -931,6 +1234,8 @@ fr_visit_len:
         clc
         adc #30
         sta fr_stay
+        lda #0
+        sta fr_games
         rts
 
 ;---------------------------------------------------------------------------------------
@@ -1061,6 +1366,36 @@ en_seeoff:
 friend_sprite:
         lda #0
         sta act_vis+7
+        sta act_vis+8
+        sta act_vis+9
+        lda fr_seated           ; his chair, while he sits on it
+        beq +
+        lda #1
+        sta act_vis+8
+        #SETACT 8, SPR_CHAIRSIDE
+        lda #<CHAIRSIDE_X
+        sta act_xl2+8
+        lda #>CHAIRSIDE_X
+        sta act_xh2+8
+        lda #CHAIRSIDE_Y
+        sta act_y+8
+        lda #0
+        sta act_flip+8
+        lda p_act               ; and a plate of his own, if they're eating
+        cmp #A_MEAL
+        bne +
+        lda #1
+        sta act_vis+9
+        #SETACT 9, SPR_HELDPLATE
+        lda #<FR_PLATE_X
+        sta act_xl2+9
+        lda #>FR_PLATE_X
+        sta act_xh2+9
+        lda #FR_PLATE_Y
+        sta act_y+9
+        lda #0
+        sta act_flip+9
++
         lda fr_state
         cmp #FRS_ENTER
         bcs +
