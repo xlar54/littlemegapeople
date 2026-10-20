@@ -4036,14 +4036,11 @@ record_start:
         sta record_left
         lda #>RECORD_FRAMES
         sta record_left+1
-        lda #TUNE_RECORD        ; one of the two records
+        lda #4                  ; one of his records
+        jsr rnd_range
+        tax
+        lda record_tunes,x
         sta record_tune
-        jsr rnd
-        and #1
-        beq +
-        lda #TUNE_DANCE
-        sta record_tune
-+       lda record_tune
         jmp tune_play
 record_stop:
         lda record_left
@@ -4099,7 +4096,10 @@ en_dance:
 st_piano:
         jsr record_stop         ; can't hear himself play over it
         #POSE SPR_PIANO, POSE_PIANO_X, POSE_PIANO_Y
-        lda #TUNE_PIANO
+        lda #4                  ; one of his pieces
+        jsr rnd_range
+        tax
+        lda piano_tunes,x
         jsr tune_play
         lda #22
         jmp set_timer_secs
@@ -4777,9 +4777,10 @@ l_ab_notbend:
         #SETACT 0, SPR_FRONTTALK ;  "not front" branch above it)
 l_ab_front_shut:
         lda drinking
-        beq +
+        beq l_ab_front_nodrink  ; (named, never "+": see above)
         #SETACT 0, SPR_FRONTDRINK
-+       lda fx_kind
+l_ab_front_nodrink:
+        lda fx_kind
         cmp #4
         bne l_ab_front_xy
         #SETACT 0, SPR_FRONTKNOCK

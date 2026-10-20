@@ -11,6 +11,12 @@ TUNE_NONE       = 0
 TUNE_PIANO      = 1
 TUNE_RECORD     = 2
 TUNE_DANCE      = 3
+TUNE_ODE        = 4         ; more piano pieces...
+TUNE_MINUET     = 5
+TUNE_ENTERTAINER = 6
+TUNE_CANCAN     = 7         ; ...and records
+TUNE_SUSANNA    = 8
+TUNE_CAMPTOWN   = 9
 
 SFX_NONE        = 0
 SFX_PHONE       = 1
@@ -207,6 +213,11 @@ tune_play:
 
 tune_table:
         .word tuned_piano, tuned_record, tuned_dance
+        .word tuned_ode, tuned_minuet, tuned_entertainer
+        .word tuned_cancan, tuned_susanna, tuned_camptown
+; the pieces he plays on the piano, and the records he owns
+piano_tunes:    .byte TUNE_PIANO, TUNE_ODE, TUNE_MINUET, TUNE_ENTERTAINER
+record_tunes:   .byte TUNE_RECORD, TUNE_CANCAN, TUNE_SUSANNA, TUNE_CAMPTOWN
 
 l_tune_step:
         clc
@@ -517,6 +528,62 @@ tuned_record:
         .byte 67,43,8, 0,47,8, 70,50,8, 0,52,8, 72,53,8, 70,52,8, 67,50,8, 0,47,8
         .byte 74,50,8, 72,54,8, 70,57,8, 67,54,8, 72,48,8, 70,52,8, 67,55,8, 0,52,8
         .byte 67,43,16, 0,0,16
+        .byte $FF
+; Ode to Joy (Beethoven, public domain).
+tuned_ode:
+        .byte 76,48,12, 76,0,12, 77,55,12, 79,0,12
+        .byte 79,43,12, 77,0,12, 76,50,12, 74,0,12
+        .byte 72,48,12, 72,0,12, 74,55,12, 76,0,12
+        .byte 76,43,18, 74,0,6, 74,50,24
+        .byte 76,48,12, 76,0,12, 77,55,12, 79,0,12
+        .byte 79,43,12, 77,0,12, 76,50,12, 74,0,12
+        .byte 72,48,12, 72,0,12, 74,55,12, 76,0,12
+        .byte 74,43,18, 72,0,6, 72,48,24, 0,0,24
+        .byte $FF
+; Minuet in G (Petzold, once credited to Bach; public domain).
+tuned_minuet:
+        .byte 74,55,14, 67,0,7, 69,0,7, 71,0,7, 72,0,7
+        .byte 74,59,14, 67,55,14, 67,0,14
+        .byte 76,48,14, 72,0,7, 74,0,7, 76,0,7, 78,0,7
+        .byte 79,55,14, 67,0,14, 67,0,14
+        .byte 72,52,14, 74,0,7, 72,0,7, 71,0,7, 69,0,7
+        .byte 71,55,14, 72,0,7, 71,0,7, 69,0,7, 67,0,7
+        .byte 66,50,14, 67,0,7, 69,0,7, 71,0,7, 67,0,7
+        .byte 69,50,42, 0,0,14
+        .byte $FF
+; The Entertainer (Scott Joplin, 1902, public domain), the opening.
+tuned_entertainer:
+        .byte 74,0,5, 75,0,5, 76,48,10, 84,0,20, 76,52,10, 84,0,20, 76,55,10, 84,48,30, 0,0,10
+        .byte 84,0,10, 86,0,10, 87,0,10, 88,48,10, 84,0,10, 86,0,10, 88,52,20
+        .byte 83,55,10, 86,0,20, 84,48,30, 0,0,20
+        .byte $FF
+; The Can-Can (Offenbach's galop, public domain).
+tuned_cancan:
+        .byte 72,48,12, 74,0,6, 77,43,6, 76,0,6, 74,0,6, 79,48,12, 79,43,12
+        .byte 79,48,6, 81,0,6, 76,43,6, 77,0,6, 74,50,12, 74,43,12
+        .byte 74,50,6, 77,0,6, 76,43,6, 74,0,6, 72,48,6, 84,0,6, 83,43,6, 81,0,6
+        .byte 79,48,6, 77,0,6, 76,43,6, 74,0,6, 72,48,12, 0,0,12
+        .byte $FF
+; Oh! Susanna (Stephen Foster, public domain).
+tuned_susanna:
+        .byte 72,0,8, 74,0,8
+        .byte 76,48,16, 79,0,16, 79,55,16, 81,0,16
+        .byte 79,48,16, 76,0,16, 72,55,24, 74,0,8
+        .byte 76,48,16, 76,0,16, 74,55,16, 72,0,16
+        .byte 74,43,48, 0,0,16, 72,0,8, 74,0,8
+        .byte 76,48,16, 79,0,16, 79,55,16, 81,0,16
+        .byte 79,48,16, 76,0,16, 72,55,24, 74,0,8
+        .byte 76,48,16, 76,0,16, 74,43,16, 74,0,16
+        .byte 72,48,48, 0,0,16
+        .byte $FF
+; Camptown Races (Stephen Foster, public domain).
+tuned_camptown:
+        .byte 79,48,10, 79,0,10, 76,55,10, 79,0,10
+        .byte 81,48,10, 79,0,10, 76,55,20
+        .byte 76,43,10, 74,0,30, 76,43,10, 74,0,30
+        .byte 79,48,10, 79,0,10, 76,55,10, 79,0,10
+        .byte 81,48,10, 79,0,10, 76,55,20
+        .byte 74,43,20, 76,0,10, 74,0,10, 72,48,30, 0,0,10
         .byte $FF
 ; Short jingle for dancing / exercise.
 tuned_dance:
