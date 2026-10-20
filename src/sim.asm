@@ -411,7 +411,22 @@ game_minute:
         jsr next_day
 l_gm_hour:
         jsr lights_update
-        ; the alarm clock: rings at his getting-up time if he's asleep
+        ; up in the night for the bathroom (now and then)
+        lda night_trip
+        cmp clock_hour
+        bne +
+        lda #0
+        sta night_trip
+        jsr person_sleeping
+        bcc +
+        jsr act_end             ; (quietly: no grumbling, no TV)
+        lda #PS_IDLE
+        sta p_state
+        lda #0
+        sta dress_todo
+        lda #1
+        sta night_wc
++       ; the alarm clock: rings at his getting-up time if he's asleep
         jsr wake_hour
         cmp clock_hour
         bne l_gm_needs
@@ -591,7 +606,17 @@ l_mod9:
 
 ; Midnight: the calendar moves on.
 next_day:
-        lda #0
+        lda #0                  ; one night in ten: up for the bathroom
+        sta night_trip          ;  at 1, 2, 3 or 4 o'clock
+        lda #10
+        jsr rnd_range
+        bne +
+        lda #4
+        jsr rnd_range
+        clc
+        adc #1
+        sta night_trip
++       lda #0
         sta vac_done
         sta dog_walks
         sta meals_done
@@ -873,22 +898,41 @@ palette_animate:
         ldx #C_DOTS_PANTS
         jsr pal_set_from
         jsr stereo_animate
-        ; skin: green when sick
-        lda #204
+        ; skin and hair: green when he's sick (face, and the back of his head)
+        lda health
+        cmp #40
+        bcc l_pan_sick
+        lda #204                ; well: his own colours
         sta pe_g
         lda #153
         sta pe_b
         lda #255
-        ldx health
-        cpx #40
-        bcs +
-        lda #136
+        ldx #C_SKIN
+        jsr pal_set
+        lda #119
+        sta pe_g
+        lda #0
+        sta pe_b
+        lda #238
+        ldx #C_HAIR
+        jsr pal_set
+        bra l_pan_skin_done
+l_pan_sick:
+        lda #221                ; sick: a sickly green face...
         sta pe_g
         lda #102
         sta pe_b
-        lda #153
-+       ldx #C_SKIN
+        lda #136
+        ldx #C_SKIN
         jsr pal_set
+        lda #153                ; ...and greenish hair
+        sta pe_g
+        lda #34
+        sta pe_b
+        lda #85
+        ldx #C_HAIR
+        jsr pal_set
+l_pan_skin_done:
         ; water bottle: five bands, each blue while the water reaches it
         ldx #0
 -       phx
@@ -1225,12 +1269,12 @@ l_ai_bed:
         lda #A_CHANGE
         rts
 +       lda health
-        cmp #30
+        cmp #40
         bcs +
-        lda #3
-        jsr rnd_range
+        jsr rnd
+        and #1
         bne +
-        lda #A_SLEEP            ; sick: lie down a lot
+        lda #A_SLEEP            ; sick: lie down a lot (every other choice)
         rts
 +       ; morning routine
         lda dress_todo
@@ -1254,7 +1298,10 @@ l_ai_bed:
         sta cook_stage
         lda #A_GETFOOD
         rts
-+       ; walkies, three times a day
++       ; walkies, three times a day (not when he's sick)
+        lda health
+        cmp #40
+        bcc +
         jsr dog_walk_due
         bcc +
         lda #1
@@ -1302,7 +1349,8 @@ l_ai_brush:
         lda #A_BRUSH
         rts
 l_ai_dog:
-        lda dog_beg             ; the dog's begging: feed it
+        lda dog_beg             ; the dog's begging (or gave up): feed it
+        ora dog_gaveup
         beq l_ai_lonely
         lda bowl_full
         bne l_ai_lonely
@@ -1317,7 +1365,16 @@ l_ai_feed:
         rts
 +       jsr complain_dogfood
 l_ai_lonely:
-        lda lonely
+        lda health              ; sick: he comes and knocks far more often
+        cmp #40
+        bcs +
+        lda knock_cd
+        bne l_ai_letter
+        lda #30
+        sta knock_cd
+        lda #A_KNOCK
+        rts
++       lda lonely
         cmp #150
         bcc l_ai_letter
         lda knock_cd
@@ -1361,7 +1418,15 @@ l_ai_fun:
         lda #A_PHONECALL
         rts
 l_ai_nocall:
-        jsr weekend_evening     ; Friday / Saturday night: often the TV
+        lda health              ; sick: he wants to talk to you
+        cmp #40
+        bcs +
+        jsr rnd
+        and #1
+        beq +
+        lda #A_CHAT
+        rts
++       jsr weekend_evening     ; Friday / Saturday night: often the TV
         bcc +
         lda #2
         jsr rnd_range
@@ -1372,7 +1437,11 @@ l_ai_nocall:
         jsr rnd_range
         tax
         lda l_fun_list,x
-        cmp #A_DANCE
+        jsr sick_banned         ; too much for him when he's sick: lie down
+        bcc +
+        lda #A_SLEEP
+        rts
++       cmp #A_DANCE
         bne +
         ldx record_left
         bne +
@@ -1392,6 +1461,27 @@ l_ai_nofun:
         lda #A_IDLE
 l_ai_funout:
         rts
+; A = activity: C = 1 if he's sick and it's too much for him (A kept)
+sick_banned:
+        ldx health
+        cpx #40
+        bcs l_sb_ok
+        ldx #l_sick_n - 1
+-       cmp l_sick_no,x
+        beq l_sb_no
+        dex
+        bpl -
+l_sb_ok:
+        clc
+        rts
+l_sb_no:
+        sec
+        rts
+l_sick_no:
+        .byte A_LEASH, A_WALKOUT, A_EXERCISE, A_COMPUTER, A_READ, A_READCHAIR
+        .byte A_DANCE, A_PIANO, A_GOOUT, A_VACGET
+l_sick_n = * - l_sick_no
+
 l_fun_list:
         .byte A_TV, A_TV, A_RECORD, A_PIANO, A_PIANO, A_READ, A_READ, A_COMPUTER
         .byte A_EXERCISE, A_POOL, A_READ, A_COMPUTER, A_IDLE, A_IDLE, A_IDLE, A_PETDOG
@@ -1514,6 +1604,12 @@ l_ra_act:
         ldx #<l_say_out
         ldy #>l_say_out
         jmp ui_note
++       ; too ill for it? he comes and tells you how he feels instead
+        lda l_ra_req
+        jsr sick_banned
+        bcc +
+        lda #A_CHAT
+        jmp request_pending
 +       ; can he?
         lda l_ra_req
         cmp #A_FRIDGE
@@ -1844,6 +1940,7 @@ say_tired:     .null "Yawn... sorry, I'm just too tired."
 ; -- a bit grumpy; once he's seen to it maybe the bathroom, maybe some TV,
 ; then he wants his bed again.
 night_wc:      .byte 0
+night_trip:    .byte 0     ; tonight's hour to get up for the bathroom (0 none)
 night_tv:      .byte 0
 night_wake:
         jsr act_end
@@ -1855,8 +1952,7 @@ night_wake:
         sta dress_todo
         lda #6
         jsr mood_down
-        jsr rnd                 ; half the time the bathroom
-        and #1
+        lda #1                  ; the bathroom, always
         sta night_wc
         lda #3                  ; a time in three, some TV
         jsr rnd_range
@@ -1919,6 +2015,22 @@ l_alt_out:
 ;---------------------------------------------------------------------------------------
 ; Body: the per-tick state machine
 ;---------------------------------------------------------------------------------------
+; His walking pace: a step on 230 ticks in 256 (about 90%) when he's well,
+; 154 in 256 (about 60%) when he's sick. C = 1: step this tick.
+walk_acc:       .byte 0
+walk_pace:
+        lda #230
+        ldx health
+        cpx #40
+        bcs +
+        lda #154
++       clc
+        adc walk_acc
+        sta walk_acc
+        rts
+l_pu_rest:
+        rts
+
 person_update:
         inc p_anim
         lda p_state
@@ -1926,9 +2038,13 @@ person_update:
         beq person_choose
         cmp #PS_WALK
         bne +
+        jsr walk_pace
+        bcc l_pu_rest
         jmp person_walk
 +       cmp #PS_CLIMB
         bne +
+        jsr walk_pace
+        bcc l_pu_rest
         jmp person_climb
 +       ; PS_ACT
         jsr act_tick
@@ -2511,6 +2627,7 @@ l_tkm_set:
         stx pose_spr+1
         rts
 en_meal:
+        jsr feel_better         ; (a good meal puts the colour back in his cheeks)
         lda #0
         sta hunger
         lda #1
@@ -2523,6 +2640,15 @@ en_meal:
         jsr mood_up
         #SAY l_say_yum
         rts
+
+; Fed (or watered) when he's sick: out of the green at once.
+feel_better:
+        lda health
+        cmp #45
+        bcs +
+        lda #45
+        sta health
++       rts
 
 ; Washing up: at the kitchen sink, back to you, hands busy, the tap running.
 HELD_PLATEE     = 8
@@ -2645,6 +2771,7 @@ l_tkdr_1:
         jmp sfx_play
 +       cmp #200                ; ahh
         bne l_tkdr_out
+        jsr feel_better         ; (a drink helps too, if it was thirst)
         lda #0
         sta drinking
         sta thirst
@@ -3276,6 +3403,15 @@ l_tk_talk:
         jsr sb_player
         lda #'!'
         jsr sb_char
+        lda health              ; sick: no games, just how he feels
+        cmp #40
+        bcs l_tk_well
+        lda #0
+        sta knock_invite
+        ldx #<l_say_ksick
+        ldy #>l_say_ksick
+        jmp l_tk_line
+l_tk_well:
         ldx l_tk_pick
         beq +
         ldx #<l_say_knock4
@@ -3286,8 +3422,11 @@ l_tk_talk:
         ldx #<l_say_knock5
         ldy #>l_say_knock5
 +
-+       jsr sb_strxy
++
+l_tk_line:
+        jsr sb_strxy
         jmp ui_say_sb
+l_say_ksick: .null " I feel so sick... send food?"
 en_knock:
         lda #100
         sta lonely
@@ -3299,6 +3438,19 @@ st_chat:
         lda #PM_FRONT
         sta p_mode
         jsr speak
+        lda health              ; sick: how he's feeling
+        cmp #40
+        bcs l_ch_well
+        lda #4
+        jsr rnd_range
+        asl
+        tax
+        lda chat_sick,x
+        sta l_ch_p
+        lda chat_sick+1,x
+        sta l_ch_p+1
+        bra l_ch_said
+l_ch_well:
         lda #8
         jsr rnd_range
         asl
@@ -3307,6 +3459,7 @@ st_chat:
         sta l_ch_p
         lda chat_lines+1,x
         sta l_ch_p+1
+l_ch_said:
         jsr sb_clear
         jsr sb_lcp
         lda #':'
@@ -3350,6 +3503,12 @@ chl4:   .null "Thanks for the company, @!"
 chl5:   .null "I just love this house."
 chl6:   .null "Do you ever get bored out there?"
 chl7:   .null "Hey @, you look nice today!"
+chat_sick:
+        .word chs0, chs1, chs2, chs3
+chs0:   .null "Ugh, @... I feel awful."
+chs1:   .null "Tummy's rumbling, @. Any food?"
+chs2:   .null "I'm all green and wobbly..."
+chs3:   .null "Please look after me, @."
 
 ; Talk out loud: start his voice; actors_build moves his mouth with it.
 speaking:       .byte 0
@@ -3503,11 +3662,11 @@ l_tks_wake:
 l_tks_out:
         rts
 en_sleep:
-        lda #WC_EVERY           ; first thing: the toilet
-        sta wc_need
-        lda outfit              ; up out of pyjamas: get dressed
-        cmp #1
+        lda outfit              ; up out of pyjamas (a night's sleep, not a
+        cmp #1                  ;  nap): the toilet first thing, then dressed
         bne +
+        lda #WC_EVERY
+        sta wc_need
         lda #1
         sta dress_todo
 +
@@ -5142,6 +5301,9 @@ en_record:
         bcc +                   ; (interrupted before it went on)
         lda #6
         jsr mood_up
+        lda health              ; (not when he's sick)
+        cmp #40
+        bcc +
         lda #3                  ; and two times in three, a dance
         jsr rnd_range
         beq +
@@ -5418,6 +5580,9 @@ dog_state:      .byte 0     ; 0 hidden, 1 walk, 2 rest, 3 eat, 4 beg
 DOG_EAT_X       = 9         ; eating: sprite left edge, nose in the bowl
 DOG_EAT_TIME    = 250       ; frames
 dog_beg:        .byte 0     ; 1 = hungry: going to him to beg
+DOG_BEDSIDE_X   = 72        ; lying beside his bed (middle floor) while he sleeps
+dog_begt:       .byte 0     ; frames spent begging
+dog_gaveup:     .byte 0     ; 1 = begged in vain: waits by its bowl until fed
 dog_meals:      .byte 0     ; today: bit 0 morning, bit 1 evening
 dog_timer:      .byte 0
 
@@ -5712,12 +5877,24 @@ l_dg_free:
         ; begging: until the bowl's filled; every so often a bark, and
         ; after him if he's moved off
         lda bowl_full
-        beq l_dg_begon
+        bne l_dg_begoff
+        jsr person_sleeping     ; (he's gone to sleep: forget it)
+        bcc l_dg_begon
+l_dg_begoff:
         lda #0
         sta dog_beg
         jmp l_dg_choose
 l_dg_begon:
-        dec dog_timer
+        inc dog_begt            ; five seconds of it and it gives up
+        lda dog_begt
+        cmp #250
+        bcc +
+        lda #0
+        sta dog_beg
+        lda #1
+        sta dog_gaveup
+        jmp l_dg_choose
++       dec dog_timer
         bne l_dg_out
         jsr bark_play
         jmp l_dg_choose
@@ -5738,19 +5915,42 @@ l_dg_begon:
         lda #0
         sta bowl_full
         sta dog_hunger
+        sta dog_gaveup          ; (fed: it may beg again when it's hungry)
 l_dg_choose:
+        ; he's asleep: the dog keeps him company, lying quietly by his bed
+        jsr person_sleeping
+        bcc l_dgc_up
+        lda #0                  ; (no begging till he's up)
+        sta dog_beg
+        lda #<DOG_BEDSIDE_X
+        sta dog_tx
+        lda #0
+        sta dog_tx+1
+        lda #1
+        jmp dog_route
+l_dgc_up:
         ; hungry (or its mealtime) and nothing in the bowl: go and beg
         lda bowl_full
         bne l_dg_bowl
         lda dog_beg
         bne l_dg_begto
-        jsr dog_meal_due
+        lda dog_gaveup          ; given up: lie down by the bowl and wait
+        beq +
+        lda #<40
+        sta dog_tx
+        lda #0
+        sta dog_tx+1
+        lda #0
+        jmp dog_route
++       jsr dog_meal_due
         bcs +
         lda dog_hunger
         cmp #60
         bcc l_dg_bowl
 +       lda #1
         sta dog_beg
+        lda #0
+        sta dog_begt
 l_dg_begto:
         jsr dog_beg_target
         lda #1
@@ -6974,12 +7174,11 @@ l_ar_erase:
 +       inx
         cpx #ACTORS
         bne l_ar_erase
-        ; draw back to front: bowl, dog, sleeping head, person, effect
+        ; draw back to front: bowl, vacuum, sleeping head, person, hands /
+        ; screen, effect -- and the dog over all of them
         ldx #3
         jsr l_ar_draw
         ldx #6
-        jsr l_ar_draw
-        ldx #1
         jsr l_ar_draw
         ldx #4
         jsr l_ar_draw
@@ -6988,6 +7187,8 @@ l_ar_erase:
         ldx #5
         jsr l_ar_draw
         ldx #2
+        jsr l_ar_draw
+        ldx #1
         jmp l_ar_draw
 
 l_ar_draw:

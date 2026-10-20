@@ -101,6 +101,33 @@ AUTOMIN = 50
         lda #AUTOMIN
         sta clock_min
         jsr clock_hands
+        .weak
+AUTOFOOD = 255                  ; test builds: food / hunger / health to start
+AUTOHUNGER = 255                ;  with (255 = leave as normal)
+AUTOHEALTH = 255
+AUTODOGFOOD = 255
+AUTOTRIP = 255
+        .endweak
+        .if AUTOTRIP != 255
+        lda #AUTOTRIP
+        sta night_trip
+        .endif
+        .if AUTODOGFOOD != 255
+        lda #AUTODOGFOOD
+        sta dogfood
+        .endif
+        .if AUTOFOOD != 255
+        lda #AUTOFOOD
+        sta food
+        .endif
+        .if AUTOHUNGER != 255
+        lda #AUTOHUNGER
+        sta hunger
+        .endif
+        .if AUTOHEALTH != 255
+        lda #AUTOHEALTH
+        sta health
+        .endif
         .endif
         jsr lights_update
         jsr pal_apply_all

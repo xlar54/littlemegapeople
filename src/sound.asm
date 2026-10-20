@@ -64,7 +64,10 @@ talk_play:
 ; A little dog's bark -- unless another sample (his voice, the bell...) is
 ; playing: that isn't cut off.
 bark_play:
-        jsr talk_level
+        jsr person_sleeping     ; (not a woof while he's asleep)
+        bcc +
+        rts
++       jsr talk_level
         bcc +
         rts
 +       ldx #SND_BARK
