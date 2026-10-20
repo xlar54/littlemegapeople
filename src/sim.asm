@@ -434,10 +434,15 @@ l_gm_needs:
         jsr l_gm_up
         bra l_gm_dog
 l_gm_needs_awake:
-        ; awake: thirst every 2 minutes, hunger every 6
+        ; awake: thirst every 2 minutes, hunger every 6, the toilet's call
         lda minute_count
         and #1
         bne +
+        lda wc_need
+        cmp #255
+        beq l_gm_wcfull
+        inc wc_need
+l_gm_wcfull:
         lda #thirst - hunger
         jsr l_gm_up
 +       lda minute_count
@@ -562,6 +567,7 @@ l_mod9:
 next_day:
         lda #0
         sta meals_done
+        sta showered
         sta dog_meals
         inc date_day
         ldx date_month
@@ -1154,6 +1160,12 @@ l_ai_bed:
         sta dress_todo
         lda #A_CHANGE
         rts
++       ; the toilet: on getting up, then every five hours or so
+        lda wc_need
+        cmp #WC_EVERY
+        bcc +
+        lda #A_WC
+        rts
 +       ; breakfast, lunch, dinner: cook a meal
         jsr meal_due
         bcc +
@@ -1162,6 +1174,24 @@ l_ai_bed:
         lda #1
         sta cook_stage
         lda #A_GETFOOD
+        rts
++       ; a shower every morning, once breakfast is done
+        lda showered
+        bne +
+        lda cook_stage
+        bne +
+        lda clock_hour
+        cmp #12
+        bcs +
+        cmp #10                 ; (by ten, breakfast or not)
+        bcs l_ai_shower
+        lda meals_done
+        and #1
+        beq +
+l_ai_shower:
+        lda #1
+        sta showered
+        lda #A_BATH
         rts
 +       ; thirst
         lda thirst
@@ -1251,7 +1281,7 @@ l_ai_fun:
 +       rts
 l_fun_list:
         .byte A_TV, A_TV, A_RECORD, A_PIANO, A_PIANO, A_READ, A_READ, A_COMPUTER
-        .byte A_EXERCISE, A_POOL, A_BATH, A_WC, A_IDLE, A_IDLE, A_IDLE, A_PETDOG
+        .byte A_EXERCISE, A_POOL, A_READ, A_COMPUTER, A_IDLE, A_IDLE, A_IDLE, A_PETDOG
         .byte A_GOOUT, A_DANCE, A_IDLE, A_READ, A_CARDS, A_FILES, A_CHAT
 l_fun_count = * - l_fun_list
 
@@ -3104,6 +3134,8 @@ l_tks_wake:
 l_tks_out:
         rts
 en_sleep:
+        lda #WC_EVERY           ; first thing: the toilet
+        sta wc_need
         lda outfit              ; up out of pyjamas: get dressed
         cmp #1
         bne +
@@ -3163,7 +3195,13 @@ en_brush:
 ; later (and a flush) it opens, he steps out, it closes; then he washes up.
 wc_t:           .byte 0
 
+; The toilet about three times a day: first thing, then every five hours.
+WC_EVERY        = 150           ; in 2-minute steps: five hours
+wc_need:        .byte 0
+showered:       .byte 0         ; 1 = had today's shower
 st_wc:
+        lda #0
+        sta wc_need
         ldx #PATCH_WC
         jsr patch_apply
         lda #SFX_DOOR
