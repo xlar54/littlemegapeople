@@ -187,6 +187,7 @@ sound_init:
 ; Tunes
 ;---------------------------------------------------------------------------------------
 tune_id:    .byte 0
+tune_once:  .byte 0         ; 1 = stop at the end instead of looping
 l_tn_ptr:    .word 0
 l_tn_pos:    .word 0
 l_tn_left:   .byte 0
@@ -194,6 +195,10 @@ l_tn_left:   .byte 0
 ; A = tune id (0 stops)
 tune_play:
         sta tune_id
+        pha
+        lda #0                  ; loops unless told otherwise (tune_once)
+        sta tune_once
+        pla
         cmp #0
         bne +
         lda #$40
@@ -232,6 +237,11 @@ l_tune_step:
         lda (ZPTR2),y
         cmp #$FF
         bne +
+        lda tune_once           ; the end: once only (a record)? then stop
+        beq l_tst_loop
+        lda #0
+        jmp tune_play
+l_tst_loop:
         lda #0
         sta l_tn_pos
         sta l_tn_pos+1

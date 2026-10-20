@@ -88,7 +88,9 @@ A_VACGROUND     = 49        ;   ...and the ground floor
 A_LEASH         = 50        ; walking the dog: the leash on...
 A_WALKOUT       = 51        ;   ...out of the front door and back
 A_UNLEASH       = 52        ;   ...and the leash off
-A_COUNT         = 53
+A_RECSTOP       = 53        ; stops the record (when asked)
+A_VACPICK       = 54        ; back to the vacuum he left, picks it up
+A_COUNT         = 55
 
 REQ_EAT         = A_FRIDGE
 REQ_DRINK       = A_DRINK
@@ -106,6 +108,7 @@ REQ_COMPUTER    = A_COMPUTER
 REQ_LETTER      = A_LETTER
 REQ_TV          = A_TV
 REQ_RECORD      = A_RECORD
+REQ_RECSTOP     = A_RECSTOP
 REQ_DANCE       = A_DANCE
 REQ_PIANO       = A_PIANO
 REQ_CHANGE      = A_CHANGE
@@ -973,15 +976,15 @@ l_fire_b: .byte 0,0,0
 ;---------------------------------------------------------------------------------------
 ;               floor  x     face(1=right)
 act_floor:
-        .byte 0, 0,0,0,0,0, 1,0,0, 1,1,1,1,1, 1,2, 2,2,2,2, 1,0,0, 0,0,0,0, 0, 2, 0, 2, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 1, 2, 0, 0, 0, 0
+        .byte 0, 0,0,0,0,0, 1,0,0, 1,1,1,1,1, 1,2, 2,2,2,2, 1,0,0, 0,0,0,0, 0, 2, 0, 2, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 1, 2, 0, 0, 0, 0, 2, 0
 act_xl:
         .byte 0, <52,<122,<138,<28,<226, <252,<268,<302, <40,<113,<170,<196,<222, <278,<228
-        .byte <108,<73,<76,<154, <83,<122,<122, <160,0,0,<300, <226, <266, 0, <62, <62, <177, <294, 0, <78, <58, <28, <28, <58, <52, <56, <82, <82, 0, <186, <186, <141, <186, <177, 0, <268, <268
+        .byte <108,<73,<76,<154, <83,<122,<122, <160,0,0,<300, <226, <266, 0, <62, <62, <177, <294, 0, <78, <58, <28, <28, <58, <52, <56, <82, <82, 0, <186, <186, <141, <186, <177, 0, <268, <268, <73, 0
 act_xh:
         .byte 0, >52,>122,>138,>28,>226, >252,>268,>302, >40,>113,>170,>196,>222, >278,>228
-        .byte >108,>73,>76,>154, >83,>122,>122, >160,0,0,>300, >226, >266, 0, >62, >62, >177, >294, 0, >78, >58, >28, >28, >58, >52, >56, >82, >82, 0, >186, >186, >141, >186, >177, 0, >268, >268
+        .byte >108,>73,>76,>154, >83,>122,>122, >160,0,0,>300, >226, >266, 0, >62, >62, >177, >294, 0, >78, >58, >28, >28, >58, >52, >56, >82, >82, 0, >186, >186, >141, >186, >177, 0, >268, >268, >73, 0
 act_face:
-        .byte 0, 0,1,1,0,0, 1,1,1, 0,0,0,1,1, 1,1, 0,0,0,0, 0,1,1, 0,0,0,0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1
+        .byte 0, 0,1,1,0,0, 1,1,1, 0,0,0,1,1, 1,1, 0,0,0,0, 0,1,1, 0,0,0,0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0
 
 act_start_tbl:
         .word st_none, st_fridge, st_meal, st_drink, st_feeddog, st_phone, st_read, st_fire
@@ -991,7 +994,7 @@ act_start_tbl:
         .word st_getfood, st_prep, st_stoveon, st_stoveoff, st_serve, st_fridgeget, st_dogfood
         .word st_getcup, st_cupsink, st_askwater
         .word st_vacget, st_vacsweep, st_vacsweep, st_vacput, st_vacsweep
-        .word st_leash, st_walkout, st_unleash
+        .word st_leash, st_walkout, st_unleash, st_recstop, st_vacpick
 act_tick_tbl:
         .word tk_none, tk_none, tk_meal, tk_drink, tk_feeddog, tk_phone, tk_none, tk_none
         .word tk_goout, tk_sleep, tk_none, tk_brush, tk_wc, tk_bath, tk_computer
@@ -1000,7 +1003,7 @@ act_tick_tbl:
         .word tk_getfood, tk_prep, tk_stoveon, tk_stoveoff, tk_prep, tk_fridgeget, tk_dogfood
         .word tk_getcup, tk_cupsink, tk_none
         .word tk_vacget, tk_vacsweep, tk_vacsweep, tk_vacput, tk_vacsweep
-        .word tk_leash, tk_walkout, tk_leash
+        .word tk_leash, tk_walkout, tk_leash, tk_recstop, tk_vacpick
 act_end_tbl:
         .word en_none, en_fridge, en_meal, en_drink, en_feeddog, en_phone, en_read, en_fire
         .word en_goout, en_sleep, en_exercise, en_brush, en_wc, en_bath, en_computer
@@ -1009,7 +1012,7 @@ act_end_tbl:
         .word en_getfood, en_prep, en_stoveon, en_stoveoff, en_serve, en_fridgeget, en_dogfood
         .word en_getcup, en_none, en_none
         .word en_vacget, en_vacsweep, en_vacsweep, en_vacput, en_vacsweep
-        .word en_leash, en_walkout, en_unleash
+        .word en_leash, en_walkout, en_unleash, en_none, en_vacpick
 
 act_names:
         .word nm_none, nm_fridge, nm_meal, nm_drink, nm_feeddog, nm_phone, nm_read, nm_fire
@@ -1019,7 +1022,7 @@ act_names:
         .word nm_getfood, nm_prep, nm_cook, nm_stoveoff, nm_serve, nm_getfood, nm_feeddog
         .word nm_drink, nm_drink, nm_askwater
         .word nm_vacuum, nm_vacuum, nm_vacuum, nm_vacuum, nm_vacuum
-        .word nm_dogwalk, nm_dogwalk, nm_dogwalk
+        .word nm_dogwalk, nm_dogwalk, nm_dogwalk, nm_recstop, nm_vacuum
 nm_none:     .null " is pottering about."
 nm_fridge:   .null " is getting some food."
 nm_meal:     .null " is eating."
@@ -1037,6 +1040,7 @@ nm_stow:     .null " is putting the delivery away."
 nm_askwater: .null " is asking you for water."
 nm_vacuum:   .null " is vacuuming."
 nm_dogwalk:  .null " is taking the dog for a walk."
+nm_recstop:  .null " is stopping the record."
 nm_getfood:  .null " is fetching something to cook."
 nm_prep:     .null " is getting a meal ready."
 nm_cook:     .null " is cooking."
@@ -1120,8 +1124,13 @@ l_pc_dlv:
         ldx drink_stage
         lda drink_act,x
         bne l_ai_ret
-        ; the vacuuming under way: carry on with it
-        ldx vac_stage
+        ; the vacuuming under way: carry on with it (fetching it first if
+        ; he left it standing somewhere)
+        lda vac_parked
+        beq +
+        lda #A_VACPICK
+        rts
++       ldx vac_stage
         lda vac_act,x
         bne l_ai_ret
         ; a dog walk under way: carry on with it
@@ -1473,6 +1482,15 @@ l_ra_act:
         ldx #<say_nodogfood
         ldy #>say_nodogfood
         jmp ui_say
++       lda l_ra_req
+        cmp #A_RECSTOP
+        bne +
+        lda record_left
+        ora record_left+1
+        bne +
+        ldx #<say_norecord
+        ldy #>say_norecord
+        jmp ui_say
 +       ; will he? mood/2 + random(50) + 25 if polite, -15 if not
         lda mood
         lsr
@@ -1773,6 +1791,7 @@ person_choose:
         lda #A_TVON             ; it's off: go and switch it on first
 +       sta p_goal
         tax
+        jsr vac_maybe_park
         lda act_floor,x
         sta goal_floor
         lda act_xl,x
@@ -1792,6 +1811,15 @@ person_choose:
         lda #0
         sta goal_x+1
         bra l_pc_go
++       cpx #A_VACPICK
+        bne +
+        lda park_floor
+        sta goal_floor
+        lda park_x
+        sta goal_x
+        lda park_x+1
+        sta goal_x+1
+        jmp l_pc_go
 +       cpx #A_LEASH
         bne ++
         lda #0
@@ -2686,12 +2714,21 @@ st_readchair:
         lda #20
         jmp set_timer_secs
 tk_readchair:
+        ; his head turns from one page to the other and back
+        lda #<SPR_READING
+        ldx #>SPR_READING
+        ldy p_anim
+        cpy #128
+        bcc +
+        lda #<SPR_READING2
+        ldx #>SPR_READING2
++       sta pose_spr
+        stx pose_spr+1
         lda book_page
         beq +
         dec book_page
         rts
-+       lda p_anim
-        and #127
++       lda p_anim              ; done with the right-hand page: turn over
         bne +
         lda #4
         jsr rnd_range
@@ -3815,6 +3852,68 @@ vac_lo:         .byte 0     ; this floor's sweep: from, to, passes left
 vac_hi:         .byte 0
 vac_pass:       .byte 0
 HELD_VAC        = 7
+vac_parked:     .byte 0     ; 1 = left standing where he was
+park_floor:     .byte 0
+park_x:         .word 0
+park_flip:      .byte 0
+
+; X = what he's about to do. Anything but the vacuuming while he has the
+; vacuum: he leaves it standing where he is (and comes back for it).
+vac_maybe_park:
+        lda held
+        cmp #HELD_VAC
+        bne l_vmp_out
+        cpx #A_VACGET
+        bcc +
+        cpx #A_VACGROUND + 1
+        bcc l_vmp_out           ; (45..49: the vacuuming itself)
++       cpx #A_VACPICK
+        beq l_vmp_out
+        lda #1
+        sta vac_parked
+        lda p_floor
+        sta park_floor
+        lda p_x
+        sta park_x
+        lda p_x+1
+        sta park_x+1
+        lda p_flip
+        sta park_flip
+        lda #0
+        sta held
+l_vmp_out:
+        rts
+
+; back at the vacuum: bend, take hold of it, carry on
+st_vacpick:
+        lda park_flip
+        sta p_flip
+        lda #PM_BENDSIDE
+        sta p_mode
+        lda #0
+        sta vac_t
+        lda #1
+        jmp set_timer_secs
+tk_vacpick:
+        inc vac_t
+        lda vac_t
+        cmp #25
+        bne +
+        lda #HELD_VAC
+        sta held
+        lda #0
+        sta vac_parked
+        lda #PM_STAND
+        sta p_mode
++       rts
+en_vacpick:
+        lda #PM_STAND
+        sta p_mode
+        lda vac_parked          ; (interrupted before he got it: still there)
+        bne +
+        lda #HELD_VAC
+        sta held
++       rts
 ;                 ground  middle (up to the bed)  attic (between the slopes)
 vac_lo_tbl:     .byte 40,     74,                     36
 vac_hi_tbl:     .byte 250,    250,                    250
@@ -4608,7 +4707,10 @@ record_start:
         tax
         lda record_tunes,x
         sta record_tune
-        jmp tune_play
+        jsr tune_play
+        lda #1                  ; the song plays through once
+        sta tune_once
+        rts
 record_stop:
         lda record_left
         ora record_left+1
@@ -4619,11 +4721,18 @@ record_stop:
         lda #TUNE_NONE
         jmp tune_play
 +       rts
-; every sim tick: the record runs down
+; every sim tick: the record runs down, or its song's over
 record_tick:
         lda record_left
         ora record_left+1
         beq l_rk_out
+        lda tune_id             ; the song's finished: the record stops
+        bne +
+        lda #0
+        sta record_left
+        sta record_left+1
+        rts
++
         lda record_left
         bne +
         dec record_left+1
@@ -4635,6 +4744,27 @@ record_tick:
         jmp tune_play
 l_rk_out:
         rts
+
+; Asked to stop the record: up to the stereo, click, quiet.
+st_recstop:
+        lda #PM_BACKSTAND
+        sta p_mode
+        lda #0
+        sta rec_t
+        lda #1
+        jmp set_timer_secs
+tk_recstop:
+        inc rec_t
+        lda rec_t
+        cmp #30
+        bne +
+        jsr record_stop
+        lda #SFX_TINK
+        jsr sfx_play
+        #SAY l_say_quiet
++       rts
+l_say_quiet:    .null "There, all quiet."
+say_norecord:   .null "There's no record on."
 
 st_dance:
         lda #PM_DANCE
@@ -5211,7 +5341,7 @@ l_fu_out:
 ; Actor renderer: erase last frame's sprites, draw this frame's.
 ; Actor 0 = person, 1 = dog, 2 = effect, 3 = dog bowl food, 4 = sleeping head.
 ;---------------------------------------------------------------------------------------
-ACTORS          = 6         ; 5 = censor mosaic
+ACTORS          = 7         ; 5 = censor mosaic, 6 = the vacuum left standing
 act_vis:        .fill ACTORS, 0
 act_sprl:       .fill ACTORS, 0
 act_sprh:       .fill ACTORS, 0
@@ -5221,7 +5351,7 @@ act_xh2:        .fill ACTORS, 0
 act_y:          .fill ACTORS, 0
 act_flip:       .fill ACTORS, 0
 prev_valid:     .fill ACTORS, 0
-act_masked:     .byte 1, 0, 0, 0, 0, 1  ; him and his mosaic go behind furniture
+act_masked:     .byte 1, 0, 0, 0, 0, 1, 1  ; him, his mosaic and the vacuum go behind furniture
 prev_cx0:       .fill ACTORS, 0
 prev_cy0:       .fill ACTORS, 0
 prev_cx1:       .fill ACTORS, 0
@@ -5928,6 +6058,36 @@ l_ab_fx_done:
         sta act_flip+3
         lda #187
         sta act_y+3
+        ; --- the vacuum, if he's left it standing somewhere ---
+        lda vac_parked
+        sta act_vis+6
+        beq l_ab_novac
+        #SETACT 6, SPR_HELDVAC
+        lda park_flip
+        sta act_flip+6
+        ldx park_floor
+        lda floor_y,x
+        sec
+        sbc #12
+        sta act_y+6
+        lda park_flip
+        bne +
+        sec                     ; in front of where he stood, the way he faced
+        lda park_x
+        sbc #15
+        sta act_xl2+6
+        lda park_x+1
+        sbc #0
+        sta act_xh2+6
+        rts
++       clc
+        lda park_x
+        adc #7
+        sta act_xl2+6
+        lda park_x+1
+        adc #0
+        sta act_xh2+6
+l_ab_novac:
         rts
 
 ; The vacuum cleaner, its head on the floor in front of him (the side he's
@@ -6080,6 +6240,8 @@ l_ar_erase:
         bne l_ar_erase
         ; draw back to front: bowl, dog, sleeping head, person, effect
         ldx #3
+        jsr l_ar_draw
+        ldx #6
         jsr l_ar_draw
         ldx #1
         jsr l_ar_draw

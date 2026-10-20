@@ -1444,6 +1444,12 @@ def build_sprites():
                   (11, '.kTTTTTttSSttTTTTk.')):
         reading[y] = art([ln])[0]
     sprites.append(('reading', reading))
+    # ...and with his head turned to the other page: the head (rows 0-7)
+    # mirrored about its middle
+    reading2 = [r[:] for r in reading]
+    for y in range(8):
+        reading2[y] = reading[y][15::-1] + reading[y][16:]
+    sprites.append(('reading2', reading2))
     sprites.append(('bookopen', art(BOOK_OPEN)))
     # His hands on the typewriter keys (left keys x 216-219, right x 226-229),
     # one up while the other is down.

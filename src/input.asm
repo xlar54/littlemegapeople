@@ -269,6 +269,7 @@ keyword_table:
         #KW "feed", REQ_FEEDDOG
         #KW "pet", REQ_PETDOG
         #KW "piano", REQ_PIANO
+        #KW "stop", REQ_RECSTOP     ; (before "record": "stop the record")
         #KW "record", REQ_RECORD
         #KW "records", REQ_RECORD
         #KW "stereo", REQ_RECORD
