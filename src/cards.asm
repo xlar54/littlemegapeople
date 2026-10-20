@@ -55,9 +55,15 @@ cards_play:
         lda #0
         sta cards_mode
         jsr cards_menu
+        lda #60                 ; a minute to answer (:59 counting down)
+        sta l_cmk_s
+        lda #1
+        sta l_cmk_f
 l_cp_choose:
-        jsr l_cp_key
-        cmp #'1'
+        jsr l_cmn_key
+        bcc +
+        jmp l_cp_timeout
++       cmp #'1'
         beq l_cp_poker
         cmp #'p'
         beq l_cp_poker
@@ -85,6 +91,54 @@ l_cp_no:
         ldx #<cs_aww
         ldy #>cs_aww
         jmp ui_say
+l_cp_timeout:                   ; no answer: he puts the cards away
+        jsr window_close
+        ldx #<cs_never
+        ldy #>cs_never
+        jmp ui_say
+
+; The menu's key wait, the countdown ticking at the bottom right: A = the
+; key (lower case), or carry set when the minute's up.
+l_cmn_key:
+        jsr wait_frame
+        jsr sound_tick
+        dec l_cmk_f             ; a second gone?
+        bne l_cmk_key
+        lda #50
+        sta l_cmk_f
+        lda l_cmk_s
+        bne +
+        sec                     ; (time's up)
+        rts
++       dec l_cmk_s
+        lda #C_FELT
+        sta txt_bg
+        lda #C_YELLOW
+        sta txt_fg
+        jsr sb_clear
+        lda #':'
+        jsr sb_char
+        lda l_cmk_s
+        jsr sb_num2
+        lda #<sb
+        sta ZPTR
+        lda #>sb
+        sta ZPTR+1
+        ldx #CW_X1 - 4
+        ldy #CW_Y1 - 1
+        jsr print_str
+l_cmk_key:
+        jsr key_get
+        beq l_cmn_key
+        cmp #'A'
+        bcc +
+        cmp #'Z'+1
+        bcs +
+        ora #$20
++       clc
+        rts
+l_cmk_s:    .byte 0             ; seconds left
+l_cmk_f:    .byte 0             ; frames left in this second
 
 l_cp_round:
         jsr cards_clear_table
@@ -765,6 +819,7 @@ cs_m1:     .null "  1. Poker"
 cs_m2:     .null "  2. Blackjack"
 cs_mq:     .null "  Q. Quit"
 cs_aww:    .null "Aww, maybe some other time then."
+cs_never:  .null "Oh well. I'll put the cards away."
 cs_his:    .null "'s cards:"
 cs_yours:  .null "Your cards:"
 cs_total:  .null "Total: "
