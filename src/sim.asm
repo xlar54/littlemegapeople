@@ -96,7 +96,9 @@ A_WHISTLE       = 57        ; whistles the dog down for its walk
 A_GREET         = 58        ; lets his friend in at the front door
 A_SEEOFF        = 59        ; sees him out again
 A_CARDSF        = 60        ; plays cards with him at the kitchen table
-A_COUNT         = 61
+A_WATCHVG       = 61        ; watches him at the video game (their turns)
+A_INTRO         = 62        ; introduces his friend to you (the first visit)
+A_COUNT         = 63
 
 REQ_EAT         = A_FRIDGE
 REQ_DRINK       = A_DRINK
@@ -1057,15 +1059,15 @@ l_fire_b: .byte 0,0,0
 ;---------------------------------------------------------------------------------------
 ;               floor  x     face(1=right)
 act_floor:
-        .byte 0, 0,0,0,0,0, 1,0,0, 1,1,1,1,1, 1,2, 2,2,2,2, 1,0,0, 0,0,0,0, 0, 2, 0, 2, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 1, 2, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0
+        .byte 0, 0,0,0,0,0, 1,0,0, 1,1,1,1,1, 1,2, 2,2,2,2, 1,0,0, 0,0,0,0, 0, 2, 0, 2, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 1, 2, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 1, 0
 act_xl:
         .byte 0, <52,<122,<138,<28,<226, <252,<268,<268, <40,<113,<170,<196,<222, <278,<228
-        .byte <108,<73,<76,<154, <83,<122,<122, <160,0,0,<300, <226, <266, 0, <62, <62, <177, <294, 0, <78, <58, <28, <28, <58, <52, <56, <82, <82, 0, <186, <186, <141, <186, <177, 0, <268, <268, <73, 0, <82, <226, 0, <268, <268, <122
+        .byte <108,<73,<76,<154, <83,<122,<122, <160,0,0,<300, <226, <266, 0, <62, <62, <177, <294, 0, <78, <58, <28, <28, <58, <52, <56, <82, <82, 0, <186, <186, <141, <186, <177, 0, <268, <268, <73, 0, <82, <226, 0, <268, <268, <122, <250, <248
 act_xh:
         .byte 0, >52,>122,>138,>28,>226, >252,>268,>268, >40,>113,>170,>196,>222, >278,>228
-        .byte >108,>73,>76,>154, >83,>122,>122, >160,0,0,>300, >226, >266, 0, >62, >62, >177, >294, 0, >78, >58, >28, >28, >58, >52, >56, >82, >82, 0, >186, >186, >141, >186, >177, 0, >268, >268, >73, 0, >82, >226, 0, >268, >268, >122
+        .byte >108,>73,>76,>154, >83,>122,>122, >160,0,0,>300, >226, >266, 0, >62, >62, >177, >294, 0, >78, >58, >28, >28, >58, >52, >56, >82, >82, 0, >186, >186, >141, >186, >177, 0, >268, >268, >73, 0, >82, >226, 0, >268, >268, >122, >250, >248
 act_face:
-        .byte 0, 0,1,1,0,0, 1,1,1, 0,0,0,1,1, 1,1, 0,0,0,0, 0,1,1, 0,0,0,0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1
+        .byte 0, 0,1,1,0,0, 1,1,1, 0,0,0,1,1, 1,1, 0,0,0,0, 0,1,1, 0,0,0,0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0
 
 act_start_tbl:
         .word st_none, st_fridge, st_meal, st_drink, st_feeddog, st_phone, st_read, st_fire
@@ -1075,7 +1077,7 @@ act_start_tbl:
         .word st_getfood, st_prep, st_stoveon, st_stoveoff, st_serve, st_fridgeget, st_dogfood
         .word st_getcup, st_cupsink, st_askwater
         .word st_vacget, st_vacsweep, st_vacsweep, st_vacput, st_vacsweep
-        .word st_leash, st_walkout, st_unleash, st_recstop, st_vacpick, st_dishes, st_phonecall, st_whistle, st_greet, st_seeoff, st_cardsf
+        .word st_leash, st_walkout, st_unleash, st_recstop, st_vacpick, st_dishes, st_phonecall, st_whistle, st_greet, st_seeoff, st_cardsf, st_watchvg, st_intro
 act_tick_tbl:
         .word tk_none, tk_none, tk_meal, tk_drink, tk_feeddog, tk_phone, tk_none, tk_none
         .word tk_goout, tk_sleep, tk_none, tk_brush, tk_wc, tk_bath, tk_computer
@@ -1084,7 +1086,7 @@ act_tick_tbl:
         .word tk_getfood, tk_prep, tk_stoveon, tk_stoveoff, tk_prep, tk_fridgeget, tk_dogfood
         .word tk_getcup, tk_cupsink, tk_none
         .word tk_vacget, tk_vacsweep, tk_vacsweep, tk_vacput, tk_vacsweep
-        .word tk_leash, tk_walkout, tk_leash, tk_recstop, tk_vacpick, tk_none, tk_phonecall, tk_whistle, tk_greet, tk_seeoff, tk_none
+        .word tk_leash, tk_walkout, tk_leash, tk_recstop, tk_vacpick, tk_none, tk_phonecall, tk_whistle, tk_greet, tk_seeoff, tk_none, tk_watchvg, tk_intro
 act_end_tbl:
         .word en_none, en_fridge, en_meal, en_drink, en_feeddog, en_phone, en_read, en_fire
         .word en_goout, en_sleep, en_exercise, en_brush, en_wc, en_bath, en_computer
@@ -1093,7 +1095,7 @@ act_end_tbl:
         .word en_getfood, en_prep, en_stoveon, en_stoveoff, en_serve, en_fridgeget, en_dogfood
         .word en_getcup, en_none, en_none
         .word en_vacget, en_vacsweep, en_vacsweep, en_vacput, en_vacsweep
-        .word en_leash, en_walkout, en_unleash, en_none, en_vacpick, en_dishes, en_phone, en_whistle, en_greet, en_seeoff, en_cardsf
+        .word en_leash, en_walkout, en_unleash, en_none, en_vacpick, en_dishes, en_phone, en_whistle, en_greet, en_seeoff, en_cardsf, en_none, en_intro
 
 act_names:
         .word nm_none, nm_fridge, nm_meal, nm_drink, nm_feeddog, nm_phone, nm_read, nm_fire
@@ -1103,7 +1105,7 @@ act_names:
         .word nm_getfood, nm_prep, nm_cook, nm_stoveoff, nm_serve, nm_getfood, nm_feeddog
         .word nm_drink, nm_drink, nm_askwater
         .word nm_vacuum, nm_vacuum, nm_vacuum, nm_vacuum, nm_vacuum
-        .word nm_dogwalk, nm_dogwalk, nm_dogwalk, nm_recstop, nm_vacuum, nm_dishes, nm_phonecall, nm_whistle, nm_greet, nm_seeoff, nm_cardsf
+        .word nm_dogwalk, nm_dogwalk, nm_dogwalk, nm_recstop, nm_vacuum, nm_dishes, nm_phonecall, nm_whistle, nm_greet, nm_seeoff, nm_cardsf, nm_watchvg, nm_intro
 nm_none:     .null " is pottering about."
 nm_fridge:   .null " is getting some food."
 nm_meal:     .null " is eating."
@@ -1128,6 +1130,8 @@ nm_whistle:  .null " is whistling for the dog."
 nm_greet:    .null " is letting Joey in."
 nm_seeoff:   .null " is seeing Joey out."
 nm_cardsf:   .null " is playing cards with Joey."
+nm_watchvg:  .null " is playing video games with Joey."
+nm_intro:    .null " is introducing his friend."
 nm_getfood:  .null " is fetching something to cook."
 nm_prep:     .null " is getting a meal ready."
 nm_cook:     .null " is cooking."
@@ -5769,7 +5773,7 @@ dog_final:      .word 0
 dog_path:       .word 0
 dog_sdir:       .byte 0         ; 1 up, 0 down
 dog_seg:        .byte 0         ; 0 a front block of steps, 1 a side flight
-dog_fy:         .byte DOG_Y, FLOOR1_Y + 4, FLOOR2_Y + 3
+dog_fy:         .byte DOG_Y, FLOOR1_Y, FLOOR2_Y      ; (upstairs: mid-room, like him)
 ; the flights (x, feet y), from the foot / head: up from the ground floor,
 ; down to it, up from the middle floor, down to it
 dog_up0:        .byte 177, 163, 166, 161, 136, 141, 128, FLOOR1_Y + 4, $FF
@@ -6371,7 +6375,7 @@ l_fu_out:
 ; Actor renderer: erase last frame's sprites, draw this frame's.
 ; Actor 0 = person, 1 = dog, 2 = effect, 3 = dog bowl food, 4 = sleeping head.
 ;---------------------------------------------------------------------------------------
-ACTORS          = 10        ; 5 = censor mosaic, 6 = the vacuum left standing, 7 his friend, 8 his chair, 9 his plate
+ACTORS          = 11        ; 5 = censor mosaic, 6 = the vacuum left standing, 7 his friend, 8 his chair, 9 his plate, 10 his game
 act_vis:        .fill ACTORS, 0
 act_sprl:       .fill ACTORS, 0
 act_sprh:       .fill ACTORS, 0
@@ -6381,7 +6385,7 @@ act_xh2:        .fill ACTORS, 0
 act_y:          .fill ACTORS, 0
 act_flip:       .fill ACTORS, 0
 prev_valid:     .fill ACTORS, 0
-act_masked:     .byte 1, 0, 0, 0, 0, 1, 1, 1, 0, 0  ; him, his mosaic, the vacuum, his friend go behind furniture
+act_masked:     .byte 1, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0  ; him, his mosaic, the vacuum, his friend go behind furniture
 prev_cx0:       .fill ACTORS, 0
 prev_cy0:       .fill ACTORS, 0
 prev_cx1:       .fill ACTORS, 0
@@ -7180,25 +7184,21 @@ ab_dog_stairs:
         sta act_y+1
         jmp l_ab_dog_done
 l_abds_side:
+        ; a side flight: walking, facing the way it's going, its feet going
+        ; up (or down) a tread at a time
         lda l_abds_step
-        and #1
+        and #3
         tax
-        lda dog_sdir
-        beq +
-        lda dogtu_l,x           ; going up: head up
+        lda dogw_l,x
         sta act_sprl+1
-        lda dogtu_h,x
+        lda dogw_h,x
         sta act_sprh+1
-        bra ++
-+       lda dogtd_l,x           ; going down: head down
-        sta act_sprl+1
-        lda dogtd_h,x
-        sta act_sprh+1
-+       lda #`SPR_DOGTU0
+        lda #`SPR_DOGW0
         sta act_sprb+1
-        lda dog_yb              ; (taller: feet line through its middle)
+        lda dog_yb
+        and #$FC                ; (4px treads)
         sec
-        sbc #19
+        sbc #15
         sta act_y+1
         jmp l_ab_dog_done
 l_abds_step: .byte 0
@@ -7361,12 +7361,27 @@ l_ar_erase:
         jsr l_ar_draw
         ldx #8
         jsr l_ar_draw
+        jsr fr_in_front         ; (his friend: in front on the stairs if he
+        bcs l_ar_frfront        ;  got onto them first)
         ldx #7
         jsr l_ar_draw
         ldx #9
         jsr l_ar_draw
+        ldx #10
+        jsr l_ar_draw
         ldx #0
         jsr l_ar_draw
+        bra l_ar_rest
+l_ar_frfront:
+        ldx #0
+        jsr l_ar_draw
+        ldx #7
+        jsr l_ar_draw
+        ldx #9
+        jsr l_ar_draw
+        ldx #10
+        jsr l_ar_draw
+l_ar_rest:
         ldx #5
         jsr l_ar_draw
         ldx #2

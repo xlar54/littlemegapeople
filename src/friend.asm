@@ -17,6 +17,7 @@ FRS_LEAVE        = 5         ; on his way to the door
 FRS_EXIT         = 6         ; out of the door
 
 FR_IN_X         = 292       ; where he stops inside the door
+BEDROOM_END     = 136       ; the middle floor left of this is Larry's bedroom
 
 P_BLOCK         = pose_y + 1 - p_state
 CL_BLOCK        = l_cl_dest + 1 - l_cl_ptr
@@ -35,6 +36,7 @@ fr_bye:         .byte 0     ; leaving: 1 Larry's coming to see him out, 2 their
 fr_p:           .fill P_BLOCK, 0
 fr_cl:          .fill CL_BLOCK, 0
 fr_name:        .null "Joey"
+fr_met:         .byte 0     ; 1 = Larry's introduced him to you
 
 ; his colours: skin, hair, shirt, shirt shade, trousers, shoes, far leg
 fr_rgb:         .byte 214,160,120, 60,40,30, 210,40,50, 140,20,35
@@ -100,8 +102,21 @@ fr_count:
         rts
 
 ; Every frame.
+fr_lrp:         .word 0     ; something Larry says in a moment...
+fr_lrt:         .byte 0     ; ...in this many frames
+l_fr_going:     .null "Well, I'd better get going."
+l_say_walkout:  .null "Already? I'll walk you out."
+l_say_takecare: .null "Bye, Joey! Take care!"
 friend_update:
-        lda fr_state
+        lda fr_lrt              ; Larry's line, when it's due
+        beq +
+        dec fr_lrt
+        bne +
+        ldx fr_lrp
+        ldy fr_lrp+1
+        jsr ui_say
+        jsr speak
++       lda fr_state
         bne +
         rts
 +       cmp #FRS_COMING
@@ -136,6 +151,7 @@ l_fru_ring:
         sta fr_t+1
         rts
 l_fru_in:
+        jsr fr_stairs_order
         jsr fr_chat_tick
         jsr fr_swap
         jsr fr_body
@@ -257,7 +273,15 @@ l_fc_wander:
         lda FR(p_mode)
         cmp #PM_HIDDEN
         beq l_fc_any
-        lda FR(p_floor)
+        lda FR(p_floor)         ; (not into his bedroom)
+        cmp #1
+        bne +
+        lda FR(p_x+1)
+        bne +
+        lda FR(p_x)
+        cmp #BEDROOM_END
+        bcc l_fc_any
++       lda FR(p_floor)
         sta goal_floor
         lda FR(p_x+1)           ; beside him, on the roomier side
         bne l_fc_left
@@ -287,7 +311,13 @@ l_fc_any:
         jsr rnd_range
         clc
         adc #50
-        sta goal_x
+        ldx goal_floor          ; (the middle floor: not the bedroom end)
+        cpx #1
+        bne +
+        cmp #BEDROOM_END
+        bcs +
+        adc #100
++       sta goal_x
         lda #0
         sta goal_x+1
 l_fc_go:
@@ -384,11 +414,17 @@ l_fx_coming:
         sta fr_bye
         rts
 l_fx_talk:
-        inc fr_t                ; 2: his reply, then out he goes
-        lda fr_t
-        cmp #130
+        inc fr_t                ; 2: his reply, Larry's goodbye, then out
+        lda fr_t                ;  he goes
+        cmp #120
         bne +
         jmp fr_say_soon
++       cmp #230
+        bne +
+        ldx #<l_say_takecare
+        ldy #>l_say_takecare
+        jsr ui_say
+        jmp speak
 +       cmp #250
         bne l_fx_out
         lda #3
@@ -564,16 +600,32 @@ l_fm_go:
         cmp #FRJ_SNACK
         bcc +
         rts
-+       jsr fr_stand_up
-        lda #0
++       lda #0
         sta fr_bye
-        jsr fr_can_ring         ; (Larry up and about: he sees him to the door)
-        bcc +
+        jsr person_sleeping     ; (Larry asleep: he lets himself out)
+        bcs l_fm_alone
+        jsr fr_can_ring         ; (Larry out with the dog, or at the door:
+        bcs +                   ;  he waits for him)
+        rts
++       jsr fr_near             ; together: he says he's off, Larry walks
+        bcc l_fm_see            ;  him out
+        ldx #<l_fr_going
+        ldy #>l_fr_going
+        jsr fr_say
+        lda #<l_say_walkout
+        sta fr_lrp
+        lda #>l_say_walkout
+        sta fr_lrp+1
+        lda #110
+        sta fr_lrt
+l_fm_see:
         lda #1
         sta fr_bye
         lda #A_SEEOFF
         jsr request_pending
-+       lda #FRS_LEAVE
+l_fm_alone:
+        jsr fr_stand_up
+        lda #FRS_LEAVE
         sta fr_state
         lda FR(p_state)         ; (walking somewhere: turn round for the door)
         cmp #PS_WALK
@@ -623,6 +675,9 @@ fr_near:
         lda p_mode
         cmp #PM_HIDDEN
         beq l_fn_no
+        lda FR(p_mode)          ; (he's in the bathroom, say)
+        cmp #PM_HIDDEN
+        beq l_fn_no
         lda p_state
         cmp #PS_CLIMB
         beq l_fn_no
@@ -659,7 +714,7 @@ l_fn_d: .byte 0
 ; C = 1: Larry's free to talk (not asleep, bathing, on the phone, out...).
 fr_busy_list:   .byte A_SLEEP, A_WC, A_BATH, A_PHONE, A_PHONECALL, A_GOOUT
                 .byte A_WALKOUT, A_LEASH, A_UNLEASH, A_WHISTLE, A_DELIVERY
-                .byte A_STOW, A_SEEOFF, A_GREET, A_KNOCK, A_CHAT, A_ASKWATER
+                .byte A_STOW, A_SEEOFF, A_GREET, A_KNOCK, A_CHAT, A_ASKWATER, A_INTRO
 FR_BUSY_N       = * - fr_busy_list
 fr_larry_free:
         lda walk_stage          ; (out with the dog, or about to be)
@@ -682,6 +737,33 @@ fr_chat_tick:
         cmp #FRS_VISIT
         beq +
         rts
++       ldx fr_turn             ; Larry's turn at the game (1), or to watch
+        beq +                   ;  his (2)?
+        stx l_fct_t
+        lda #0
+        sta fr_turn
+        jsr fr_larry_free       ; (clobbers X)
+        bcc +
+        lda #A_COMPUTER
+        ldx l_fct_t
+        cpx #1
+        beq l_fct_turn
+        lda #A_WATCHVG
+l_fct_turn:
+        jsr request_pending
++       lda fr_rt               ; a reply due?
+        beq +
+        dec fr_rt
+        bne +
+        lda FR(p_mode)
+        cmp #PM_HIDDEN
+        beq +
+        lda p_floor
+        cmp FR(p_floor)
+        bne +
+        ldx fr_rp
+        ldy fr_rp+1
+        jsr fr_say
 +       lda fr_cptr+1
         bne l_fct_on
         lda fr_chat_cd          ; not talking: a while between chats
@@ -693,7 +775,9 @@ fr_chat_tick:
 l_fct_cd:
         dec fr_chat_cd
         rts
-+       lda fr_job              ; (busy with a snack etc.: not now)
++       lda fr_jgo              ; (on his way somewhere: not now)
+        bne l_fct_out
+        lda fr_job              ; (busy with a snack etc.: not now)
         cmp #FRJ_SNACK
         bcs l_fct_out
         jsr fr_near
@@ -709,6 +793,18 @@ l_fct_cd:
         ldy #>cv_cards_tbl
         jsr fr_convo_start
         bra l_fct_on
++       lda fr_job              ; (busy together: just talk)
+        ora fr_want
+        ora fr_turn
+        bne l_fct_chat
+        lda p_act
+        cmp #A_WATCHVG
+        beq l_fct_chat
+        cmp #A_COMPUTER
+        beq l_fct_chat
+        jsr fr_ask_go           ; may he have a go on the computer / TV?
+        bcc +
+        jmp l_fct_on
 +       lda fr_games            ; a game of cards? (twice a visit at most)
         cmp #2
         bcs l_fct_chat
@@ -728,8 +824,11 @@ l_fct_cd:
         jsr rnd_range
         beq l_fct_cards
         .endif
-        lda health              ; (music: not when he's sick, or with a
-        cmp #40                 ;  record already on)
+        lda fr_done             ; (music: not again, nor when he's sick,
+        and #FD_MUSIC           ;  or with a record already on)
+        bne l_fct_cards
+        lda health
+        cmp #40
         bcc l_fct_cards
         lda record_left
         ora record_left+1
@@ -742,6 +841,9 @@ l_fct_cd:
         jsr fr_convo_start
         bra l_fct_on
 l_fct_cards:
+        lda fr_done             ; (played cards already: just talk)
+        and #FD_CARDS
+        bne l_fct_chat
         lda #A_CARDSF
         .if AUTOFRIEND == 3
         lda #A_MEAL
@@ -753,9 +855,16 @@ l_fct_cards:
         jsr fr_convo_start
         bra l_fct_on
 l_fct_chat:
-        lda #CV_CHATS
-        jsr rnd_range
-        ldx #<cv_chat_tbl
+        jsr fr_pick_chat        ; one they've not had yet this visit
+        bcs +
+        lda fr_stay             ; (talked themselves out: home soon)
+        cmp #2
+        bcc l_fct_none
+        lda #1
+        sta fr_stay
+l_fct_none:
+        rts
++       ldx #<cv_chat_tbl
         ldy #>cv_chat_tbl
         jsr fr_convo_start
 l_fct_on:
@@ -763,10 +872,13 @@ l_fct_on:
         bcs +                   ;  and nothing agreed)
         lda #0
         sta fr_after
+        sta fr_ask
         bra l_fct_end
 +
-        lda fr_seated           ; (sat at the table, or joined in: as he is)
-        ora fr_job
+        lda fr_seated           ; (sat at the table, joined in, or on his
+        ora fr_job              ;  way somewhere: as he is)
+        ora fr_jgo
+        ora fr_want
         bne l_fct_say
         lda #PS_ACT             ; he stays put, facing Larry
         sta FR(p_state)
@@ -809,11 +921,22 @@ l_fct_say:
         bcs l_fct_end
 l_fct_out:
         rts
+l_fct_t:        .byte 0
 l_fct_end:
         lda #0
         sta fr_cptr
         sta fr_cptr+1
-        lda fr_after            ; (agreed on something: off Larry goes)
+        lda fr_ask              ; (allowed his go: off he goes)
+        beq +
+        sta fr_want
+        cmp #8                  ; (the video game: Larry comes too, and
+        bne l_fct_noturn        ;  watches his turn)
+        lda #2
+        sta fr_turn
+l_fct_noturn:
+        lda #0
+        sta fr_ask
++       lda fr_after            ; (agreed on something: off Larry goes)
         beq +
         ldx #0
         stx fr_after
@@ -1182,6 +1305,8 @@ l_fsa_no:
 fr_stand_up:
         lda #0
         sta fr_music
+        sta fr_want
+        sta fr_ask
         sta fr_to_seat
         sta fr_jgo
         lda fr_job              ; (joined in with Larry: stops)
@@ -1201,15 +1326,99 @@ fr_stand_up:
         sta FR(p_y)
 +       rts
 
+; Larry watching his go at the video game, beside him, till it's over.
+st_watchvg:
+        lda #1
+        sta p_flip
+        lda #PM_STAND
+        sta p_mode
+        lda #60
+        jmp set_timer_secs
+tk_watchvg:
+        lda fr_job              ; still at it (or on his way to it)?
+        cmp #FRJ_VG
+        beq +
+        lda fr_jgo
+        cmp #8
+        beq +
+        lda fr_want
+        cmp #8
+        beq +
+        lda #0                  ; no: done watching
+        sta act_timer
+        sta act_timer+1
++       rts
+
+; The first visit: Larry turns to you, taps on the screen, and introduces
+; his friend, who says hello.
+st_intro:
+        lda #PM_FRONT
+        sta p_mode
+        lda #0
+        sta knock_t
+        sta fist_size
+        lda #4
+        sta fx_kind
+        lda #15
+        jmp set_timer_secs
+tk_intro:
+        lda knock_t
+        cmp #KNOCK_TALK
+        bcs +
+        jmp tk_knock            ; (the taps on the glass)
++       inc knock_t
+        bne +
+        dec knock_t
++       cmp #KNOCK_TALK
+        bne l_tki_2
+        jsr fx_clear            ; "Hi <you>! Meet my pal Joey!"
+        jsr sb_clear
+        jsr sb_lcp
+        ldx #<l_intro1
+        ldy #>l_intro1
+        jsr sb_strxy
+        jsr sb_player
+        ldx #<l_intro2
+        ldy #>l_intro2
+        jsr sb_strxy
+        jsr ui_say_sb
+        jmp speak
+l_tki_2:
+        cmp #KNOCK_TALK + 70    ; his hello
+        bne l_tki_3
+        ldx #<l_intro3
+        ldy #>l_intro3
+        jmp fr_say
+l_tki_3:
+        cmp #KNOCK_TALK + 135   ; done
+        bne l_tki_out
+        lda #0
+        sta act_timer
+        sta act_timer+1
+l_tki_out:
+        rts
+en_intro:
+        jsr fx_clear
+        lda #PM_STAND
+        sta p_mode
+        rts
+l_intro1:       .null ": Hi "
+l_intro2:       .null "! Meet my pal Joey!"
+l_intro3:       .null "Hi there! Nice to meet you!"
+
 ; Larry plays cards with him at the kitchen table: sat as for a hand with
 ; you, the cards out, a good while.
 st_cardsf:
+        lda fr_done             ; (cards: done, this visit)
+        ora #FD_CARDS
+        sta fr_done
         #POSE SPR_EATSHUT, POSE_EAT_X, POSE_EAT_Y
         lda #9
         sta fx_kind
         lda #45
         jmp set_timer_secs
 en_cardsf:
+        jsr fr_activity_over
         lda #0
         sta fx_kind
         lda #PM_STAND
@@ -1284,19 +1493,39 @@ FRJ_JOIN        = 1         ; fr_job: joining in with Larry
 FRJ_SNACK       = 2
 FRJ_WATER       = 3
 FRJ_WC          = 4
+FRJ_VG          = 5         ; a go on the computer (asked for)
+FRJ_TV          = 6         ; the TV, in the armchair (asked for)
+FRJ_WASH        = 7         ; washing his hands (after the bathroom)
+FRJ_INTRO       = 8         ; beside Larry, facing you, being introduced
 FJ_JOINS        = 4         ; spots 0-3 are joining in, 4-6 his own
 fr_job:         .byte 0
 fr_jgo:         .byte 0     ; on his way to spot fr_jgo - 1
 fr_jt:          .word 0
 fr_jact:        .byte 0     ; what Larry's doing that he's joined
 fr_wc_done:     .byte 0
+fr_done:        .byte 0     ; done together this visit (FD_ bits): not again
+fr_chats:       .word 0     ; conversations had this visit (a bit each)
+FD_CARDS        = 1
+FD_MUSIC        = 2
+FD_VG           = 4
+FD_TV           = 8
+FD_PIANO        = 16
+FD_ALL          = FD_CARDS | FD_MUSIC | FD_VG | FD_TV
 fr_music:       .byte 0     ; 1 = they're off to put a record on together
+fr_want:        .byte 0     ; allowed a go on the computer / TV: spot + 1
+fr_tvon:        .byte 0     ; he switched the TV on (so he'll switch it off)
+fr_turn:        .byte 0     ; 1 = Larry's turn at the game next
+fr_turns:       .byte 0     ; turns taken at it, this go
 ;                 TV     dance  comp.  piano  snack  water  WC
 fj_act:     .byte A_TV,  A_DANCE, A_COMPUTER, A_PIANO
-fj_floor:   .byte 2,     2,     1,     2,     0,     0,     1
-fj_x:       .byte 132,   104,   250,   198,   52,    138,   196
-fj_face:    .byte 0,     0,     1,     0,     0,     1,     1
+;                                                            comp.  TV chair
+;                                                                          sink   intro
+fj_floor:   .byte 2,     2,     1,     2,     0,     0,     1,     1,     2,     1,     0
+fj_x:       .byte 132,   104,   250,   198,   52,    138,   196,   <278,  108,   177,   <270
+fj_xh:      .byte 0,     0,     0,     0,     0,     0,     0,     >278,  0,     0,     >270
+fj_face:    .byte 0,     0,     1,     0,     0,     1,     1,     1,     0,     0,     0
 fj_mode:    .byte PM_STAND, PM_DANCE, PM_STAND, PM_STAND
+fj_bit:     .byte FD_TV,  FD_MUSIC, FD_VG, FD_PIANO
 
 ; (swapped) X = spot: off he goes to it.
 fr_go_spot:
@@ -1307,8 +1536,9 @@ fr_go_spot:
         sta goal_floor
         lda fj_x,x
         sta goal_x
-        lda #0
+        lda fj_xh,x
         sta goal_x+1
+        lda #0
         sta fr_to_seat
         lda #A_NONE
         sta p_goal
@@ -1327,17 +1557,35 @@ fr_joinable:
         lda FR(p_act)
         ldx #FJ_JOINS - 1
 -       cmp fj_act,x
-        beq l_fj_yes
+        beq l_fj_act
         dex
         bpl -
 l_fj_rec:
         jsr fr_record_on
         bcc l_fj_no
+        lda fr_done             ; (danced already this visit)
+        and #FD_MUSIC
+        bne l_fj_no
         ldx #1                  ; (the dancing spot)
         lda #FJ_RECORD
 l_fj_yes:
         sec
         rts
+l_fj_act:
+        pha
+        lda fj_bit,x            ; done that already?
+        and fr_done
+        beq l_fj_ok
+        cpx #2                  ; (the computer, mid-session: their turns)
+        bne l_fj_done
+        lda fr_turns
+        bne l_fj_ok
+l_fj_done:
+        pla
+        bra l_fj_no
+l_fj_ok:
+        pla
+        bra l_fj_yes
 l_fj_no:
         clc
         rts
@@ -1373,12 +1621,42 @@ fr_job_tick:
         beq l_fjt_rec
         lda FR(p_state)         ; joined in: until Larry stops
         cmp #PS_ACT
-        bne fr_job_end
+        bne l_fjt_stopped
         lda FR(p_act)
         cmp fr_jact
-        bne fr_job_end
+        bne l_fjt_stopped
         sec
         rts
+l_fjt_stopped:
+        lda fr_jact             ; Larry's turn at the game over: his again
+        cmp #A_COMPUTER
+        bne +
+        lda fr_turns
+        beq +
+        cmp #3
+        bcs +
+        inc fr_turns
+        lda #8                  ; (the computer: spot 7)
+        sta fr_want
+        lda #2
+        sta fr_turn
+        ldx #<l_fr_myturn
+        ldy #>l_fr_myturn
+        jsr fr_say_if
+        jmp fr_job_end
++       lda fr_jact             ; (their last turn: good game)
+        cmp #A_COMPUTER
+        bne +
+        lda fr_turns
+        cmp #3
+        bcc +
+        lda #0
+        sta fr_turns
+        ldx #<l_fr_gg
+        ldy #>l_fr_gg
+        jsr fr_say_if
++       jsr fr_activity_over
+        jmp fr_job_end
 l_fjt_rec:
         jsr fr_record_on        ; dancing to the record: till it stops (or
         bcs l_fjt_dance         ;  Larry goes downstairs)
@@ -1393,6 +1671,7 @@ l_fjt_rec:
 l_fjt_stop:
         lda #0
         sta fr_music
+        jsr fr_activity_over
         jmp fr_job_end
 l_fjt_wait:
         lda #PM_STAND
@@ -1428,6 +1707,18 @@ l_fjt_solo:
 +       cmp #FRJ_WATER
         bne +
         jmp fr_water
++       cmp #FRJ_VG
+        bne +
+        jmp fr_vg
++       cmp #FRJ_TV
+        bne +
+        jmp fr_tv
++       cmp #FRJ_WASH
+        bne +
+        jmp fr_wash
++       cmp #FRJ_INTRO
+        bne +
+        jmp fr_intro
 +       jmp fr_wc
 l_fjt_idle:
         lda fr_jgo              ; (on his way somewhere already, or to the
@@ -1437,6 +1728,13 @@ l_fjt_idle:
         lda p_state
         cmp #PS_CLIMB
         beq l_fjt_no
+        ldx fr_want             ; allowed a go on something: there
+        beq l_fjt_nowant
+        lda #0
+        sta fr_want
+        dex
+        bra +
+l_fjt_nowant:
         ldx #1                  ; music agreed: up to the dancing spot
         lda fr_music
         bne +
@@ -1471,6 +1769,7 @@ fr_job_arrive:
         cmp fj_floor,x
         bne l_fja_no
         lda p_x+1
+        cmp fj_xh,x
         bne l_fja_no
         lda p_x
         cmp fj_x,x
@@ -1485,6 +1784,9 @@ fr_job_arrive:
         jsr fr_joinable         ; (still at it?)
         bcc l_fja_no
 +       sta fr_jact
+        lda fj_bit,x            ; (done, this visit)
+        ora fr_done
+        sta fr_done
         lda fj_mode,x
         sta p_mode
         lda #FRJ_JOIN
@@ -1492,7 +1794,7 @@ fr_job_arrive:
         sec
         rts
 l_fja_solo:
-        txa                     ; 4, 5, 6: snack, water, WC
+        txa                     ; 4-8: snack, water, WC, computer, TV
         sec
         sbc #FJ_JOINS - FRJ_SNACK
         sta fr_job
@@ -1516,6 +1818,9 @@ fr_pick_job:
         .endif
         lda fr_wc_done          ; (not been yet: the bathroom, half the time)
         bne +
+        .if AUTOFRIEND == 7     ; (test build 7: straight to the bathroom)
+        bra l_fpj_wc
+        .endif
         lda #2
         jsr rnd_range
         beq l_fpj_wc
@@ -1532,8 +1837,6 @@ l_fpj_wc:
         beq l_fpj_no
         cmp #A_BATH
         beq l_fpj_no
-        lda #1
-        sta fr_wc_done
         ldx #6
         bra l_fpj_go
 l_fpj_snack:
@@ -1560,6 +1863,90 @@ l_fpj_go:
 l_fpj_no:
         clc
         rts
+
+; His go on the computer: sat at it, a game on the screen, its noises.
+fr_vg:
+        lda fr_jt+1
+        cmp #3                  ; (about 15 seconds)
+        beq l_fvg_end
+        ora fr_jt
+        cmp #1
+        bne l_fvg_play
+        #POSE SPR_COMPUTER, POSE_COMPUTER_X, POSE_COMPUTER_Y
+        lda #0
+        sta vg_game
+        jsr rnd
+        and #1
+        beq +
+        lda #16
+        sta vg_game
++       lda #1
+        sta monitor_on
+        sec
+        rts
+l_fvg_play:
+        jsr tk_computer
+        sec
+        rts
+l_fvg_end:
+        lda #0
+        sta monitor_on
+        lda fr_turns            ; Larry here (and turns left)? His turn
+        cmp #3
+        bcs l_fvg_bye
+        lda FR(p_floor)
+        cmp #1
+        bne l_fvg_bye
+        lda FR(p_mode)
+        cmp #PM_HIDDEN
+        beq l_fvg_bye
+        inc fr_turns
+        lda #1
+        sta fr_turn
+        ldx #<l_fr_yourturn
+        ldy #>l_fr_yourturn
+        jsr fr_say
+        jmp fr_job_end
+l_fvg_bye:
+        ldx #<l_fr_vgdone
+        ldy #>l_fr_vgdone
+        jsr fr_say_if
+        jsr fr_activity_over
+        jmp fr_job_end
+l_fr_vgdone:    .null "That was fun! New high score!"
+l_fr_yourturn:  .null "Your turn!"
+l_fr_myturn:    .null "My turn!"
+l_fr_gg:        .null "Good game! That was fun."
+
+; His turn with the TV: in the armchair (switching it on, and off after).
+fr_tv:
+        lda fr_jt+1
+        cmp #3
+        beq l_ftv_end
+        ora fr_jt
+        cmp #1
+        bne l_ftv_out
+        #POSE SPR_SITTV, SITTV_X, SITTV_Y
+        lda tv_on
+        bne l_ftv_out
+        lda #1
+        sta tv_on
+        sta fr_tvon
+        lda #SFX_CLACK
+        jsr sfx_play
+l_ftv_out:
+        sec
+        rts
+l_ftv_end:
+        jsr fr_activity_over
+        lda fr_tvon
+        beq +
+        lda #0
+        sta tv_on
+        sta fr_tvon
+        lda #SFX_CLACK
+        jsr sfx_play
++       jmp fr_job_end
 
 ; the snack: the fridge opens, he takes something, it shuts; tasty
 fr_snack:
@@ -1641,6 +2028,55 @@ l_fwa_end:
 l_fr_nowater:   .null "Oops, the water's all gone."
 l_fr_ahh:       .null "Ahh, refreshing."
 
+; Being introduced: beside Larry, facing you, till Larry's done.
+fr_intro:
+        lda fr_jt+1
+        bne l_fin_end
+        lda fr_jt
+        cmp #1
+        bne +
+        lda #PM_FRONT
+        sta p_mode
+        sec
+        rts
++       lda FR(p_act)           ; (Larry still at it, or on his way to it?)
+        cmp #A_INTRO
+        beq +
+        lda FR(p_pending)
+        cmp #A_INTRO
+        bne l_fin_end
++       sec
+        rts
+l_fin_end:
+        jmp fr_job_end
+
+; washing his hands at the sink, back to you, the tap running (Larry's tap
+; sound: the shower's noise, softer and lower)
+fr_wash:
+        lda fr_jt+1
+        bne l_fwh_end
+        lda fr_jt
+        cmp #1
+        bne +
+        lda #PM_WASH
+        sta p_mode
+        lda #$90
+        sta shower_pitch
+        lda #1
+        sta shower_on
+        sec
+        rts
++       cmp #160
+        bcs l_fwh_end
+        sec
+        rts
+l_fwh_end:
+        lda #0
+        sta shower_on
+        lda #$C0
+        sta shower_pitch
+        jmp fr_job_end
+
 ; the bathroom: in, the door shuts; a while, the flush; out again
 fr_wc_tl:   .word 1, 20, 32, 300, 390, 402, 424, 440
 fr_wc:
@@ -1676,8 +2112,12 @@ l_fwc_at:
         beq l_fwc_shut
         ldx #PATCH_WC
         jsr patch_remove
+        lda #10                 ; then wash his hands (the sink: spot 9)
+        sta fr_want
         jmp fr_job_end
 l_fwc_open:
+        lda #1                  ; (been, this visit)
+        sta fr_wc_done
         ldx #PATCH_WC
         jsr patch_apply
         lda #SFX_DOOR
@@ -1707,6 +2147,49 @@ l_fwc_flush:
 ; A = what Larry's chosen to do: with his friend here, a game of cards is
 ; with him (not you).
 fr_ai_filter:
+        ldx fr_state            ; (a book with a guest over: rude)
+        cpx #FRS_VISIT
+        bne l_faf_music
+        ldx fr_want             ; (his turn at the video game, or on his
+        cpx #8                  ;  way to it: Larry watches)
+        beq l_faf_watch
+        ldx fr_jgo
+        cpx #8
+        beq l_faf_watch
+        ldx fr_job
+        cpx #FRJ_VG
+        bne +
+        ldx fr_turns            ; (a session together: watches)
+        bne l_faf_watch
+        cmp #A_COMPUTER         ; (on his own: Larry leaves it to him)
+        beq l_faf_idle
++       cpx #FRJ_TV
+        bne +
+        cmp #A_TV
+        beq l_faf_idle
+        cmp #A_TVON
+        beq l_faf_idle
+        cmp #A_TVOFF
+        bne +
+l_faf_idle:
+        lda #A_IDLE
+        rts
+l_faf_watch:
+        lda #A_WATCHVG
+        rts
++
+        .if AUTOFRIEND == 8     ; (test build 8: every choice is a book)
+        bra l_faf_book
+        .endif
+        cmp #A_READ
+        beq l_faf_book
+        cmp #A_READCHAIR
+        beq l_faf_book
+        cmp #A_GOOUT            ; (nor going out and leaving him)
+        bne l_faf_music
+l_faf_book:
+        jmp fr_instead_of_book
+l_faf_music:
         ldx fr_music            ; the record they came up for: he dances
         beq l_faf_cards
         ldx record_left
@@ -1719,13 +2202,238 @@ l_faf_dance:
         lda #A_DANCE
         rts
 l_faf_cards:
-        cmp #A_CARDS
-        bne +
         ldx fr_state
         cpx #FRS_VISIT
+        bne l_faf_out
+        cmp #A_CARDS
         bne +
         lda #A_CARDSF
-+       rts
++       ldy #FAF_N - 1          ; done that with him already? He potters
+-       cmp faf_act,y           ;  about (and they talk) instead
+        beq l_faf_got
+        dey
+        bpl -
+l_faf_out:
+        rts
+l_faf_got:
+        pha
+        lda faf_bit,y
+        and fr_done
+        beq +
+        pla
+        lda #A_IDLE
+        rts
++       pla
+        rts
+faf_act:        .byte A_CARDSF, A_TV, A_TVON, A_COMPUTER, A_RECORD, A_DANCE, A_PIANO
+faf_bit:        .byte FD_CARDS, FD_TV, FD_TV, FD_VG, FD_MUSIC, FD_MUSIC, FD_PIANO
+FAF_N           = * - faf_bit
+
+; A = a conversation they've not had yet this visit (marked had); C = 0:
+; they've had them all.
+fr_pick_chat:
+        lda #CV_CHATS
+        jsr rnd_range
+        sta l_fpc_n
+        ldy #CV_CHATS
+-       ldx l_fpc_n
+        lda fpc_bit,x
+        cpx #8
+        bcs l_fpc_hi
+        and fr_chats
+        beq l_fpc_lo
+        bra l_fpc_next
+l_fpc_hi:
+        and fr_chats+1
+        beq l_fpc_mhi
+l_fpc_next:
+        inx                     ; had it: the next one round
+        cpx #CV_CHATS
+        bcc +
+        ldx #0
++       stx l_fpc_n
+        dey
+        bne -
+        clc
+        rts
+l_fpc_lo:
+        lda fpc_bit,x
+        ora fr_chats
+        sta fr_chats
+        bra l_fpc_got
+l_fpc_mhi:
+        lda fpc_bit,x
+        ora fr_chats+1
+        sta fr_chats+1
+l_fpc_got:
+        lda l_fpc_n
+        sec
+        rts
+l_fpc_n:        .byte 0
+fpc_bit:        .byte 1, 2, 4, 8, 16, 32, 64, 128, 1, 2, 4, 8, 16, 32, 64, 128
+
+; Something they did together is over: they get talking again shortly; and
+; now and then (or when they've done everything) it's time he went home.
+fr_activity_over:
+        lda #100
+        sta fr_chat_cd
+        lda #0
+        sta fr_chat_cd+1
+        lda fr_done
+        and #FD_ALL
+        cmp #FD_ALL
+        beq l_fao_home
+        lda #3
+        jsr rnd_range
+        bne l_fao_out
+l_fao_home:
+        lda fr_stay             ; (in a minute or so)
+        cmp #2
+        bcc l_fao_out
+        lda #1
+        sta fr_stay
+l_fao_out:
+        rts
+
+; Instead of reading (rude, with a guest): he potters about near him.
+fr_instead_of_book:
+        lda #A_IDLE
+        rts
+
+; Joey asks if he may play a video game, or watch the TV (1 time in 4 they
+; get talking, if it's free); C = 1: the conversation's started.
+fr_ask:         .byte 0     ; the spot + 1 he's asked for
+cv_ask_tbl:     .word cv_askvg, cv_asktv
+cv_askvg:
+        .byte 1
+        .null "Want to play video games with me?"
+        .byte 0
+        .null "Sure! You go first."
+        .byte $FF
+cv_asktv:
+        .byte 1
+        .null "Mind if I watch some TV?"
+        .byte 0
+        .null "Sure, help yourself!"
+        .byte $FF
+fr_ask_go:
+        .if AUTOFRIEND != 9     ; (test build 9: always)
+        lda #4
+        jsr rnd_range
+        bne l_fag_no
+        .endif
+        lda #2
+        jsr rnd_range
+        tax
+        .if AUTOFRIEND == 9     ; (the video game, in the test)
+        ldx #0
+        .endif
+        lda fib_bit,x           ; (had his go already)
+        and fr_done
+        bne l_fag_no
+        lda fib_spot,x          ; (not if Larry's on it, or on his way)
+        ldy fib_act,x
+        cpy p_act
+        beq l_fag_no
+        cpy p_goal
+        beq l_fag_no
+        clc
+        adc #1
+        sta fr_ask
+        lda fib_bit,x           ; (done, this visit)
+        ora fr_done
+        sta fr_done
+        lda #0
+        sta fr_turns
+        txa
+        ldx #<cv_ask_tbl
+        ldy #>cv_ask_tbl
+        jsr fr_convo_start
+        sec
+        rts
+l_fag_no:
+        clc
+        rts
+fib_spot:       .byte 7, 8
+fib_act:        .byte A_COMPUTER, A_TV
+fib_bit:        .byte FD_VG, FD_TV
+
+fr_rp:          .word 0     ; his reply to come...
+fr_rt:          .byte 0     ; ...in this many frames
+
+; The stairs: whoever got onto them first is drawn in front.
+fr_front:       .byte 0     ; 1 = he's ahead of Larry on the stairs
+l_fso_lp:       .byte 0     ; (last frame's states)
+l_fso_fp:       .byte 0
+fr_stairs_order:
+        lda p_state             ; Larry just onto the stairs: in front,
+        cmp #PS_CLIMB           ;  unless he's on them already
+        bne l_fso_l
+        cmp l_fso_lp
+        beq l_fso_l
+        ldx #0
+        lda FR(p_state)
+        cmp #PS_CLIMB
+        bne +
+        inx
++       stx fr_front
+l_fso_l:
+        lda FR(p_state)         ; he's just onto them: in front, unless
+        cmp #PS_CLIMB           ;  Larry is on them already
+        bne l_fso_f
+        cmp l_fso_fp
+        beq l_fso_f
+        ldx #1
+        lda p_state
+        cmp #PS_CLIMB
+        bne +
+        dex
++       stx fr_front
+l_fso_f:
+        lda p_state
+        sta l_fso_lp
+        lda FR(p_state)
+        sta l_fso_fp
+        rts
+
+; C = 1: draw him in front of Larry. On the stairs the follower is drawn in
+; front of whoever went first going up, and behind him coming down.
+fr_in_front:
+        lda fr_state
+        cmp #FRS_ENTER
+        bcc l_fif_no
+        lda p_state             ; (one of them on the stairs)
+        cmp #PS_CLIMB
+        beq +
+        lda FR(p_state)
+        cmp #PS_CLIMB
+        bne l_fif_no
++       ldx fr_front            ; the leader's way (the other's, if he's off
+        beq l_fif_larry         ;  them already)
+        lda FR(p_state)
+        cmp #PS_CLIMB
+        beq l_fif_joey
+l_fif_larry:
+        lda p_state
+        cmp #PS_CLIMB
+        bne l_fif_joey
+        lda l_cl_dest           ; going up: the floor ahead is higher
+        cmp p_floor
+        bra l_fif_dir
+l_fif_joey:
+        lda fr_cl + (l_cl_dest - l_cl_ptr)
+        cmp FR(p_floor)
+l_fif_dir:
+        lda #0                  ; A = 1 going up (C from the compare)
+        bcc +
+        lda #1
++       eor fr_front            ; he leads coming down, or follows going up
+        beq l_fif_no
+        sec
+        rts
+l_fif_no:
+        clc
+        rts
 
 ; Larry, ringing someone up: now and then it's him, and he's coming over.
 ; C = 1: l_tpc_p = what Larry says.
@@ -1757,6 +2465,10 @@ l_call_fr:      .null ": Hey Joey! Want to come over for a while?"
 
 ; Start a visit: he's here for 30-90 minutes.
 fr_visit_len:
+        .if AUTOFRIEND == 7     ; (test build 7: the bathroom first thing)
+        lda #7
+        sta fr_want
+        .endif
         .if AUTOFRIEND != 0
         lda #3                  ; (test build: a short visit)
         sta fr_stay
@@ -1770,6 +2482,9 @@ fr_visit_len:
         lda #0
         sta fr_games
         sta fr_wc_done
+        sta fr_done
+        sta fr_chats
+        sta fr_chats+1
         rts
 
 ;---------------------------------------------------------------------------------------
@@ -1869,7 +2584,18 @@ l_tkgr_shut:
 l_tkgr_out:
         rts
 en_greet:
-        lda #0
+        lda fr_state            ; in, and you've not met him: Larry
+        cmp #FRS_VISIT          ;  introduces him
+        bne +
+        lda fr_met
+        bne +
+        lda #1
+        sta fr_met
+        lda #A_INTRO
+        sta p_pending
+        lda #11                 ; (and he comes to stand beside him: spot 10)
+        sta fr_want
++       lda #0
         sta gr_sick_n
         ldx #PATCH_DOOR
         jsr patch_remove
@@ -1966,7 +2692,55 @@ friend_sprite:
         sta act_vis+7
         sta act_vis+8
         sta act_vis+9
-        lda fr_seated           ; his chair, while he sits on it
+        sta act_vis+10
+        lda fr_job              ; his game on the computer screen
+        cmp #FRJ_VG
+        bne +
+        lda FR(p_mode)
+        cmp #PM_POSE
+        bne +
+        lda #1
+        sta act_vis+10
+        lda FR(p_anim)
+        lsr
+        lsr
+        lsr
+        and #15
+        clc
+        adc vg_game
+        tax
+        lda vg_l,x
+        sta act_sprl+10
+        lda vg_h,x
+        sta act_sprh+10
+        lda #`SPR_VGM0
+        sta act_sprb+10
+        lda #<VG_X
+        sta act_xl2+10
+        lda #>VG_X
+        sta act_xh2+10
+        lda #VG_Y
+        sta act_y+10
+        lda #0
+        sta act_flip+10
++        lda fr_job              ; in the TV armchair: its back and arm over him
+        cmp #FRJ_TV
+        bne +
+        lda FR(p_mode)
+        cmp #PM_POSE
+        bne +
+        lda #1
+        sta act_vis+9
+        #SETACT 9, SPR_CHAIRFRONT
+        lda #<CHAIRFRONT_X
+        sta act_xl2+9
+        lda #>CHAIRFRONT_X
+        sta act_xh2+9
+        lda #CHAIRFRONT_Y
+        sta act_y+9
+        lda #0
+        sta act_flip+9
++        lda fr_seated           ; his chair, while he sits on it
         beq +
         lda #1
         sta act_vis+8

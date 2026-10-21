@@ -1469,7 +1469,7 @@ def build_sprites():
             # the head end (left) raised or lowered up to 8px.
             for tag, up in (('u', True), ('d', False)):
                 for j, fr in enumerate((walk[0], walk[2])):
-                    w, h, S = len(fr[0]), len(fr), 8
+                    w, h, S = len(fr[0]), len(fr), 12
                     out = [[None] * w for _ in range(h + S)]
                     for x in range(w):
                         sh = round((w - 1 - x) * S / (w - 1))      # head end most
