@@ -98,7 +98,8 @@ A_SEEOFF        = 59        ; sees him out again
 A_CARDSF        = 60        ; plays cards with him at the kitchen table
 A_WATCHVG       = 61        ; watches him at the video game (their turns)
 A_INTRO         = 62        ; introduces his friend to you (the first visit)
-A_COUNT         = 63
+A_RELAX         = 63        ; sits back in the armchair, hands behind his head
+A_COUNT         = 64
 
 REQ_EAT         = A_FRIDGE
 REQ_DRINK       = A_DRINK
@@ -1059,15 +1060,15 @@ l_fire_b: .byte 0,0,0
 ;---------------------------------------------------------------------------------------
 ;               floor  x     face(1=right)
 act_floor:
-        .byte 0, 0,0,0,0,0, 1,0,0, 1,1,1,1,1, 1,2, 2,2,2,2, 1,0,0, 0,0,0,0, 0, 2, 0, 2, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 1, 2, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 1, 0
+        .byte 0, 0,0,0,0,0, 1,0,0, 1,1,1,1,1, 1,2, 2,2,2,2, 1,0,0, 0,0,0,0, 0, 2, 0, 2, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 1, 2, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0
 act_xl:
         .byte 0, <52,<122,<138,<28,<226, <252,<268,<268, <40,<113,<170,<196,<222, <278,<228
-        .byte <108,<73,<76,<154, <83,<122,<122, <160,0,0,<300, <226, <266, 0, <62, <62, <177, <294, 0, <78, <58, <28, <28, <58, <52, <56, <82, <82, 0, <186, <186, <141, <186, <177, 0, <268, <268, <73, 0, <82, <226, 0, <268, <268, <122, <250, <248
+        .byte <108,<73,<76,<154, <83,<122,<122, <160,0,0,<300, <226, <266, 0, <62, <62, <177, <294, 0, <78, <58, <28, <28, <58, <52, <56, <82, <82, 0, <186, <186, <141, <186, <177, 0, <268, <268, <73, 0, <82, <226, 0, <268, <268, <122, <250, <248, <226
 act_xh:
         .byte 0, >52,>122,>138,>28,>226, >252,>268,>268, >40,>113,>170,>196,>222, >278,>228
-        .byte >108,>73,>76,>154, >83,>122,>122, >160,0,0,>300, >226, >266, 0, >62, >62, >177, >294, 0, >78, >58, >28, >28, >58, >52, >56, >82, >82, 0, >186, >186, >141, >186, >177, 0, >268, >268, >73, 0, >82, >226, 0, >268, >268, >122, >250, >248
+        .byte >108,>73,>76,>154, >83,>122,>122, >160,0,0,>300, >226, >266, 0, >62, >62, >177, >294, 0, >78, >58, >28, >28, >58, >52, >56, >82, >82, 0, >186, >186, >141, >186, >177, 0, >268, >268, >73, 0, >82, >226, 0, >268, >268, >122, >250, >248, >226
 act_face:
-        .byte 0, 0,1,1,0,0, 1,1,1, 0,0,0,1,1, 1,1, 0,0,0,0, 0,1,1, 0,0,0,0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0
+        .byte 0, 0,1,1,0,0, 1,1,1, 0,0,0,1,1, 1,1, 0,0,0,0, 0,1,1, 0,0,0,0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0
 
 act_start_tbl:
         .word st_none, st_fridge, st_meal, st_drink, st_feeddog, st_phone, st_read, st_fire
@@ -1077,7 +1078,7 @@ act_start_tbl:
         .word st_getfood, st_prep, st_stoveon, st_stoveoff, st_serve, st_fridgeget, st_dogfood
         .word st_getcup, st_cupsink, st_askwater
         .word st_vacget, st_vacsweep, st_vacsweep, st_vacput, st_vacsweep
-        .word st_leash, st_walkout, st_unleash, st_recstop, st_vacpick, st_dishes, st_phonecall, st_whistle, st_greet, st_seeoff, st_cardsf, st_watchvg, st_intro
+        .word st_leash, st_walkout, st_unleash, st_recstop, st_vacpick, st_dishes, st_phonecall, st_whistle, st_greet, st_seeoff, st_cardsf, st_watchvg, st_intro, st_relax
 act_tick_tbl:
         .word tk_none, tk_none, tk_meal, tk_drink, tk_feeddog, tk_phone, tk_none, tk_none
         .word tk_goout, tk_sleep, tk_none, tk_brush, tk_wc, tk_bath, tk_computer
@@ -1086,7 +1087,7 @@ act_tick_tbl:
         .word tk_getfood, tk_prep, tk_stoveon, tk_stoveoff, tk_prep, tk_fridgeget, tk_dogfood
         .word tk_getcup, tk_cupsink, tk_none
         .word tk_vacget, tk_vacsweep, tk_vacsweep, tk_vacput, tk_vacsweep
-        .word tk_leash, tk_walkout, tk_leash, tk_recstop, tk_vacpick, tk_none, tk_phonecall, tk_whistle, tk_greet, tk_seeoff, tk_none, tk_watchvg, tk_intro
+        .word tk_leash, tk_walkout, tk_leash, tk_recstop, tk_vacpick, tk_none, tk_phonecall, tk_whistle, tk_greet, tk_seeoff, tk_none, tk_watchvg, tk_intro, tk_relax
 act_end_tbl:
         .word en_none, en_fridge, en_meal, en_drink, en_feeddog, en_phone, en_read, en_fire
         .word en_goout, en_sleep, en_exercise, en_brush, en_wc, en_bath, en_computer
@@ -1095,7 +1096,7 @@ act_end_tbl:
         .word en_getfood, en_prep, en_stoveon, en_stoveoff, en_serve, en_fridgeget, en_dogfood
         .word en_getcup, en_none, en_none
         .word en_vacget, en_vacsweep, en_vacsweep, en_vacput, en_vacsweep
-        .word en_leash, en_walkout, en_unleash, en_none, en_vacpick, en_dishes, en_phone, en_whistle, en_greet, en_seeoff, en_cardsf, en_none, en_intro
+        .word en_leash, en_walkout, en_unleash, en_none, en_vacpick, en_dishes, en_phone, en_whistle, en_greet, en_seeoff, en_cardsf, en_none, en_intro, en_relax
 
 act_names:
         .word nm_none, nm_fridge, nm_meal, nm_drink, nm_feeddog, nm_phone, nm_read, nm_fire
@@ -1105,7 +1106,7 @@ act_names:
         .word nm_getfood, nm_prep, nm_cook, nm_stoveoff, nm_serve, nm_getfood, nm_feeddog
         .word nm_drink, nm_drink, nm_askwater
         .word nm_vacuum, nm_vacuum, nm_vacuum, nm_vacuum, nm_vacuum
-        .word nm_dogwalk, nm_dogwalk, nm_dogwalk, nm_recstop, nm_vacuum, nm_dishes, nm_phonecall, nm_whistle, nm_greet, nm_seeoff, nm_cardsf, nm_watchvg, nm_intro
+        .word nm_dogwalk, nm_dogwalk, nm_dogwalk, nm_recstop, nm_vacuum, nm_dishes, nm_phonecall, nm_whistle, nm_greet, nm_seeoff, nm_cardsf, nm_watchvg, nm_intro, nm_relax
 nm_none:     .null " is pottering about."
 nm_fridge:   .null " is getting some food."
 nm_meal:     .null " is eating."
@@ -1132,6 +1133,7 @@ nm_seeoff:   .null " is seeing Joey out."
 nm_cardsf:   .null " is playing cards with Joey."
 nm_watchvg:  .null " is playing video games with Joey."
 nm_intro:    .null " is introducing his friend."
+nm_relax:    .null " is relaxing in his armchair."
 nm_getfood:  .null " is fetching something to cook."
 nm_prep:     .null " is getting a meal ready."
 nm_cook:     .null " is cooking."
@@ -1506,6 +1508,7 @@ l_fun_list:
         .byte A_TV, A_TV, A_RECORD, A_PIANO, A_PIANO, A_READ, A_READ, A_COMPUTER
         .byte A_EXERCISE, A_POOL, A_READ, A_COMPUTER, A_IDLE, A_IDLE, A_IDLE, A_PETDOG
         .byte A_GOOUT, A_DANCE, A_IDLE, A_READ, A_CARDS, A_FILES, A_CHAT, A_VACGET
+        .byte A_RELAX, A_RELAX
 l_fun_count = * - l_fun_list
 
 complain_water:
@@ -3213,6 +3216,56 @@ tk_readchair:
 +       rts
 en_readchair:
         lda #4
+        jmp mood_up
+
+; Relaxing in the armchair: sat back, hands behind his head, no book; his
+; head turns now and then, and (half the time) a remark as he settles in.
+relax_says:     .word l_say_relax1, l_say_relax2, l_say_relax3
+l_say_relax1:   .null "What a nice day."
+l_say_relax2:   .null "Ahh, this is the life."
+l_say_relax3:   .null "Time to put my feet up."
+st_relax:
+        #POSE SPR_CHAIR, POSE_CHAIR_X, POSE_CHAIR_Y
+        jsr rnd
+        and #1
+        beq +
+        lda #3
+        jsr rnd_range
+        asl
+        tax
+        lda relax_says+1,x
+        tay
+        lda relax_says,x
+        tax
+        jsr ui_say
+        jsr speak
++       lda #20
+        jmp set_timer_secs
+tk_relax:
+        lda p_anim              ; every couple of seconds, maybe a look round
+        and #127
+        bne +
+        jsr rnd
+        and #1
+        beq +
+        lda pose_spr
+        ldx pose_spr+1
+        cmp #<SPR_CHAIR
+        bne l_tkr_front
+        cpx #>SPR_CHAIR
+        bne l_tkr_front
+        lda #<SPR_CHAIR2
+        ldx #>SPR_CHAIR2
+        bra l_tkr_set
+l_tkr_front:
+        lda #<SPR_CHAIR
+        ldx #>SPR_CHAIR
+l_tkr_set:
+        sta pose_spr
+        stx pose_spr+1
++       rts
+en_relax:
+        lda #3
         jmp mood_up
 
 ; Filing cabinet: bend over, pull the top drawer out (it grows towards you),

@@ -1577,6 +1577,11 @@ def build_sprites():
     for y in range(8):
         reading2[y] = reading[y][15::-1] + reading[y][16:]
     sprites.append(('reading2', reading2))
+    # Relaxing (hands behind his head) with his head turned the other way
+    chair2 = [r[:] for r in chair]
+    for y in range(8):
+        chair2[y] = chair[y][:1] + chair[y][14:0:-1] + chair[y][15:]
+    sprites.append(('chair2', chair2))
     sprites.append(('bookopen', art(BOOK_OPEN)))
     # His hands on the typewriter keys (left keys x 216-219, right x 226-229),
     # one up while the other is down.
