@@ -92,7 +92,24 @@ AUTOHOUR = 8
         .endweak
         lda #AUTOHOUR
         sta clock_hour
-        .if AUTOFRIEND != 0
+        .if AUTOFRIEND == 5     ; (already in, up in the attic)
+        lda #FRS_VISIT
+        sta fr_state
+        lda #2
+        sta FR(p_floor)
+        lda #200
+        sta FR(p_x)
+        lda #FLOOR2_Y
+        sta FR(p_y)
+        lda #PM_STAND
+        sta FR(p_mode)
+        lda #5
+        sta fr_stay
+        lda #<6000              ; (and a record playing)
+        sta record_left
+        lda #>6000
+        sta record_left+1
+        .elsif AUTOFRIEND != 0
         lda #FRS_COMING
         sta fr_state
         lda #<1400

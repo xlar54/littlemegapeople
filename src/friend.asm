@@ -473,10 +473,16 @@ l_fx_3:
 
 ; (swapped) The same, but only if Larry's on his floor to hear it.
 fr_say_if:
+        lda FR(p_mode)          ; (out of the house, or out of sight: no)
+        cmp #PM_HIDDEN
+        beq +
+        lda walk_stage
+        cmp #2
+        beq +
         lda p_floor
         cmp FR(p_floor)
         beq fr_say
-        rts
++       rts
 
 ; X/Y = what he says ("Joey: ...")
 fr_say:
@@ -494,7 +500,7 @@ fr_say:
         ldy l_frs_p+1
         jsr sb_strxy
         jsr ui_say_sb
-        jmp talk_play           ; (and the voice)
+        jmp talk_low_play       ; (and his voice)
 l_frs_p: .word 0
 l_fr_bye:       .null "Bye! See you soon!"
 l_say_byejoey:  .null "Thanks for coming over, Joey!"
@@ -513,7 +519,7 @@ fr_say_soon:
         ldy #>l_fr_soon
         jsr sb_strxy
         jsr ui_say_sb
-        jmp talk_play           ; (and the voice)
+        jmp talk_low_play       ; (and his voice)
 l_fr_any:       .null ": Any time, "
 l_fr_soon:      .null "! See you soon."
 
@@ -608,6 +614,9 @@ fr_convo_start:
 
 ; C = 1: on the same floor (neither on the stairs), close together.
 fr_near:
+        lda walk_stage          ; (Larry's out with the dog)
+        cmp #2
+        beq l_fn_no
         lda p_floor
         cmp FR(p_floor)
         bne l_fn_no
@@ -653,6 +662,8 @@ fr_busy_list:   .byte A_SLEEP, A_WC, A_BATH, A_PHONE, A_PHONECALL, A_GOOUT
                 .byte A_STOW, A_SEEOFF, A_GREET, A_KNOCK, A_CHAT, A_ASKWATER
 FR_BUSY_N       = * - fr_busy_list
 fr_larry_free:
+        lda walk_stage          ; (out with the dog, or about to be)
+        bne l_flf_no
         lda p_act
         ldx #FR_BUSY_N - 1
 -       cmp fr_busy_list,x
@@ -706,12 +717,31 @@ l_fct_cd:
         beq l_fct_chat
         cmp #A_CARDS
         beq l_fct_chat
-        .if AUTOFRIEND < 2      ; (test builds 2/3: straight to cards/a meal)
-        lda #3
+        .if AUTOFRIEND < 2      ; (test builds 2/3/6: straight to cards/a
+        lda #3                  ;  meal/music)
         jsr rnd_range
         bne l_fct_chat
         .endif
         inc fr_games
+        .if AUTOFRIEND != 6
+        lda #2                  ; cards, or music?
+        jsr rnd_range
+        beq l_fct_cards
+        .endif
+        lda health              ; (music: not when he's sick, or with a
+        cmp #40                 ;  record already on)
+        bcc l_fct_cards
+        lda record_left
+        ora record_left+1
+        bne l_fct_cards
+        lda #A_RECORD
+        sta fr_after
+        lda #1
+        ldx #<cv_invite_tbl
+        ldy #>cv_invite_tbl
+        jsr fr_convo_start
+        bra l_fct_on
+l_fct_cards:
         lda #A_CARDSF
         .if AUTOFRIEND == 3
         lda #A_MEAL
@@ -787,6 +817,11 @@ l_fct_end:
         beq +
         ldx #0
         stx fr_after
+        cmp #A_RECORD           ; (music: he goes up too)
+        bne l_fct_req
+        ldx #1
+        stx fr_music
+l_fct_req:
         jsr request_pending
 +       lda p_act               ; at cards: the next remark sooner (5-10 s)
         cmp #A_CARDSF
@@ -1146,6 +1181,7 @@ l_fsa_no:
 ; (unswapped) Up from the table at once (he's off home).
 fr_stand_up:
         lda #0
+        sta fr_music
         sta fr_to_seat
         sta fr_jgo
         lda fr_job              ; (joined in with Larry: stops)
@@ -1182,7 +1218,13 @@ en_cardsf:
 
 CV_CARDS        = 7
 cv_cards_tbl:   .word cv_cd0, cv_cd1, cv_cd2, cv_cd3, cv_cd4, cv_cd5, cv_cd6
-cv_invite_tbl:  .word cv_invite
+cv_invite_tbl:  .word cv_invite, cv_music
+cv_music:
+        .byte 0
+        .null "Want to listen to some records?"
+        .byte 1
+        .null "Sure! Let's dance!"
+        .byte $FF
 cv_cd0:
         .byte 0
         .null "Your deal, Joey."
@@ -1248,6 +1290,7 @@ fr_jgo:         .byte 0     ; on his way to spot fr_jgo - 1
 fr_jt:          .word 0
 fr_jact:        .byte 0     ; what Larry's doing that he's joined
 fr_wc_done:     .byte 0
+fr_music:       .byte 0     ; 1 = they're off to put a record on together
 ;                 TV     dance  comp.  piano  snack  water  WC
 fj_act:     .byte A_TV,  A_DANCE, A_COMPUTER, A_PIANO
 fj_floor:   .byte 2,     2,     1,     2,     0,     0,     1
@@ -1274,22 +1317,46 @@ fr_go_spot:
         sta p_state
         rts
 
-; (swapped) X = join spot if Larry's doing one of those things (C = 1).
+; (swapped) X = join spot if Larry's doing one of those things (C = 1), and
+; A = what (or FJ_RECORD: a record's playing and they're both in the attic).
+FJ_RECORD       = $FF
 fr_joinable:
         lda FR(p_state)
         cmp #PS_ACT
-        bne l_fj_no
+        bne l_fj_rec
         lda FR(p_act)
         ldx #FJ_JOINS - 1
 -       cmp fj_act,x
         beq l_fj_yes
         dex
         bpl -
+l_fj_rec:
+        jsr fr_record_on
+        bcc l_fj_no
+        ldx #1                  ; (the dancing spot)
+        lda #FJ_RECORD
+l_fj_yes:
+        sec
+        rts
 l_fj_no:
         clc
         rts
-l_fj_yes:
+
+; (swapped) C = 1: a record's playing, and Larry's up in the attic with it.
+fr_record_on:
+        lda record_left
+        ora record_left+1
+        beq l_fro_no
+        lda FR(p_floor)
+        cmp #2
+        bne l_fro_no
+        lda FR(p_state)
+        cmp #PS_CLIMB
+        beq l_fro_no
         sec
+        rts
+l_fro_no:
+        clc
         rts
 
 ; (swapped) Each frame: what he's doing. C = 1: that's all for this frame.
@@ -1301,12 +1368,53 @@ fr_job_tick:
         beq l_fjt_idle
         cmp #FRJ_JOIN
         bne l_fjt_solo
+        lda fr_jact
+        cmp #FJ_RECORD
+        beq l_fjt_rec
         lda FR(p_state)         ; joined in: until Larry stops
         cmp #PS_ACT
         bne fr_job_end
         lda FR(p_act)
         cmp fr_jact
         bne fr_job_end
+        sec
+        rts
+l_fjt_rec:
+        jsr fr_record_on        ; dancing to the record: till it stops (or
+        bcs l_fjt_dance         ;  Larry goes downstairs)
+        lda fr_music            ; not on yet: waiting for Larry to put it on?
+        beq l_fjt_stop
+        lda FR(p_act)
+        cmp #A_RECORD
+        beq l_fjt_wait
+        lda FR(p_goal)
+        cmp #A_RECORD
+        beq l_fjt_wait
+l_fjt_stop:
+        lda #0
+        sta fr_music
+        jmp fr_job_end
+l_fjt_wait:
+        lda #PM_STAND
+        sta p_mode
+        sec
+        rts
+l_fjt_dance:
+        lda #PM_DANCE
+        sta p_mode
+        lda FR(p_state)         ; Larry only pottering about up here? He
+        cmp #PS_ACT             ;  comes and dances too
+        bne l_fjt_held
+        lda FR(p_act)
+        cmp #A_IDLE
+        bne l_fjt_held
+        lda FR(p_pending)
+        bne l_fjt_held
+        lda #A_DANCE
+        sta FR(p_pending)
+        lda #PS_IDLE
+        sta FR(p_state)
+l_fjt_held:
         sec
         rts
 l_fjt_solo:
@@ -1329,9 +1437,12 @@ l_fjt_idle:
         lda p_state
         cmp #PS_CLIMB
         beq l_fjt_no
+        ldx #1                  ; music agreed: up to the dancing spot
+        lda fr_music
+        bne +
         jsr fr_joinable
         bcc l_fjt_no
-        jsr fr_go_spot
++       jsr fr_go_spot
 l_fjt_no:
         clc
         rts
@@ -1368,10 +1479,12 @@ fr_job_arrive:
         sta p_flip
         cpx #FJ_JOINS
         bcs l_fja_solo
+        lda #FJ_RECORD          ; (come up for the music: waits for it)
+        ldy fr_music
+        bne +
         jsr fr_joinable         ; (still at it?)
         bcc l_fja_no
-        lda FR(p_act)
-        sta fr_jact
++       sta fr_jact
         lda fj_mode,x
         sta p_mode
         lda #FRJ_JOIN
@@ -1397,15 +1510,20 @@ l_fja_no:
 ; (swapped, choosing) C = 1: off to do something of his own (1 time in 5).
 fr_pick_job:
         .if AUTOFRIEND != 4     ; (test build 4: always)
-        lda #5
+        lda #4
         jsr rnd_range
         bne l_fpj_no
         .endif
-        lda #3
+        lda fr_wc_done          ; (not been yet: the bathroom, half the time)
+        bne +
+        lda #2
+        jsr rnd_range
+        beq l_fpj_wc
++       lda #2
         jsr rnd_range
         beq l_fpj_snack
-        cmp #1
-        beq l_fpj_water
+        bra l_fpj_water
+l_fpj_wc:
         lda fr_wc_done          ; the bathroom: once a visit, if it's free
         ora patch_state + PATCH_WC
         bne l_fpj_no
@@ -1585,6 +1703,29 @@ l_fwc_flush:
         jsr flush_play
         sec
         rts
+
+; A = what Larry's chosen to do: with his friend here, a game of cards is
+; with him (not you).
+fr_ai_filter:
+        ldx fr_music            ; the record they came up for: he dances
+        beq l_faf_cards
+        ldx record_left
+        bne l_faf_dance
+        ldx record_left+1
+        beq l_faf_cards
+l_faf_dance:
+        ldx #0
+        stx fr_music
+        lda #A_DANCE
+        rts
+l_faf_cards:
+        cmp #A_CARDS
+        bne +
+        ldx fr_state
+        cpx #FRS_VISIT
+        bne +
+        lda #A_CARDSF
++       rts
 
 ; Larry, ringing someone up: now and then it's him, and he's coming over.
 ; C = 1: l_tpc_p = what Larry says.

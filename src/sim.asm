@@ -2107,6 +2107,7 @@ person_choose:
         stx p_pending
         bra ++
 +       jsr ai_choose
+        jsr fr_ai_filter        ; (his friend's here: cards with him, not you)
 +       cmp #A_LEASH            ; the dog's not downstairs: whistle it down
         bne +
         ldx #1                  ; (a walk under way, however it began)
