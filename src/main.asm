@@ -21,7 +21,19 @@ AUTOFRIEND = 0                  ; 1: his friend rings in a few seconds, stays 3 
 ;=======================================================================================
 ; BASIC stub - BANK 0 : SYS 8210 ($2012)
 ;=======================================================================================
+; Two parts: the program proper ($2001-$BFFF, the PRG that's RUN) and a
+; high part at $C000-$CFFF, assembled from the same source but written to its
+; own file (LMP-HI) and copied into place at boot; $C000 is RAM once the
+; character ROM is mapped out ($D030 bit 5).
         * = $2001
+        .dsection lo
+        .cerror * > $C000, "program grew past $C000"
+        * = $C000
+        .dsection hi
+hi_end:
+        .cerror * > $D000, "high part grew past $D000"
+
+        .section lo
         .word (+), 2026
         .byte $fe, $02, $30     ; BANK 0
         .byte ':'
@@ -29,8 +41,7 @@ AUTOFRIEND = 0                  ; 1: his friend rings in a few seconds, stays 3 
         .text "8210"
         .byte 0
 +       .word 0
-
-        * = $2012
+        .fill $2012 - *, 0
 
 main_entry:
         cld
@@ -47,6 +58,10 @@ main_entry:
 
         jsr boot_load
         sei
+        lda $D030               ; character ROM out of $C000: RAM there (the
+        sta d030_save           ;  high part)
+        and #%11011111
+        sta $D030
         jsr enable_40mhz
         jsr mult_init
         jsr screen_fcm_init
@@ -193,6 +208,8 @@ game_quit:
         lda #0
         sta SID_VOLUME
         jsr screen_restore_basic
+        lda d030_save           ; (BASIC's ROM mapping back)
+        sta $D030
         ldx #$02
 -       lda zp_save,x
         sta $00,x
@@ -206,6 +223,7 @@ game_quit:
 
 zp_save:    .fill $40, 0
 stack_save: .byte 0
+d030_save:  .byte 0
 
 enable_40mhz:
         lda #65
@@ -273,6 +291,8 @@ boot_load:
         ; cell patches: stage -> Attic (DMA'd into the house image)
         #LOAD_FILE fn_patches, fn_patches_end
         jsr stage_to_patches
+        #LOAD_FILE fn_hi, fn_hi_end
+        jsr stage_to_hi
         #LOAD_FILE fn_gfx, fn_gfx_end
         rts
 
@@ -357,6 +377,31 @@ fn_sounds2:     .text "LMP-SOUNDS2"
 fn_sounds2_end:
 fn_patches:     .text "LMP-PATCHES"
 fn_patches_end:
+fn_hi:          .text "LMP-HI"
+fn_hi_end:
+
+; copy the program's high part from the stage ($50002) to $C000 (bank 0 RAM,
+; under the character ROM until that's mapped out)
+stage_to_hi:
+        lda #0
+        sta dma_src_mb
+        sta dma_dst_mb
+        sta dma_dst_bank
+        lda #<2
+        sta dma_src
+        lda #0
+        sta dma_src+1
+        lda #STAGE_BANK
+        sta dma_src_bank
+        lda #<$C000
+        sta dma_dst
+        lda #>$C000
+        sta dma_dst+1
+        lda #<(hi_end - $C000)
+        sta dma_len
+        lda #>(hi_end - $C000)
+        sta dma_len+1
+        jmp dma_copy
 
 ; copy the cell patches from the stage ($50002) to Attic ($8040000)
 stage_to_patches:
@@ -413,11 +458,13 @@ stage_to_sounds:
         .include "sim.asm"
         .include "friend.asm"
         .include "letters.asm"
-        .include "cards.asm"
         .include "poker.asm"
         .include "sound.asm"
-        .include "title.asm"
         .include "gen/palette.asm"
         .include "gen/notes.asm"
+        .send lo
 
-        .cerror * > $C000, "program grew past $C000"
+        .section hi             ; ($C000: the title page, the card table)
+        .include "title.asm"
+        .include "cards.asm"
+        .send hi

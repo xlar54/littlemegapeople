@@ -16,7 +16,10 @@ if /I "%1"=="assets" (
 del target\*.d81 2>nul
 del target\littlemegapeople 2>nul
 
-.\64tass.exe --cbm-prg -B -a src\main.asm -l target\lmp.lbl -L target\lmp.lst -o target\littlemegapeople
+.\64tass.exe --cbm-prg -B -a src\main.asm -l target\lmp.lbl -L target\lmp.lst -o target\littlemegapeople --output-section=lo
+if errorlevel 1 exit /b 1
+REM The high part ($C000-$CFFF), copied into place at boot.
+.\64tass.exe --cbm-prg -B -a src\main.asm -o target\lmp-hi.prg --output-section=hi -q
 if errorlevel 1 exit /b 1
 
 cd target
@@ -36,6 +39,8 @@ if errorlevel 1 exit /b 1
 ..\c1541.exe -attach littlemegapeople.d81 -write ..\assets\sounds2.prg lmp-sounds2
 if errorlevel 1 exit /b 1
 ..\c1541.exe -attach littlemegapeople.d81 -write ..\assets\patches.prg lmp-patches
+if errorlevel 1 exit /b 1
+..\c1541.exe -attach littlemegapeople.d81 -write lmp-hi.prg lmp-hi
 if errorlevel 1 exit /b 1
 cd ..
 
