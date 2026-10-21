@@ -151,6 +151,9 @@ fr_body:
 +       cmp #FRS_EXIT
         bne +
         jmp fr_exit
++       jsr fr_job_tick
+        bcc +
+        rts
 +       jsr fr_seat_tick
         bcc +
         rts
@@ -174,6 +177,8 @@ fr_body:
         cmp #PS_ACT
         bne l_fb_out
         jsr fr_seat_arrive
+        bcs l_fb_out
+        jsr fr_job_arrive
         bcs l_fb_out
         ; got there: stand about a while (2-8 s), facing either way
         lda #2
@@ -213,6 +218,7 @@ l_fb_stand:
 fr_choose:
         lda #0                  ; (the seat: fr_seat_tick sends him if need be)
         sta fr_to_seat
+        sta fr_jgo
         lda fr_state
         cmp #FRS_LEAVE
         bne l_fc_wander
@@ -239,7 +245,10 @@ l_fc_door:
         sta goal_x+1
         bra l_fc_go
 l_fc_wander:
-        lda #2                  ; half the time: over to Larry (his state's
+        jsr fr_pick_job
+        bcc +
+        rts
++       lda #2                  ; half the time: over to Larry (his state's
         jsr rnd_range           ;  in fr_p just now)
         bne l_fc_any
         lda FR(p_state)
@@ -462,6 +471,13 @@ l_fx_3:
 +       sta fr_cd
         rts
 
+; (swapped) The same, but only if Larry's on his floor to hear it.
+fr_say_if:
+        lda p_floor
+        cmp FR(p_floor)
+        beq fr_say
+        rts
+
 ; X/Y = what he says ("Joey: ...")
 fr_say:
         stx l_frs_p
@@ -538,7 +554,11 @@ l_fm_here:
         bcc l_fm_go
         rts
 l_fm_go:
-        jsr fr_stand_up
+        lda fr_job              ; (busy on his own: in a minute)
+        cmp #FRJ_SNACK
+        bcc +
+        rts
++       jsr fr_stand_up
         lda #0
         sta fr_bye
         jsr fr_can_ring         ; (Larry up and about: he sees him to the door)
@@ -662,7 +682,10 @@ fr_chat_tick:
 l_fct_cd:
         dec fr_chat_cd
         rts
-+       jsr fr_near
++       lda fr_job              ; (busy with a snack etc.: not now)
+        cmp #FRJ_SNACK
+        bcs l_fct_out
+        jsr fr_near
         bcc l_fct_out
         jsr fr_larry_free
         bcc l_fct_out
@@ -706,9 +729,14 @@ l_fct_chat:
         ldy #>cv_chat_tbl
         jsr fr_convo_start
 l_fct_on:
-        jsr fr_near             ; (one of them's walked off: that's that)
-        bcc l_fct_end
-        lda fr_seated           ; (sat at the table: as he is)
+        jsr fr_near             ; (one of them's walked off: that's that,
+        bcs +                   ;  and nothing agreed)
+        lda #0
+        sta fr_after
+        bra l_fct_end
++
+        lda fr_seated           ; (sat at the table, or joined in: as he is)
+        ora fr_job
         bne l_fct_say
         lda #PS_ACT             ; he stays put, facing Larry
         sta FR(p_state)
@@ -1055,6 +1083,8 @@ l_fst_not:
         lda p_state
         cmp #PS_CLIMB
         beq l_fst_no
+        lda #0
+        sta fr_jgo
         lda #1                  ; over to the table
         sta fr_to_seat
         lda #0
@@ -1117,6 +1147,14 @@ l_fsa_no:
 fr_stand_up:
         lda #0
         sta fr_to_seat
+        sta fr_jgo
+        lda fr_job              ; (joined in with Larry: stops)
+        beq +
+        lda #0
+        sta fr_job
+        lda #PM_STAND
+        sta FR(p_mode)
++
         lda fr_seated
         beq +
         lda #0
@@ -1194,6 +1232,360 @@ cv_invite:
         .null "Sure, deal me in!"
         .byte $FF
 
+;---------------------------------------------------------------------------------------
+; Things he does. Joining in with Larry: watching the TV with him, dancing
+; to his record, watching him at the computer, listening to the piano -- he
+; stays while Larry does. Or on his own now and then: a snack from the
+; fridge, a drink at the water cooler, the bathroom (once a visit).
+;---------------------------------------------------------------------------------------
+FRJ_JOIN        = 1         ; fr_job: joining in with Larry
+FRJ_SNACK       = 2
+FRJ_WATER       = 3
+FRJ_WC          = 4
+FJ_JOINS        = 4         ; spots 0-3 are joining in, 4-6 his own
+fr_job:         .byte 0
+fr_jgo:         .byte 0     ; on his way to spot fr_jgo - 1
+fr_jt:          .word 0
+fr_jact:        .byte 0     ; what Larry's doing that he's joined
+fr_wc_done:     .byte 0
+;                 TV     dance  comp.  piano  snack  water  WC
+fj_act:     .byte A_TV,  A_DANCE, A_COMPUTER, A_PIANO
+fj_floor:   .byte 2,     2,     1,     2,     0,     0,     1
+fj_x:       .byte 132,   104,   250,   198,   52,    138,   196
+fj_face:    .byte 0,     0,     1,     0,     0,     1,     1
+fj_mode:    .byte PM_STAND, PM_DANCE, PM_STAND, PM_STAND
+
+; (swapped) X = spot: off he goes to it.
+fr_go_spot:
+        inx
+        stx fr_jgo
+        dex
+        lda fj_floor,x
+        sta goal_floor
+        lda fj_x,x
+        sta goal_x
+        lda #0
+        sta goal_x+1
+        sta fr_to_seat
+        lda #A_NONE
+        sta p_goal
+        jsr set_walk_target
+        lda #PS_WALK
+        sta p_state
+        rts
+
+; (swapped) X = join spot if Larry's doing one of those things (C = 1).
+fr_joinable:
+        lda FR(p_state)
+        cmp #PS_ACT
+        bne l_fj_no
+        lda FR(p_act)
+        ldx #FJ_JOINS - 1
+-       cmp fj_act,x
+        beq l_fj_yes
+        dex
+        bpl -
+l_fj_no:
+        clc
+        rts
+l_fj_yes:
+        sec
+        rts
+
+; (swapped) Each frame: what he's doing. C = 1: that's all for this frame.
+fr_job_tick:
+        lda fr_state
+        cmp #FRS_VISIT
+        bne l_fjt_no
+        lda fr_job
+        beq l_fjt_idle
+        cmp #FRJ_JOIN
+        bne l_fjt_solo
+        lda FR(p_state)         ; joined in: until Larry stops
+        cmp #PS_ACT
+        bne fr_job_end
+        lda FR(p_act)
+        cmp fr_jact
+        bne fr_job_end
+        sec
+        rts
+l_fjt_solo:
+        inc fr_jt
+        bne +
+        inc fr_jt+1
++       lda fr_job
+        cmp #FRJ_SNACK
+        bne +
+        jmp fr_snack
++       cmp #FRJ_WATER
+        bne +
+        jmp fr_water
++       jmp fr_wc
+l_fjt_idle:
+        lda fr_jgo              ; (on his way somewhere already, or to the
+        ora fr_to_seat          ;  table, or sat at it)
+        ora fr_seated
+        bne l_fjt_no
+        lda p_state
+        cmp #PS_CLIMB
+        beq l_fjt_no
+        jsr fr_joinable
+        bcc l_fjt_no
+        jsr fr_go_spot
+l_fjt_no:
+        clc
+        rts
+fr_job_end:
+        lda #0
+        sta fr_job
+        lda #PM_STAND
+        sta p_mode
+        lda #PS_ACT
+        sta p_state
+        lda #40
+        sta fr_pause
+        lda #0
+        sta fr_pause+1
+        sec
+        rts
+
+; (swapped) Got somewhere: one of his spots? Start what he came for (C = 1).
+fr_job_arrive:
+        ldx fr_jgo
+        beq l_fja_no
+        lda #0
+        sta fr_jgo
+        dex
+        lda p_floor
+        cmp fj_floor,x
+        bne l_fja_no
+        lda p_x+1
+        bne l_fja_no
+        lda p_x
+        cmp fj_x,x
+        bne l_fja_no
+        lda fj_face,x
+        sta p_flip
+        cpx #FJ_JOINS
+        bcs l_fja_solo
+        jsr fr_joinable         ; (still at it?)
+        bcc l_fja_no
+        lda FR(p_act)
+        sta fr_jact
+        lda fj_mode,x
+        sta p_mode
+        lda #FRJ_JOIN
+        sta fr_job
+        sec
+        rts
+l_fja_solo:
+        txa                     ; 4, 5, 6: snack, water, WC
+        sec
+        sbc #FJ_JOINS - FRJ_SNACK
+        sta fr_job
+        lda #0
+        sta fr_jt
+        sta fr_jt+1
+        lda #PM_STAND
+        sta p_mode
+        sec
+        rts
+l_fja_no:
+        clc
+        rts
+
+; (swapped, choosing) C = 1: off to do something of his own (1 time in 5).
+fr_pick_job:
+        .if AUTOFRIEND != 4     ; (test build 4: always)
+        lda #5
+        jsr rnd_range
+        bne l_fpj_no
+        .endif
+        lda #3
+        jsr rnd_range
+        beq l_fpj_snack
+        cmp #1
+        beq l_fpj_water
+        lda fr_wc_done          ; the bathroom: once a visit, if it's free
+        ora patch_state + PATCH_WC
+        bne l_fpj_no
+        lda FR(p_act)
+        cmp #A_WC
+        beq l_fpj_no
+        cmp #A_BATH
+        beq l_fpj_no
+        lda #1
+        sta fr_wc_done
+        ldx #6
+        bra l_fpj_go
+l_fpj_snack:
+        lda patch_state + PATCH_FRIDGE
+        bne l_fpj_no
+        lda FR(p_floor)         ; (not with Larry busy in the kitchen)
+        bne +
+        lda FR(p_x+1)
+        bne +
+        lda FR(p_x)
+        cmp #100
+        bcc l_fpj_no
++       ldx #4
+        bra l_fpj_go
+l_fpj_water:
+        lda FR(p_act)
+        cmp #A_DRINK
+        beq l_fpj_no
+        ldx #5
+l_fpj_go:
+        jsr fr_go_spot
+        sec
+        rts
+l_fpj_no:
+        clc
+        rts
+
+; the snack: the fridge opens, he takes something, it shuts; tasty
+fr_snack:
+        lda fr_jt+1
+        bne l_fsn_2
+        lda fr_jt
+        cmp #1
+        bne l_fsn_1
+        ldx #PATCH_FRIDGE
+        jsr patch_apply
+        lda #SFX_DOOR
+        jsr sfx_play
+        ldx #<l_fr_snack
+        ldy #>l_fr_snack
+        jsr fr_say_if
+        sec
+        rts
+l_fsn_1:
+        cmp #70
+        bne +
+        ldx #PATCH_FRIDGE
+        jsr patch_remove
+        sec
+        rts
++       cmp #110
+        bne +
+        ldx #<l_fr_tasty
+        ldy #>l_fr_tasty
+        jsr fr_say_if
+        sec
+        rts
++       cmp #200
+        bne l_fsn_out
+l_fsn_2:
+        ldx #PATCH_FRIDGE       ; (done)
+        jsr patch_remove
+        jmp fr_job_end
+l_fsn_out:
+        sec
+        rts
+l_fr_snack:     .null "Mind if I grab a snack?"
+l_fr_tasty:     .null "Mmm, tasty!"
+
+; a drink at the water cooler (the bottle goes down a little)
+fr_water:
+        lda fr_jt+1
+        bne l_fwa_end
+        lda fr_jt
+        cmp #20
+        bne l_fwa_1
+        lda water
+        bne +
+        ldx #<l_fr_nowater      ; empty
+        ldy #>l_fr_nowater
+        jsr fr_say_if
+        lda #150
+        sta fr_jt
+        sec
+        rts
++       dec water
+        lda #1
+        sta ui_dirty
+        lda #SFX_GLUG
+        jsr sfx_play
+        sec
+        rts
+l_fwa_1:
+        cmp #90
+        bne +
+        ldx #<l_fr_ahh
+        ldy #>l_fr_ahh
+        jsr fr_say_if
+        sec
+        rts
++       cmp #200
+        bcc l_fsn_out
+l_fwa_end:
+        jmp fr_job_end
+l_fr_nowater:   .null "Oops, the water's all gone."
+l_fr_ahh:       .null "Ahh, refreshing."
+
+; the bathroom: in, the door shuts; a while, the flush; out again
+fr_wc_tl:   .word 1, 20, 32, 300, 390, 402, 424, 440
+fr_wc:
+        ldx #0
+-       lda fr_jt
+        cmp fr_wc_tl,x
+        bne +
+        lda fr_jt+1
+        cmp fr_wc_tl+1,x
+        beq l_fwc_at
++       inx
+        inx
+        cpx #16
+        bne -
+        sec
+        rts
+l_fwc_at:
+        txa
+        lsr
+        tax
+        beq l_fwc_open
+        dex
+        beq l_fwc_hide
+        dex
+        beq l_fwc_shut
+        dex
+        beq l_fwc_flush
+        dex
+        beq l_fwc_open
+        dex
+        beq l_fwc_show
+        dex
+        beq l_fwc_shut
+        ldx #PATCH_WC
+        jsr patch_remove
+        jmp fr_job_end
+l_fwc_open:
+        ldx #PATCH_WC
+        jsr patch_apply
+        lda #SFX_DOOR
+        jsr sfx_play
+        sec
+        rts
+l_fwc_hide:
+        lda #PM_HIDDEN
+        sta p_mode
+        sec
+        rts
+l_fwc_show:
+        lda #PM_STAND
+        sta p_mode
+        sec
+        rts
+l_fwc_shut:
+        ldx #PATCH_WC
+        jsr patch_remove
+        sec
+        rts
+l_fwc_flush:
+        jsr flush_play
+        sec
+        rts
+
 ; Larry, ringing someone up: now and then it's him, and he's coming over.
 ; C = 1: l_tpc_p = what Larry says.
 friend_invite:
@@ -1236,6 +1628,7 @@ fr_visit_len:
         sta fr_stay
         lda #0
         sta fr_games
+        sta fr_wc_done
         rts
 
 ;---------------------------------------------------------------------------------------
@@ -1261,6 +1654,11 @@ tk_greet:
         lda gr_t
         cmp #20
         bne l_tkgr_out
+        lda health              ; feeling sick: not today
+        cmp #40
+        bcs +
+        jmp gr_sick
++
         ; the door's open: in he comes, from behind it
         lda #FRS_ENTER
         sta fr_state
@@ -1278,6 +1676,24 @@ tk_greet:
         sta FR(p_mode)
         jmp fr_visit_len
 l_tkgr_in:
+        ldx gr_sick_n
+        beq l_tkgr_vis
+        inc gr_t
+        lda gr_t
+        cmp #125
+        bne l_tkgr_out
+        lda #0
+        sta gr_t
+        inc gr_sick_n
+        lda gr_sick_n
+        cmp #5
+        bcc gr_sick_line
+        lda #0
+        sta gr_sick_n
+        ldx #PATCH_DOOR
+        jmp patch_remove
+l_tkgr_vis:
+        lda fr_state
         cmp #FRS_VISIT
         bne l_tkgr_out
         lda gr_t                ; he's in: shut the door, say hello
@@ -1312,6 +1728,8 @@ l_tkgr_shut:
 l_tkgr_out:
         rts
 en_greet:
+        lda #0
+        sta gr_sick_n
         ldx #PATCH_DOOR
         jsr patch_remove
         lda fr_state            ; (cut short: he's in anyway)
@@ -1337,6 +1755,45 @@ en_greet:
 l_eng_out:
         rts
 l_say_hijoey:   .null "Hi, Joey! Come on in!"
+
+; Larry's sick: on the step they talk (he never comes in), the door shuts,
+; and he'll come another day.
+gr_sick_lines:  .word l_say_sick1, l_fr_sick1, l_say_sick2, l_fr_sick2
+l_say_sick1:    .null "Sorry Joey, I'm feeling sick."
+l_fr_sick1:     .null "Oh no! Get well soon."
+l_say_sick2:    .null "Come by another day?"
+l_fr_sick2:     .null "Sure thing. Feel better!"
+gr_sick:
+        lda #FRS_AWAY           ; (he stays out on the step)
+        sta fr_state
+        lda #180                ; another day (a few hours)
+        sta fr_cd
+        lda #1
+        sta gr_sick_n
+        lda #<(5 * 125 + 60)
+        sta act_timer
+        lda #>(5 * 125 + 60)
+        sta act_timer+1
+        lda #0
+        sta gr_t
+gr_sick_line:
+        ldx gr_sick_n           ; the next line, Larry and he in turn
+        dex
+        txa
+        asl
+        tax
+        lda gr_sick_lines,x
+        pha
+        lda gr_sick_lines+1,x
+        tay
+        plx
+        lda gr_sick_n
+        and #1
+        beq +
+        jsr ui_say              ; (Larry: lines 1, 3)
+        jmp speak
++       jmp fr_say
+gr_sick_n:      .byte 0         ; lines said (0: not sick at the door)
 
 ; Seeing him out: at the door, facing him, until he's gone.
 st_seeoff:
