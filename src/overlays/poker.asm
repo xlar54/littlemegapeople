@@ -1,5 +1,5 @@
 ;=======================================================================================
-; Five-card draw poker (shares the card table window with Twenty-One in cards.asm).
+; Five-card draw poker (shares the card table window with Twenty-One in overlays/cards.asm).
 ; Ante 10 each; mark cards to swap with 1-5, RETURN draws; best hand takes the pot.
 ;=======================================================================================
 cards_mode:     .byte 0     ; 0 twenty-one, 1 poker

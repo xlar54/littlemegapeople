@@ -11,6 +11,7 @@
         .weak
 AUTOTEST = 0                    ; 64tass -D AUTOTEST=<activity> for test builds
 AUTOFRIEND = 0                  ; 1: his friend rings in a few seconds, stays 3 min
+AUTOPHONE = 0                   ; 1: the phone rings in a minute (2..7: that caller - 1)
         .endweak
         ; All text is plain ASCII: the in-game font is ASCII-indexed.
         .enc "ascii"
@@ -21,17 +22,32 @@ AUTOFRIEND = 0                  ; 1: his friend rings in a few seconds, stays 3 
 ;=======================================================================================
 ; BASIC stub - BANK 0 : SYS 8210 ($2012)
 ;=======================================================================================
-; Two parts: the program proper ($2001-$BFFF, the PRG that's RUN) and a
-; high part at $C000-$CFFF, assembled from the same source but written to its
-; own file (LMP-HI) and copied into place at boot; $C000 is RAM once the
-; character ROM is mapped out ($D030 bit 5).
+; The program proper ($2001-$BFFF, the PRG that's RUN), and overlays for the
+; window at $C000-$CFFF (RAM once the character ROM is mapped out, $D030 bit
+; 5): the title page (LMP-HI, copied there at boot), the card games and the
+; letters (LMP-CARDS, LMP-LETTERS: kept in Attic, DMA'd in when wanted). All
+; from the same source (so they share labels), each written to its own file.
         * = $2001
         .dsection lo
         .cerror * > $C000, "program grew past $C000"
-        * = $C000
+        * = OVL_WINDOW
         .dsection hi
 hi_end:
-        .cerror * > $D000, "high part grew past $D000"
+        .cerror * > OVL_WINDOW + OVL_SIZE, "the title overlay grew past $D000"
+        * = OVL_WINDOW
+        .dsection ovc
+ovc_end:
+        .cerror * > OVL_WINDOW + OVL_SIZE, "the cards overlay grew past $D000"
+        * = OVL_WINDOW
+        .dsection ovl
+ovl_end:
+        .cerror * > OVL_WINDOW + OVL_SIZE, "the letters overlay grew past $D000"
+        ; The game's text: assembled at FAR_TEXT, kept in Attic RAM (LMP-TEXT);
+        ; the string routines fetch a far string when they're handed one.
+        * = FAR_TEXT
+        .dsection ftext
+ftext_end:
+        .cerror * > $FFFF, "the text grew past 12K"
 
         .section lo
         .word (+), 2026
@@ -92,6 +108,10 @@ AUTOHOUR = 8
         .endweak
         lda #AUTOHOUR
         sta clock_hour
+        .if AUTOPHONE != 0      ; (the phone test: the dog's walks done)
+        lda #7
+        sta dog_walks
+        .endif
         .if AUTOFRIEND == 5     ; (already in, up in the attic)
         lda #FRS_VISIT
         sta fr_state
@@ -109,6 +129,27 @@ AUTOHOUR = 8
         sta record_left
         lda #>6000
         sta record_left+1
+        .elsif AUTOFRIEND >= 10 && AUTOFRIEND <= 12 ; (already in, beside him
+                                ;  downstairs; 11: just about to go home;
+                                ;  12: off for a drink of water)
+        lda #FRS_VISIT
+        sta fr_state
+        lda #0
+        sta FR(p_floor)
+        lda #200
+        sta FR(p_x)
+        lda #FLOOR0_Y
+        sta FR(p_y)
+        lda #PM_STAND
+        sta FR(p_mode)
+        lda #(AUTOFRIEND == 11) ? 0 : 10
+        sta fr_stay
+        lda #7                  ; (the dog's walks done: he stays in)
+        sta dog_walks
+        .if AUTOFRIEND == 12
+        lda #6                  ; (the water cooler: spot 5)
+        sta fr_want
+        .endif
         .elsif AUTOFRIEND != 0
         lda #FRS_COMING
         sta fr_state
@@ -310,6 +351,18 @@ boot_load:
         jsr stage_to_patches
         #LOAD_FILE fn_hi, fn_hi_end
         jsr stage_to_hi
+        #LOAD_FILE fn_text, fn_text_end
+        jsr stage_to_text
+        #LOAD_FILE fn_ovc, fn_ovc_end
+        lda #>((OVL_CARDS - 1) * OVL_SIZE)
+        ldx #<(ovc_end - OVL_WINDOW)
+        ldy #>(ovc_end - OVL_WINDOW)
+        jsr stage_to_ovl
+        #LOAD_FILE fn_ovl, fn_ovl_end
+        lda #>((OVL_LETTERS - 1) * OVL_SIZE)
+        ldx #<(ovl_end - OVL_WINDOW)
+        ldy #>(ovl_end - OVL_WINDOW)
+        jsr stage_to_ovl
         #LOAD_FILE fn_gfx, fn_gfx_end
         rts
 
@@ -396,6 +449,100 @@ fn_patches:     .text "LMP-PATCHES"
 fn_patches_end:
 fn_hi:          .text "LMP-HI"
 fn_hi_end:
+fn_text:        .text "LMP-TEXT"
+fn_text_end:
+fn_ovc:         .text "LMP-CARDS"
+fn_ovc_end:
+fn_ovl:         .text "LMP-LETTERS"
+fn_ovl_end:
+
+; copy an overlay from the stage ($50002) to its Attic slot: A = slot offset
+; (high byte, $8120000 + A*256), X/Y = its length
+stage_to_ovl:
+        sta dma_dst+1
+        stx dma_len
+        sty dma_len+1
+        lda #0
+        sta dma_src_mb
+        sta dma_dst
+        lda #ATTIC_OVL_MB
+        sta dma_dst_mb
+        lda #ATTIC_OVL_BANK
+        sta dma_dst_bank
+        lda #<2
+        sta dma_src
+        lda #0
+        sta dma_src+1
+        lda #STAGE_BANK
+        sta dma_src_bank
+        jmp dma_copy
+
+; A = an overlay: into the window (unless it's there already)
+ovl_cur:        .byte OVL_TITLE
+ovl_load:
+        cmp ovl_cur
+        beq l_ovl_out
+        sta ovl_cur
+        sec
+        sbc #1
+        asl                     ; (4K slots: offset high byte = (A-1)*16)
+        asl
+        asl
+        asl
+        sta dma_src+1
+        lda #0
+        sta dma_src
+        sta dma_dst_mb
+        lda #ATTIC_OVL_MB
+        sta dma_src_mb
+        lda #ATTIC_OVL_BANK
+        sta dma_src_bank
+        lda #<OVL_WINDOW
+        sta dma_dst
+        lda #>OVL_WINDOW
+        sta dma_dst+1
+        lda #0
+        sta dma_dst_bank
+        lda #<OVL_SIZE
+        sta dma_len
+        lda #>OVL_SIZE
+        sta dma_len+1
+        jsr dma_copy
+l_ovl_out:
+        rts
+
+; the overlays' entry points
+ovl_cards_play:
+        lda #OVL_CARDS
+        jsr ovl_load
+        jmp cards_play
+ovl_letter_show:
+        lda #OVL_LETTERS
+        jsr ovl_load
+        jmp letter_show
+
+; copy the game's text from the stage ($50002) to Attic ($8110000)
+stage_to_text:
+        lda #0
+        sta dma_src_mb
+        lda #ATTIC_TEXT_MB
+        sta dma_dst_mb
+        lda #<2
+        sta dma_src
+        lda #0
+        sta dma_src+1
+        lda #STAGE_BANK
+        sta dma_src_bank
+        lda #0
+        sta dma_dst
+        sta dma_dst+1
+        lda #ATTIC_TEXT_BANK
+        sta dma_dst_bank
+        lda #<(ftext_end - FAR_TEXT)
+        sta dma_len
+        lda #>(ftext_end - FAR_TEXT)
+        sta dma_len+1
+        jmp dma_copy
 
 ; copy the program's high part from the stage ($50002) to $C000 (bank 0 RAM,
 ; under the character ROM until that's mapped out)
@@ -469,19 +616,52 @@ stage_to_sounds:
 ;=======================================================================================
 ; Modules
 ;=======================================================================================
-        .include "render.asm"
-        .include "ui.asm"
-        .include "input.asm"
-        .include "sim.asm"
-        .include "friend.asm"
-        .include "letters.asm"
-        .include "poker.asm"
-        .include "sound.asm"
+        ; the machine: DMA, screen, text, windows, keyboard
+        .include "engine/render.asm"
+        .include "engine/ui.asm"
+        .include "engine/input.asm"
+        ; him: the activity list, then his state, needs, brain and body
+        .include "sim/activities.asm"   ; one #ACT line per activity
+        .include "sim/sim.asm"          ; state, clock, needs
+        .include "sim/lights.asm"       ; lights, palette animation
+        .include "sim/brain.asm"        ; what to do next
+        .include "sim/requests.asm"     ; what you ask, gifts, CTRL keys
+        .include "sim/person.asm"       ; walking, the stairs
+        ; the activities themselves, room by room
+        .include "acts/core.asm"
+        .include "acts/kitchen.asm"
+        .include "acts/living.asm"
+        .include "acts/middle.asm"
+        .include "acts/chores.asm"
+        .include "acts/dogwalk.asm"
+        .include "acts/upstairs.asm"
+        .include "acts/attic.asm"
+        .include "acts/cards.asm"
+        ; the dog, effects, drawing
+        .include "sim/dog.asm"
+        .include "sim/fx.asm"
+        .include "sim/actors.asm"
+        ; his friend Joey
+        .include "friend/visit.asm"
+        .include "friend/talk.asm"
+        .include "friend/seat.asm"
+        .include "friend/jobs.asm"
+        .include "friend/pingpong.asm"
+        .include "friend/door.asm"
+        .include "friend/draw.asm"
+        ; sound and generated data
+        .include "engine/sound.asm"
         .include "gen/palette.asm"
         .include "gen/notes.asm"
         .send lo
 
-        .section hi             ; ($C000: the title page, the card table)
-        .include "title.asm"
-        .include "cards.asm"
+        .section hi             ; overlay: the title page (boot)
+        .include "overlays/title.asm"
         .send hi
+        .section ovc            ; overlay: the card games
+        .include "overlays/cards.asm"
+        .include "overlays/poker.asm"
+        .send ovc
+        .section ovl            ; overlay: the letters
+        .include "overlays/letters.asm"
+        .send ovl

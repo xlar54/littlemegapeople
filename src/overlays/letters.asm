@@ -15,7 +15,6 @@ TOPIC_RANDOM0   = 9         ; topics from here on are filler, chosen at random
 
 l_lt_n:     .byte 0
 l_lt_i:     .byte 0
-l_lt_used:  .fill TOPIC_COUNT, 0
 
 letter_show:
         lda #SFX_CHIME

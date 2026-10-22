@@ -96,7 +96,10 @@ l_sbn_lead: .byte 0
 
 ; append a word of text from a 16-bit pointer in X (lo) / Y (hi)
 sb_strxy:
-        stx ZPTR
+        cpy #>FAR_TEXT          ; (a far string: fetch it first)
+        bcc +
+        jsr far_fetch
++       stx ZPTR
         sty ZPTR+1
         jmp sb_str
 
@@ -268,12 +271,20 @@ ui_draw_row1:
         sta txt_bg
         lda #C_TEXT
         sta txt_fg
+        lda time_prompt         ; (CTRL-T: asking for a time)
+        bne +
         lda input_len
         beq ui_draw_status
-        jsr sb_clear
-        lda #'>'
++       jsr sb_clear
+        lda time_prompt
+        beq +
+        ldx #<l_time_q
+        ldy #>l_time_q
+        jsr sb_strxy
+        bra ++
++       lda #'>'
         jsr sb_char
-        ldx #<input_buf
++       ldx #<input_buf
         ldy #>input_buf
         jsr sb_strxy
         lda #9                  ; block cursor
@@ -338,12 +349,24 @@ ui_draw_status:
         sta txt_fg
         rts
 
+        .section ftext
 l_st_food:  .null " FOOD:"
+        .send ftext
+        .section ftext
 l_st_water: .null " WATER:"
+        .send ftext
+        .section ftext
 l_st_dog:   .null " DOG:"
+        .send ftext
+        .section ftext
 l_st_mood:  .null " MOOD:"
+        .send ftext
+        .section ftext
 l_st_help:  .null "  F1"
+        .send ftext
+        .section ftext
 l_st_ff:    .null "  >>"
+        .send ftext
 
 ;---------------------------------------------------------------------------------------
 ; Text window: lines of text in a paper box. win_lines points to a list of
@@ -545,8 +568,8 @@ help_lines:
         .null " "
         .null "CTRL-F food     CTRL-W water"
         .null "CTRL-D dog food CTRL-B book"
-        .null "CTRL-R record   CTRL-P pet him"
-        .null "CTRL-C call him CTRL-A alarm"
+        .null "CTRL-R record   CTRL-C call him"
+        .null "CTRL-A alarm    CTRL-T set time"
         .null "F5 fast time    F7 quit"
         .null " "
         .null "        PRESS RETURN"

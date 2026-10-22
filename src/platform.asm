@@ -16,6 +16,9 @@
 ;   $8030000-     Attic: digital sounds, a bank per file (DMA'd to the chip-RAM
 ;                 play buffer); room up to $80FFFFF
 ;   $8100000      Attic: cell patches (DMA'd into the house image)
+;   $8110000      Attic: the game's text (far strings, fetched as needed)
+;   $8120000      Attic: overlays, 4K each, DMA'd into $C000 when needed
+;                 (+$0000 the card games, +$1000 the letters)
 ;   $18000        chip RAM: audio play buffer
 ;
 ; Palette (see tools/build_assets.py, which owns the colour values)
@@ -82,6 +85,17 @@ ATTIC_PRISTINE_BANK     = $01       ; $8010000
 ATTIC_TITLE_BANK        = $02       ; $8020000
 ATTIC_SOUNDS_BANK       = $03       ; $8030000: digital sounds
 ATTIC_PATCH_MB          = $81       ; $8100000: cell patches (doors open etc.)
+ATTIC_TEXT_MB           = $81       ; $8110000: the game's text...
+ATTIC_TEXT_BANK         = $01
+OVL_WINDOW              = $C000     ; overlays run here, one at a time
+OVL_SIZE                = $1000
+ATTIC_OVL_MB            = $81       ; $8120000: the overlays' Attic slots
+ATTIC_OVL_BANK          = $12
+OVL_TITLE               = 0         ; (loaded at boot, straight into the window)
+OVL_CARDS               = 1
+OVL_LETTERS             = 2
+FAR_TEXT                = $D000     ; ...assembled from $D000: a string pointer
+                                    ;  at or above it is far (in Attic)
 ATTIC_PATCH_BANK        = $00
 IMAGE_SIZE              = 64000
 

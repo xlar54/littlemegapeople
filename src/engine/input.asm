@@ -7,6 +7,7 @@ INPUT_MAX       = 36
 
 input_buf:      .fill INPUT_MAX + 1, 0
 input_len:      .byte 0
+time_prompt:    .byte 0     ; 1 = CTRL-T: the line typed is a time for the clock
 
 ; Return next key in A (0 = none). Sets Z accordingly.
 key_get:
@@ -41,9 +42,13 @@ input_tick:
         rts
 +       cmp #KEY_RETURN
         beq l_it_return
-        cmp #KEY_DEL
+        cmp #KEY_DEL            ; (CTRL-T comes as the DEL code too)
+        bne +
+        lda KEYMODS
+        and #KEYMOD_CTRL
         beq l_it_del
-        cmp #KEY_F1
+        jmp time_ask
++       cmp #KEY_F1
         bne +
         jmp help_show
 +       cmp #KEY_F5
@@ -59,6 +64,11 @@ input_tick:
         lda #1
         sta quit_request
         rts
++       cmp #KEY_ESC            ; (setting the time: never mind)
+        bne +
+        lda time_prompt
+        beq l_it_out
+        bra l_it_cancel
 +       cmp #27                 ; CTRL-A .. CTRL-Z arrive as $01..$1A
         bcs l_it_print
         jmp ctrl_key
@@ -92,10 +102,18 @@ l_it_del:
         sta ui_dirty
         rts
 l_it_return:
+        lda time_prompt         ; CTRL-T: a time for the clock
+        beq +
         lda input_len
+        beq l_it_cancel
+        jsr set_time_typed
+        bra l_it_cancel
++       lda input_len
         beq l_it_out
         jsr parse_command
+l_it_cancel:
         lda #0
+        sta time_prompt
         sta input_len
         sta input_buf
         lda #1
@@ -132,7 +150,143 @@ ctrl_key:
 +       cmp #'a'
         bne +
         jmp alarm_ring
++       cmp #'t'
+        bne +
+        jmp time_ask
 +       rts
+
+;---------------------------------------------------------------------------------------
+; CTRL-T: set the clock. The command line asks for a time ("9:30pm", "7am",
+; "21:15"); RETURN sets it, ESC (or CTRL-T again) leaves it as it was.
+;---------------------------------------------------------------------------------------
+time_ask:
+        lda time_prompt
+        eor #1
+        sta time_prompt
+        lda #0
+        sta input_len
+        sta input_buf
+        lda #1
+        sta ui_dirty
+        rts
+l_time_q:       .null "Set the time: "
+
+set_time_typed:
+        ldx #0
+        jsr l_st_skip
+        jsr l_st_num            ; the hour
+        bcc l_st_bad
+        sta l_st_h
+        lda #0
+        sta l_st_m
+        lda input_buf,x         ; :minutes (or .minutes)
+        cmp #':'
+        beq +
+        cmp #'.'
+        bne l_st_ampm
++       inx
+        jsr l_st_num
+        bcc l_st_bad
+        cmp #60
+        bcs l_st_bad
+        sta l_st_m
+l_st_ampm:
+        jsr l_st_skip
+        lda input_buf,x         ; am / pm, or a 24-hour time
+        beq l_st_24
+        ora #$20
+        cmp #'a'
+        beq l_st_am
+        cmp #'p'
+        bne l_st_bad
+        lda l_st_h              ; pm: 1-12 -> 13-23 (12 stays noon)
+        beq l_st_bad
+        cmp #13
+        bcs l_st_bad
+        cmp #12
+        beq l_st_set
+        clc
+        adc #12
+        bra l_st_seth
+l_st_am:
+        lda l_st_h              ; am: 12 -> midnight
+        beq l_st_bad
+        cmp #13
+        bcs l_st_bad
+        cmp #12
+        bne l_st_set
+        lda #0
+        bra l_st_seth
+l_st_24:
+        lda l_st_h
+        cmp #24
+        bcs l_st_bad
+        bra l_st_set
+l_st_seth:
+        sta l_st_h
+l_st_set:
+        lda l_st_h
+        sta clock_hour
+        lda l_st_m
+        sta clock_min
+        lda #0
+        sta clock_tick
+        jsr lights_update       ; day or night, and the office clock
+        jsr clock_hands
+        lda #1
+        sta ui_dirty
+        rts
+l_st_bad:
+        jsr sb_clear
+        ldx #<l_say_badtime_t
+        ldy #>l_say_badtime_t
+        jsr sb_strxy
+        jmp ui_say_sb
+l_say_badtime_t: .null "That's not a time. Try 7:30pm or 21:30."
+; X = position: past any spaces
+l_st_skip:
+        lda input_buf,x
+        cmp #' '
+        bne +
+        inx
+        bra l_st_skip
++       rts
+; X = position: up to two digits -> A (C = 1 if there were any)
+l_st_num:
+        lda #0
+        sta l_st_v
+        ldy #0
+-       lda input_buf,x
+        cmp #'0'
+        bcc l_stn_end
+        cmp #'9' + 1
+        bcs l_stn_end
+        sec
+        sbc #'0'
+        pha
+        lda l_st_v              ; v * 10 + digit
+        asl
+        sta l_st_v
+        asl
+        asl
+        clc
+        adc l_st_v
+        sta l_st_v
+        pla
+        clc
+        adc l_st_v
+        sta l_st_v
+        inx
+        iny
+        cpy #2
+        bne -
+l_stn_end:
+        cpy #1
+        lda l_st_v
+        rts
+l_st_h:         .byte 0
+l_st_m:         .byte 0
+l_st_v:         .byte 0
 
 ;---------------------------------------------------------------------------------------
 ; Parser. Lower-cases the line, notes "please", then finds the first keyword
@@ -266,6 +420,19 @@ keyword_table:
         #KW "hi", REQ_HELLO
         #KW "hey", REQ_HELLO
         #KW "how are", REQ_HOWAREYOU
+        #KW "ping pong", REQ_PINGPONG  ; (before "joey": "ping pong with Joey")
+        #KW "pingpong", REQ_PINGPONG
+        #KW "table tennis", REQ_PINGPONG
+        #KW "invite", REQ_INVITE       ; (after the greetings, before "phone": "invite Joey",
+        #KW "joey", REQ_INVITE         ;  "call Joey", "ask a friend over",
+        #KW "friend", REQ_INVITE       ;  "have some company")
+        #KW "company", REQ_INVITE
+        #KW "fetch", REQ_FETCH         ; (before "pet", "dog", "play")
+        #KW "play ball", REQ_FETCH
+        #KW "throw ball", REQ_FETCH
+        #KW "throw the ball", REQ_FETCH
+        #KW "ball", REQ_FETCH
+        #KW "play with the dog", REQ_FETCH
         #KW "feed", REQ_FEEDDOG
         #KW "pet", REQ_PETDOG
         #KW "piano", REQ_PIANO
@@ -273,7 +440,14 @@ keyword_table:
         #KW "walk dog", REQ_DOGWALK
         #KW "dog for a walk", REQ_DOGWALK
         #KW "walkies", REQ_DOGWALK
-        #KW "stop", REQ_RECSTOP     ; (before "record": "stop the record")
+        #KW "stop vacuuming", REQ_VACSTOP   ; (before "stop")
+        #KW "stop the vacuum", REQ_VACSTOP
+        #KW "stop vacuum", REQ_VACSTOP
+        #KW "stop the record", REQ_RECSTOP  ; (before "stop" and "record")
+        #KW "stop the music", REQ_RECSTOP
+        #KW "stop record", REQ_RECSTOP
+        #KW "stop music", REQ_RECSTOP
+        #KW "stop", REQ_STOP        ; (whatever he's doing)
         #KW "record", REQ_RECORD
         #KW "records", REQ_RECORD
         #KW "stereo", REQ_RECORD

@@ -139,6 +139,8 @@ PATCHES = {
     'fire_lit': (32, 21, 3, 2, 'cards'),
     # living-room phone with the handset lifted off (empty cradle)
     'phone_off': (24, 21, 3, 1, ('PHONE', 0)),
+    # ...and while it rings: the handset jumping about above the cradle
+    'phone_ring': (24, 21, 3, 1, ('PHONE', 1)),
     # bathroom WC door swung open (hinged on the left)
     'wc_open': (23, 11, 3, 4, ('WCDOOR', 0)),
     # kitchen food cupboard, doors open, with 0-4 jars on its two shelves
@@ -160,7 +162,63 @@ PATCHES = {
     'curtain_1': (25, 11, 5, 4, ('CURTAIN', 224)),
     'curtain_2': (25, 11, 5, 4, ('CURTAIN', 214)),
     'curtain_3': (25, 11, 5, 4, ('CURTAIN', 208)),
+    # the attic desk cleared for ping pong: typewriter and papers gone, a net
+    'pong_table': (25, 5, 7, 2, ('PONGTABLE', 0)),
+    # the typewriter's carriage (and its paper) moved 1-5 pixels along as
+    # he types a line (his right to left: screen left to right)
+    'carriage_1': (26, 6, 4, 1, ('CARRIAGE', 1)),
+    'carriage_2': (26, 6, 4, 1, ('CARRIAGE', 2)),
+    'carriage_3': (26, 6, 4, 1, ('CARRIAGE', 3)),
+    'carriage_4': (26, 6, 4, 1, ('CARRIAGE', 4)),
+    'carriage_5': (26, 6, 4, 1, ('CARRIAGE', 5)),
 }
+
+
+def draw_carriage(img, dx):
+    """The attic typewriter's carriage -- the platen and the paper in it,
+    rows 49-51, x 215-232 -- slid dx pixels to the right; behind it, the
+    wall above the desk and the green desk top."""
+    C = {ch: i for i, ch in enumerate(A.AMIGA_CH)}
+    g, v = C['g'], C['v']
+    car = {}
+    for y in range(49, 52):
+        for x in range(215, 233):
+            if img[y][x] in (C['k'], C['w']):
+                car[(x, y)] = img[y][x]
+                img[y][x] = v if y == 51 else g
+    for (x, y), c in car.items():
+        img[y][x + dx] = c
+
+
+def draw_pongtable(img, _):
+    """The attic desk (green top x 202-253, rows 51-54, brown rim) cleared of
+    the typewriter and papers for ping pong, a net across the middle: its
+    posts and white tape, the mesh between seen edge-on."""
+    C = {ch: i for i, ch in enumerate(A.AMIGA_CH)}
+    g, v, n, k, w = C['g'], C['v'], C['n'], C['k'], C['w']
+    for y in (49, 50):                           # above the top: bare wall
+        for x in range(210, 251):
+            img[y][x] = g
+    for y in range(51, 55):                      # the top: green, rim to rim
+        lx = 200
+        while img[y][lx] != n:
+            lx += 1
+        while img[y][lx] == n:
+            lx += 1
+        rx = 258
+        while img[y][rx] != n:
+            rx -= 1
+        while img[y][rx] == n:
+            rx -= 1
+        for x in range(lx, rx + 1):
+            img[y][x] = v
+    for y in range(47, 54):                      # the net (x 227-228)
+        img[y][227] = k
+        img[y][228] = w if (y % 2) else k
+    img[46][227] = w                             # its tape
+    img[46][228] = w
+    for y in range(47, 55):                      # the post at the front
+        img[y][229] = k
 
 
 def draw_wcdoor(img, _):
@@ -317,16 +375,19 @@ def draw_alarmclock(img, dx):
         img[y][x + dx] = v
 
 
-def draw_phone_off(img, _):
+def draw_phone_off(img, ringing):
     """The phone on the side table (handset on rows 172-173, x 196-207) with
     the handset lifted: wall shows through, the cradle hooks remain, and the
-    coiled cord runs off towards the armchair."""
+    coiled cord runs off towards the armchair (in his hand) -- or, ringing,
+    the handset's just jumping about over the cradle: no cord."""
     g, w = 0, 3
     for x in range(195, 209):
         img[172][x] = g
         img[173][x] = g
     for x in (196, 197, 205, 206):
         img[173][x] = w
+    if ringing:
+        return
     for x in range(207, 216, 2):                # dotted coiled cord
         img[174 - (x - 207) * 3 // 9][x] = w
 
@@ -415,11 +476,21 @@ def sky_mask(img):
     return m
 
 
+def piano_one_keyboard(img):
+    """The attic piano has a stray row of key pixels (row 45, x 139-167)
+    just above its keyboard (row 47), like a second manual: paint it as the
+    wooden board above it."""
+    r = A.AMIGA_CH.index('r')
+    for x in range(139, 168):
+        img[45][x] = r
+
+
 def build_house():
     bg = [r[:] for r in A.empty_house()]
     bg[0] = bg[1][:]                    # a source frame is one row short
     bg[199] = bg[198][:]
     close_glass_cabinet(bg)
+    piano_one_keyboard(bg)
     patches = {}
     # Front door: majority vote shows it open; default the house to closed.
     door_src = A.frame(DOOR_CLOSED_FROM)
@@ -436,7 +507,8 @@ def build_house():
              'WCDOOR': draw_wcdoor, 'CUPBOARD': draw_cupboard,
              'DOGCAB': draw_dogcab, 'BEDCLOSET': draw_bedcloset,
              'POT': draw_pot, 'ATTICCLOSET': draw_atticcloset,
-             'ALARMCLOCK': draw_alarmclock}[src[0]](f, src[1])
+             'ALARMCLOCK': draw_alarmclock, 'PONGTABLE': draw_pongtable,
+             'CARRIAGE': draw_carriage}[src[0]](f, src[1])
         else:
             f = open_rows if src is None else A.frame(src)
         pix = [[house_index(x, y, f[y][x], sky, name == 'fire_lit') for x in range(cx * 8, (cx + cw) * 8)]
@@ -629,6 +701,129 @@ def pose(name, frame, x, y, w, h, fn, crop=None):
         ax += cx0
         ay += cy0
     return name, remap(rows, fn), ax, ay
+
+
+def pet_frame(bend, hx):
+    """Leaning down to pet the dog: the lean pose (facing left) with 8 columns
+    of padding on the left and his near arm stretched down and forward from
+    the shoulder (row 13) to the hand at column hx (rows 16-17), on the dog's
+    head; two frames with the hand at either end of a stroke."""
+    k = HOUSE0 + 9
+    pad = 8
+    w = len(bend[0]) + pad
+    h = len(bend)
+    rows = [[None] * pad + r[:] for r in bend]
+    sx, sy, ey = 9 + pad, 13, 16                 # shoulder -> hand
+    n = sx - hx
+    pts = []
+    for i in range(n + 1):
+        pts.append((sy + round((ey - sy) * i / n), sx - i))
+    for y, x in pts:                             # a thin sleeve
+        rows[y][x] = SHIRT2
+    for y in (ey, ey + 1):                       # the hand (outlined)
+        for x in (hx - 1, hx):
+            rows[y][x] = SKIN
+    out = [r[:] for r in rows]
+    for y in range(h):
+        for x in range(w):
+            if rows[y][x] is None:
+                for nx, ny in ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)):
+                    if 0 <= nx < w and 0 <= ny < h and rows[ny][nx] == SKIN:
+                        out[y][x] = k
+    return out
+
+
+PADDLE = ['.kkk.',
+          'kRRRk',
+          'kRRRk',
+          'kRRRk',
+          '.kkk.',
+          '..n..',
+          '..n..']
+
+
+def pong_frame(armless, hy, hx):
+    """Playing ping pong (facing left): the arm out in front from the
+    shoulder (row 12) to the hand at (hy, hx) -- 7 columns of padding on the
+    left -- holding up a red paddle (head above the hand). Ready at the
+    waist, or swung up and out to hit."""
+    k = HOUSE0 + 9
+    C = {ch: HOUSE0 + i for i, ch in enumerate(A.AMIGA_CH)}
+    pad = 7
+    w = len(armless[0]) + pad
+    h = len(armless)
+    rows = [[None] * pad + r[:] for r in armless]
+    sx, sy = 7 + pad, 12                         # shoulder -> hand
+    n = max(abs(sx - hx), abs(sy - hy))
+    for i in range(n + 1):
+        y = sy + round((hy - sy) * i / n)
+        x = sx + round((hx - sx) * i / n)
+        rows[y][x] = SHIRT2
+        if rows[y + 1][x] is None:
+            rows[y + 1][x] = SHIRT2
+    for dy, row in enumerate(PADDLE):            # the paddle, its handle
+        for dx, ch in enumerate(row):            #  in his hand
+            if ch != '.':
+                rows[hy - 6 + dy][hx - 2 + dx] = C[ch]
+    for y in (hy, hy + 1):                       # the hand
+        rows[y][hx] = SKIN
+        rows[y][hx + 1] = SKIN
+    out = [r[:] for r in rows]
+    for y in range(h):
+        for x in range(w):
+            if rows[y][x] is None:
+                for nx, ny in ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)):
+                    if 0 <= nx < w and 0 <= ny < h and rows[ny][nx] in (SKIN, SHIRT2):
+                        out[y][x] = k
+    return out
+
+
+GLASS_UP = ['.kk...',             # tipped up at his lips (facing left: the
+            'kbbk..',             #  rim bottom right at his mouth, the base
+            '.kbbk.',             #  up and away)
+            '..kbck',
+            '...kk.']
+GLASS = ['kcck',                  # a glass of water held upright in front
+         'kbbk',
+         'kbbk',
+         'kbbk',
+         '.kk.']
+
+
+def sip_frame(armless, hy, hx, glass, gx, gy):
+    """Having a drink (facing left): the arm from the shoulder (row 12) to
+    the hand at (hy, hx) -- 4 columns of padding on the left -- and a blue
+    glass of water with its top left corner at (gy, gx): upright in front of
+    him, or tipped up at his mouth."""
+    k = HOUSE0 + 9
+    C = {ch: HOUSE0 + i for i, ch in enumerate(A.AMIGA_CH)}
+    pad = 4
+    w = len(armless[0]) + pad
+    h = len(armless)
+    rows = [[None] * pad + r[:] for r in armless]
+    sx, sy = 7 + pad, 12
+    n = max(abs(sx - hx), abs(sy - hy))
+    for i in range(n + 1):
+        y = sy + round((hy - sy) * i / n)
+        x = sx + round((hx - sx) * i / n)
+        rows[y][x] = SHIRT2
+        if rows[y + 1][x] is None:
+            rows[y + 1][x] = SHIRT2
+    for dy, row in enumerate(glass):
+        for dx, ch in enumerate(row):
+            if ch != '.':
+                rows[gy + dy][gx + dx] = C[ch]
+    for y in (hy, hy + 1):                       # the hand round it
+        rows[y][hx] = SKIN
+        rows[y][hx + 1] = SKIN
+    out = [r[:] for r in rows]
+    for y in range(h):
+        for x in range(w):
+            if rows[y][x] is None:
+                for nx, ny in ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)):
+                    if 0 <= nx < w and 0 <= ny < h and rows[ny][nx] in (SKIN, SHIRT2):
+                        out[y][x] = k
+    return out
 
 
 def draw_arm(rows, hx):
@@ -941,7 +1136,31 @@ def sit_side(stand):
     return out
 
 
-def walk_frames(stand):
+def carry_arm(rows, _=None):
+    """Side-view arm carrying something (facing left): the upper arm down
+    from the shoulder (row 12, column 7), the forearm out in front at chest
+    height (rows 14-15) to the hand at columns 0-1 -- where the thing he
+    carries is drawn, just in front of him."""
+    k = HOUSE0 + 9
+    w = len(rows[0])
+    h = len(rows)
+    pts = [(y, x) for y in range(12, 14) for x in (7, 8)]
+    pts += [(y, x) for y in (14, 15) for x in range(2, 9)]
+    for y, x in pts:
+        rows[y][x] = SHIRT2
+    for y in (14, 15):                           # the hand
+        rows[y][0] = SKIN
+        rows[y][1] = SKIN
+    src = [r[:] for r in rows]
+    for y in range(11, 17):
+        for x in range(w):
+            if src[y][x] is None:
+                for nx, ny in ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)):
+                    if 0 <= nx < w and 0 <= ny < h and src[ny][nx] in (SKIN, SHIRT2):
+                        rows[y][x] = k
+
+
+def walk_frames(stand, arm=None):
     """Side-view walk cycle (facing left): keep the stand torso (rows 0..18) and
     redraw the legs as hip -> knee -> ankle polylines so the knees bend. The
     far leg is drawn first in a darker shade."""
@@ -980,7 +1199,7 @@ def walk_frames(stand):
                     rows[fy][px] = k
         leg(far, PANTS2)
         leg(near, PANTS)
-        draw_arm(rows, arm_x[len(frames)])
+        (arm or draw_arm)(rows, arm_x[len(frames)])
         for px in range(4, 12):                   # waistband
             if rows[19][px] is None or rows[19][px] == k:
                 rows[19][px] = PANTS if 5 <= px <= 10 else k
@@ -1094,7 +1313,33 @@ FRONT_KNOCK_ART[16] = '..kTTktTTTTtk.....'
 FRONT_KNOCK_ART[17] = '..kSSkTTTTTTk.....'
 FRONT_KNOCK_ART[18] = '...kk.kTTTTk......'
 # An open book held in both hands, and the same with a page turning over.
+# The book he reads in the armchair, seen from behind (he faces you): the
+# brown covers, a darker spine down the middle, his hands at the sides; and
+# a white page standing up from the spine as he turns it over.
 BOOK_OPEN = [
+    '.................',
+    '.................',
+    '..kkkkkkkkkkkkk..',
+    '.knnnnnrrrnnnnnk.',
+    '.knnnnnrrrnnnnnk.',
+    '.knnnnnrrrnnnnnk.',
+    '.knnnnnrrrnnnnnk.',
+    'SknnnnnrrrnnnnnkS',
+    'SSkkkkkkkkkkkkkSS',
+]
+BOOK_TURN = [
+    '.......kwwk......',
+    '.......kwwk......',
+    '..kkkkkkwwkkkkk..',
+    '.knnnnnrrrnnnnnk.',
+    '.knnnnnrrrnnnnnk.',
+    '.knnnnnrrrnnnnnk.',
+    '.knnnnnrrrnnnnnk.',
+    'SknnnnnrrrnnnnnkS',
+    'SSkkkkkkkkkkkkkSS',
+]
+# The morning paper, read in the armchair: all white, as the book once was.
+PAPER_OPEN = [
     '.................',
     '.................',
     '..kkkkkk.kkkkkk..',
@@ -1105,7 +1350,7 @@ BOOK_OPEN = [
     'SkwwwwwwkwwwwwwkS',
     'SSkkkkkkkkkkkkkSS',
 ]
-BOOK_TURN = [
+PAPER_TURN = [
     '........kk.......',
     '.......kwwk......',
     '..kkkkkkwwk.kkk..',
@@ -1192,6 +1437,13 @@ ASCII_SPRITES = {
     'zz': ['wwww.', '..w..', '.w...', 'wwww.'],
     'note': ['..kk', '..kw', '..k.', '..k.', 'kkk.', 'kkk.'],
     'heart': ['.RR.RR.', 'RRRRRRR', 'RRRRRRR', '.RRRRR.', '..RRR..', '...R...'],
+    'ball': ['.kkk.', 'kRwRk', 'kRRRk', 'kRRRk', '.kkk.'],      # the dog's ball
+    'ppball': ['ww', 'ww'],                                     # a ping pong ball
+    # the phone's handset tipped up (/), jumping about while it rings (mirrored: \)
+    'handset': ['.........lwww',
+                '.....wwwwwwww',
+                'wwwwwwwww....',
+                'lwww.........'],
     'dogfood': ['.nnnn.', 'nnnnnn'],
     'dogfood2': ['......', '.nnnn.'],       # half eaten
     'bubble': ['.www.', 'w...w', '.www.'],
@@ -1204,7 +1456,11 @@ ASCII_SPRITES = {
     'heldplatee': ['.........', '.........', 'kwwwwwwwk', '.kkkkkkk.'],   # eaten
     'heldcan': ['.lll.', 'kOOOk', 'kwnwk', 'kOOOk', 'kOOOk', '.kkk.'],
     # his cup: empty, full of water, and tipped up at his lips (two angles)
-    'heldcup': ['k..k', 'kwwk', 'kwwk', '.kk.'],
+    'heldcup': ['k..k', 'k..k', 'kcck', 'kbbk', '.kk.'],     # (a blue glass, drunk)
+    'heldbook': ['kkkkkkk', 'krnnnnw', 'krnnnnw', 'krnnnnw',    # a book, shut: the spine,
+                 'krnnnnw', 'kkkkkkw'],                         #  the cover, the pages
+    'heldpaper': ['kkkkkkk', 'kwwwwwk', 'kwlllwk', 'kwwwwwk',  # the newspaper, folded
+                  'kwlllwk', 'kkkkkkk'],
     # the dog's leash, a dotted white line from his hand (top left) to its
     # neck (bottom right)
     'leash': ['w....................', '.....................', '..w..................', '....w................', '......w..............', '........w............', '..........w.w.....w.w', '..............w.w....', '.....................', '.....................'],
@@ -1222,7 +1478,7 @@ ASCII_SPRITES = {
                 '.kkkkkk.',
                 'kllllllk',
                 'kkkkkkkk'],
-    'heldcupfull': ['kBBk', 'kwwk', 'kwwk', '.kk.'],
+    'heldcupfull': ['kcck', 'kbbk', 'kbbk', 'kbbk', '.kk.'], # (full)
     'cuptilt0': ['...kk', '..kBk', '.kwwk', 'kwwk.', '.kk..'],
     'cuptilt1': ['.....', 'kkkkk', 'Bwwwk', 'kwwwk', '.kkk.'],
     # the dog sitting up begging, a puppy side-on: round head with a floppy
@@ -1409,6 +1665,12 @@ def build_sprites():
                ('sitside1', sit_table(armless, True)),
                ('sitsidechew', sit_chew(sit_table(armless, False))),
                ('bendside', bend_frame(stand))]     # leaning over to the TV knob
+    sprites.append(('petside0', pet_frame(dict(sprites)['bendside'], 8)))   # petting the dog:
+    sprites.append(('petside1', pet_frame(dict(sprites)['bendside'], 11)))  #  the stroke
+    sprites.append(('pong0', pong_frame(armless, 16, 7)))   # ping pong: ready...
+    sprites.append(('pong1', pong_frame(armless, 12, 3)))   #  ...and the hit
+    sprites.append(('sipdown', sip_frame(armless, 16, 4, GLASS, 3, 11)))   # a drink: the
+    sprites.append(('sipup', sip_frame(armless, 10, 4, GLASS_UP, 1, 5)))   #  glass, and a sip
     # The attic chair's back and arm, drawn over him while he sits in it.
     bgh = A.empty_house()
     chair = [[HOUSE0 + bgh[y][x] if A.AMIGA_CH[bgh[y][x]] in 'Bb' else None
@@ -1419,6 +1681,11 @@ def build_sprites():
     sprites.append(('chairside', chair_side(HOUSE0 + A.AMIGA_CH.index('n'), HOUSE0 + A.AMIGA_CH.index('r'))))
     for i, fr in enumerate(walks):
         sprites.append(('walk%d' % i, fr))
+    standc = [r[:] for r in armless]            # carrying something: the arm
+    carry_arm(standc)                           #  bent to it, out in front
+    sprites.append(('standc', standc))
+    for i, fr in enumerate(walk_frames(armless, carry_arm)):
+        sprites.append(('walkc%d' % i, fr))
     anchors = {}
 
     def add(p):
@@ -1464,19 +1731,6 @@ def build_sprites():
             walk = dog_walk_frames(rows)
             for i, fr in enumerate(walk):
                 sprites.append(('dogw%d' % i, fr))
-            # On the side flights of the stairs: two of the walking frames
-            # tilted head up (going up) and head down (going down) -- a shear,
-            # the head end (left) raised or lowered up to 8px.
-            for tag, up in (('u', True), ('d', False)):
-                for j, fr in enumerate((walk[0], walk[2])):
-                    w, h, S = len(fr[0]), len(fr), 12
-                    out = [[None] * w for _ in range(h + S)]
-                    for x in range(w):
-                        sh = round((w - 1 - x) * S / (w - 1))      # head end most
-                        off = (S - sh) if up else sh
-                        for y in range(h):
-                            out[y + off][x] = fr[y][x]
-                    sprites.append(('dogt%s%d' % (tag, j), out))
     for n, rows in ASCII_SPRITES.items():
         sprites.append((n, remap(A.from_ascii(rows), lambda x, y, v: amiga(v))))
     for n, rows in PACKAGES.items():
@@ -1583,6 +1837,8 @@ def build_sprites():
         chair2[y] = chair[y][:1] + chair[y][14:0:-1] + chair[y][15:]
     sprites.append(('chair2', chair2))
     sprites.append(('bookopen', art(BOOK_OPEN)))
+    sprites.append(('paperopen', art(PAPER_OPEN)))
+    sprites.append(('paperturn', art(PAPER_TURN)))
     # His hands on the typewriter keys (left keys x 216-219, right x 226-229),
     # one up while the other is down.
     for i in range(2):
@@ -1763,6 +2019,9 @@ def main():
         snd = load_sound(os.path.join(ROOT, 'art', 'sound', fn), rate)
         lines.append('SND_%-20s= $%06X   ; %d Hz' % (name.upper() + '_FREQ', round(rate * 16777216 / 40500000), rate))
         assert SND_BASE + len(snd) < 0x1F800, name + ' sample is bigger than the play buffer'
+        # it plays from SND_BUF ($18000, bank 1) and must end by $1F6FF:
+        # $1F700-$1F7FF is reserved, $1F800- the colour RAM window
+        assert len(snd) <= 0x1F700 - 0x18000, '%s is too long for the play buffer' % name
         if len(banks[-1]) + len(snd) > 0xFFF0:          # (no sound spans two banks)
             banks.append(bytearray())
         assert len(banks) <= SND_BANKS, 'out of sound banks: raise SND_BANKS (and boot)'

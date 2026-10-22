@@ -40,6 +40,9 @@ SFX_WAKA        = 18        ; video games: the maze muncher chomping (high)...
 SFX_WAKA2       = 19        ;   ...and low
 SFX_PEW         = 20        ;   the shooter's shot
 SFX_BOOM        = 21        ;   an alien hit
+SFX_POCK        = 22        ; ping pong: the ball off a paddle...
+SFX_PICK        = 23        ;   ...and off the table
+SFX_DING        = 24        ; the typewriter's bell, near the end of a line
 
 ;---------------------------------------------------------------------------------------
 ; Digital sample playback on audio DMA channel 0 (his voice on the phone).
@@ -90,7 +93,9 @@ doorbell_play:
 flush_play:
         ldx #SND_FLUSH
 ; X = sound number
+snd_cur:    .byte 0         ; the one playing (or last played)
 sample_play:
+        stx snd_cur
         lda #0
         sta $D720
         ; Attic -> play buffer
@@ -149,6 +154,13 @@ sample_play:
 talk_stop:
         lda #0
         sta $D720
+        rts
+
+; his friend's voice cut off (if it's what's playing)
+talk_low_stop:
+        lda snd_cur
+        cmp #SND_TALKLOW
+        beq talk_stop
         rts
 
 ; C = 1 while the sample is still playing; A = how loud it is right now
@@ -433,6 +445,7 @@ sfx_table:
         .word sfxd_type, sfxd_door, sfxd_glug, sfxd_chime, sfxd_clack, sfxd_blip
         .word sfxd_step, sfxd_tink, sfxd_talk, sfxd_brush, sfxd_shut
         .word sfxd_waka, sfxd_waka2, sfxd_pew, sfxd_boom
+        .word sfxd_pock, sfxd_pick, sfxd_ding
 
 ; frame, freq hi, control, attack/decay, sustain/release
 sfxd_phone:
@@ -530,6 +543,18 @@ sfxd_pew:
         .byte 3, $1E, $21, $00, $A0
         .byte 4, $14, $21, $00, $A0
         .byte 5, $14, $20, $00, $A0
+        .byte $FF
+sfxd_pock:
+        .byte 0, $22, $11, $04, $00
+        .byte 1, $22, $10, $04, $00
+        .byte $FF
+sfxd_pick:
+        .byte 0, $48, $11, $03, $00
+        .byte 1, $48, $10, $03, $00
+        .byte $FF
+sfxd_ding:
+        .byte 0, $A8, $11, $0A, $00
+        .byte 2, $A8, $10, $0A, $00
         .byte $FF
 sfxd_boom:
         .byte 0, $0A, $81, $0A, $00

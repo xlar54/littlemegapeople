@@ -21,6 +21,14 @@ if errorlevel 1 exit /b 1
 REM The high part ($C000-$CFFF), copied into place at boot.
 .\64tass.exe --cbm-prg -B -a src\main.asm -o target\lmp-hi.prg --output-section=hi -q
 if errorlevel 1 exit /b 1
+REM The overlays for the $C000 window: the card games and the letters.
+.\64tass.exe --cbm-prg -B -a src\main.asm -o target\lmp-cards.prg --output-section=ovc -q
+if errorlevel 1 exit /b 1
+.\64tass.exe --cbm-prg -B -a src\main.asm -o target\lmp-letters.prg --output-section=ovl -q
+if errorlevel 1 exit /b 1
+REM The game's text (far strings), copied to Attic RAM at boot.
+.\64tass.exe --cbm-prg -B -a src\main.asm -o target\lmp-text.prg --output-section=ftext -q
+if errorlevel 1 exit /b 1
 
 cd target
 ..\c1541.exe -format "little mega people,lm" d81 littlemegapeople.d81
@@ -41,6 +49,12 @@ if errorlevel 1 exit /b 1
 ..\c1541.exe -attach littlemegapeople.d81 -write ..\assets\patches.prg lmp-patches
 if errorlevel 1 exit /b 1
 ..\c1541.exe -attach littlemegapeople.d81 -write lmp-hi.prg lmp-hi
+if errorlevel 1 exit /b 1
+..\c1541.exe -attach littlemegapeople.d81 -write lmp-text.prg lmp-text
+if errorlevel 1 exit /b 1
+..\c1541.exe -attach littlemegapeople.d81 -write lmp-cards.prg lmp-cards
+if errorlevel 1 exit /b 1
+..\c1541.exe -attach littlemegapeople.d81 -write lmp-letters.prg lmp-letters
 if errorlevel 1 exit /b 1
 cd ..
 
