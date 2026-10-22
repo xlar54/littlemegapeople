@@ -193,7 +193,17 @@ AUTOTRIP = 255
 AUTOPLEA = 0
 AUTODOGUP = 0
         .endweak
-        .if AUTODOGUP != 0      ; (the dog starts upstairs, by the bed)
+        .if AUTODOGUP == 2      ; (2: the dog starts in the attic, by the TV,
+        lda #2                  ;  well away from the stairs)
+        sta dog_floor
+        sta dog_goal_floor
+        lda #FLOOR2_Y + 4
+        sta dog_yb
+        lda #60
+        sta dog_x
+        lda #0
+        sta dog_x+1
+        .elsif AUTODOGUP != 0   ; (the dog starts upstairs, by the bed)
         lda #1
         sta dog_floor
         sta dog_goal_floor

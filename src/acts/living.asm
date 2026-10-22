@@ -1182,7 +1182,51 @@ l_say_there: .null "Oh good, you ARE there!"
 ; Petting the dog: beside it, leaning down, his hand stroking it; it stays
 ; put, sits up facing him and wags; a happy bark when he's done.
 pet_wig:        .byte 0     ; 1: his hand's at the end of a stroke
+pet_on:         .byte 0     ; 1 = the dog was there to pet
 st_petdog:
+        lda #0
+        sta pet_on
+        lda dog_floor           ; the dog still here? (it may have wandered
+        cmp p_floor             ;  off while he came over: up the stairs...)
+        bne l_spd_gone
+        lda dog_state
+        beq l_spd_gone
+        cmp #5
+        beq l_spd_gone
+        lda dog_lead
+        ora dog_out
+        bne l_spd_gone
+        sec                     ; ...or off along the floor: within reach of
+        lda p_x                 ;  where he'll stroke it (12 to his left)?
+        sbc #12
+        sta l_spd_x
+        lda p_x+1
+        sbc #0
+        sta l_spd_x+1
+        sec
+        lda dog_x
+        sbc l_spd_x
+        tax
+        lda dog_x+1
+        sbc l_spd_x+1
+        beq l_spd_near          ; (0..255 to the right)
+        cmp #$FF                ; (or to the left: -1..-256)
+        bne l_spd_gone
+        txa
+        eor #$FF                ; |dx|
+        tax
+        inx
+l_spd_near:
+        cpx #20
+        bcs l_spd_gone
+        lda l_spd_x             ; there: just under his hand
+        sta dog_x
+        sta dog_tx
+        lda l_spd_x+1
+        sta dog_x+1
+        sta dog_tx+1
+        lda #1
+        sta pet_on
         lda #PM_BENDSIDE
         sta p_mode
         lda #0                  ; (the dog's to his left)
@@ -1195,14 +1239,24 @@ st_petdog:
         jsr fx_heart_on_dog     ; hearts over its head
         lda #4
         jmp set_timer_secs
+l_spd_gone:
+        lda #0                  ; nothing to pet: on with something else
+        sta act_timer
+        sta act_timer+1
+        rts
+l_spd_x:        .word 0
 tk_petdog:
+        lda pet_on
+        beq l_tkpd_out
         lda p_anim              ; a stroke every 12 frames or so
         and #15
         bne +
         lda pet_wig
         eor #1
         sta pet_wig
-+       rts
++
+l_tkpd_out:
+        rts
 en_petdog:
         jsr fx_clear
         lda #0
@@ -1211,9 +1265,14 @@ en_petdog:
         sta pet_wig
         lda #PM_STAND
         sta p_mode
+        lda pet_on              ; (no dog after all: no happy bark)
+        beq +
+        lda #0
+        sta pet_on
         lda #3
         jsr mood_up
         jmp bark_play
++       rts
 
 ; Fetch: in the middle of the living room the dog trots up to him; he throws
 ; the ball (it arcs across the floor and bounces), the dog races after it,

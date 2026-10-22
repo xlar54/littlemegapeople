@@ -133,8 +133,13 @@ l_pc_wh:
         lda dog_x+1
         sbc #0
         sta goal_x+1
+        bcc l_pc_leashmin       ; (not off the left of the house: the dog
+        bne +                   ;  by its bowl, say)
+        lda goal_x
+        cmp #WALK_MIN_X
         bcs +
-        lda #20                 ; (not off the left of the house)
+l_pc_leashmin:
+        lda #WALK_MIN_X
         sta goal_x
         lda #0
         sta goal_x+1
@@ -197,7 +202,9 @@ l_pc_go:
         rts
 
 ; p_tx = goal_x on this floor, else the foot/head of the staircase towards
-; goal_floor.
+; goal_floor. (Never further left than WALK_MIN_X: off past the stove is
+; off the screen.)
+WALK_MIN_X      = 16
 set_walk_target:
         lda p_floor
         cmp goal_floor
@@ -206,6 +213,13 @@ set_walk_target:
         sta p_tx
         lda goal_x+1
         sta p_tx+1
+        bne l_swt_out
+        lda p_tx
+        cmp #WALK_MIN_X
+        bcs l_swt_out
+        lda #WALK_MIN_X
+        sta p_tx
+l_swt_out:
         rts
 +       ldx #STAIR0_BOTTOM_X    ; ground floor: up
         lda p_floor
@@ -261,7 +275,16 @@ l_pw_move:
         bcc l_pw_right
         lda #0
         sta p_flip
+        lda p_x+1               ; (never on past the stove, off the screen,
+        bne +                   ;  whatever sent him: he's there)
         lda p_x
+        cmp #WALK_MIN_X + 1
+        bcs +
+        sta p_tx
+        lda #0
+        sta p_tx+1
+        rts
++       lda p_x
         bne +
         dec p_x+1
 +       dec p_x
