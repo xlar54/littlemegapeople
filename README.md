@@ -4,9 +4,11 @@ Little Mega People
 A MEGA65 tribute to Activision's *Little Computer People* (1985), built from the
 look of the 1987 **Amiga** version. A little man (and his dog) move into the house
 inside your computer. He lives his own life — eating, sleeping, playing the piano,
-watching TV, typing you letters — and you can talk to him, send him things, and
-play cards with him. Neglect him and he gets lonely, knocks on the inside of the
-screen, or gets sick and turns green.
+watching TV, reading the morning paper, typing you letters, playing fetch with the
+dog — and his friend Joey drops by for cards, music, video games and ping pong.
+You can talk to him, send him things, phone him and play cards with him. Neglect
+him and he gets lonely, knocks on the inside of the screen, or gets sick and turns
+green.
 
 The display is FCM (Full Colour Mode) at **320x200 in 256 colours**: every pixel
 is a palette index, and the house is a pixel-for-pixel rebuild of the Amiga
@@ -22,8 +24,11 @@ run.bat              build and launch in Xemu (C:\Emulation\Mega65\xmega65.exe)
 ```
 
 The D81 holds the program (`LITTLEMEGAPEOPLE`, first on the disk so autoboot /
-`RUN"*"` picks it up) and three data files: `LMP-BG` (the house), `LMP-TITLE`
-(the guestbook) and `LMP-GFX` (font, sprites, prop patches).
+`RUN"*"` picks it up) and its data files: `LMP-BG` (the house), `LMP-TITLE` (the
+guestbook), `LMP-GFX` (font and sprites), `LMP-PATCHES` (prop patches),
+`LMP-SOUNDS` / `LMP-SOUNDS2` (sampled sounds), `LMP-TEXT` (the game's text),
+`LMP-HI` (the program's `$C000` part) and the overlays `LMP-CARDS` and
+`LMP-LETTERS`.
 
 Playing
 -------
@@ -35,8 +40,11 @@ AM/PM, then RETURN. He arrives through the front door with his dog.
 willing when you are polite, and in a good mood. Things to ask: *play the
 piano, watch TV, read a book, eat, drink, dance, put on a record, exercise,
 take a bath, brush your teeth, write a letter, play cards / poker, feed the dog,
-pet the dog, light a fire, use the phone, play solitaire, change clothes, go to
-bed, go out*. You can also just say *hello*, *how are you* or *thank you*.
+pet the dog, play ball / fetch, walk the dog, light a fire, use the phone, play
+solitaire, change clothes, go to bed, go out, invite Joey* (or *call a friend*),
+and with Joey over, *play ping pong*. *Stop* makes him stop whatever he's doing
+(*stop the record*, *stop vacuuming* for those). You can also just say *hello*,
+*how are you* or *thank you*.
 
 | Key      | Effect                                              |
 |----------|-----------------------------------------------------|
@@ -45,15 +53,16 @@ bed, go out*. You can also just say *hello*, *how are you* or *thank you*.
 | CTRL-D   | deliver dog food                                    |
 | CTRL-B   | deliver a book (he shelves it, then reads it)       |
 | CTRL-R   | deliver a record (he puts it on and dances)         |
-| CTRL-P   | pet him (best while he sits in his armchair)        |
-| CTRL-C   | phone him                                           |
+| CTRL-C   | phone him (it rings till he gets to it)             |
 | CTRL-A   | ring his alarm clock (wakes him — grumpily at night)|
+| CTRL-T   | set the clock: type a time (`7am`, `9:30pm`, `21:15`) |
+| + / -    | time twice as fast / half as fast (x2 .. x512), with nothing typed |
 | F1       | help                                                |
-| F5       | fast-forward time (a game minute every half second) |
+| F5       | flat-out time (x512), or back to real time          |
 | F7       | quit to BASIC                                       |
 
 The top bar shows what he is saying or doing, and the time, food, water, dog
-food and his mood.
+food and his mood — and the time speed, when it's sped up.
 
 **Cards.** At the attic desk he plays *Poker* (five-card draw: `1`-`5` mark
 cards to swap, RETURN draws) or *Twenty-One* (`H` hit, `S` stand). He likes to
@@ -70,25 +79,45 @@ you. If he asks you to play poker, answer *yes*.
 Life in the house
 -----------------
 
-* **Needs:** hunger, thirst, energy, mood and health. He eats from the fridge,
-  drinks a cup of water from the cooler (its level drops; a dry bottle makes
-  him glum, and he'll ask you for more) and sleeps at night (lights go down, pyjamas on):
-  bed at 9pm, up at 7 � or 11pm and 8 at the weekend, when Friday and Saturday
+* **Needs:** hunger, thirst, energy, mood and health. He cooks three meals a
+  day (or snacks from the fridge), drinks a glass of water at the cooler — two
+  sips, then the glass to the sink (its level drops; a dry bottle makes him
+  glum, and he'll ask you for more) — and sleeps at night (lights go down, pyjamas on):
+  bed at 9pm, up at 7 — or 11pm and 8 at the weekend, when Friday and Saturday
   evenings often mean TV. He may take an afternoon nap when tired.
   Starve him or let the water run dry and his health falls — he turns green and
   spends more time in bed. Supplies only come from you.
-* **Routines:** changes at the bedroom closet � pyjamas at bedtime, a different
-  colour shirt each day of the week when he dresses in the morning � brushes his
-  teeth after meals, lights the fire in the evening, sometimes goes out.
+* **Routines:** up in his pyjamas: the toilet (and every three hours after),
+  breakfast, a shower, then dressed at the bedroom closet — a different colour
+  shirt each day of the week — before the dog's morning walk; pyjamas again at
+  bedtime. Some time before eleven he fetches the paper off the front step and
+  reads the day's news out loud in the armchair. He brushes his teeth after
+  meals, walks the dog three times a day, lights the fire in the evening,
+  vacuums now and then, sometimes goes out.
+* **The phone:** he rings people himself every few hours (now and then it's
+  Joey, who comes over), and a few calls a day come in — the handset jumps on
+  its cradle till he answers: Joey, his mom, telemarketers, wrong numbers.
 * **Time:** the clock runs in real time, set from and paced by the MEGA65's
-  real-time clock, and the day of the week follows the date.
+  real-time clock, and the day of the week follows the date; `+`/`-` speed it
+  up (the people speed up too from x16) and CTRL-T sets it.
 * **The house:** the clock drives the sky colour through the day; the fire,
   TV, computer monitor and water bottle are animated through their own palette
-  entries; the fridge, closet, front door and fireplace swap in cell patches.
+  entries; doors, drawers, cupboards, the fireplace, the phone's handset, the
+  typewriter's carriage (it travels along each line, then the return and the
+  bell's ding) and the attic desk cleared for ping pong swap in cell patches.
+  Whatever he carries — groceries, a book, the paper, a glass — he holds out in
+  front of him.
 * **Stairs:** he climbs the front-facing step blocks in back view and walks the
   side-on flights sideways, feet on the treads.
-* **The dog** trots around the ground floor, follows him, naps, barks, and
-  eats from its bowl when it's been fed.
+* **The dog** trots around the house, follows him, naps, barks, begs at
+  mealtimes and eats from its bowl when it's been fed. He pets it, plays fetch
+  with it (the ball bounces and rolls, the dog races after it and brings it
+  back), and whistles it down from upstairs for a game or a walk.
+* **Joey,** his friend, drops by now and then (or when you ask him to invite
+  him): Larry lets him in, they chat, play cards, dance to records, take turns
+  at video games, watch TV and play ping pong at the attic desk; Joey helps
+  himself to a snack or a drink and uses the bathroom, and lets himself out
+  with a goodbye.
 
 Architecture
 ------------
@@ -108,7 +137,7 @@ wait for raster 251 -> erase/draw actors -> palette animation -> top bar
 | `engine/` | the machine: `render` (DMA, FCM, palette and night dimming, sprite blitter, cell patches, text, far-text fetch), `ui` (speech/status bar, windows), `input` (keyboard, typed line, keyword parser), `sound` (SID tunes, sampled sounds) |
 | `sim/` | Larry and the house: `activities` (one `#ACT` line per activity: where, facing, start/tick/end, status text), `sim` (state, clock, needs), `lights`, `brain` (`ai_choose`), `requests` (what you ask, gifts, CTRL keys), `person` (walking, stairs), `dog`, `fx`, `actors` (drawing) |
 | `acts/` | the activities themselves, room by room: `core`, `kitchen`, `living`, `middle`, `chores`, `dogwalk`, `upstairs`, `attic`, `cards` |
-| `friend/` | Joey, his visiting friend: `visit`, `talk`, `seat`, `jobs`, `door`, `draw` |
+| `friend/` | Joey, his visiting friend: `visit`, `talk`, `seat`, `jobs`, `door`, `draw`, `pingpong` |
 | `overlays/` | run one at a time in the `$C000` window: `title` (the guestbook), `cards` + `poker`, `letters` |
 | `gen/` | generated by `tools/build_assets.py`: palette, sprite/patch/sound addresses, SID note table |
 
@@ -157,6 +186,13 @@ Art pipeline
 Building a test disk that skips the title and goes straight to an activity:
 `64tass --cbm-prg -B -a -D AUTOTEST=<activity number> src/main.asm ...`
 (activity numbers: the order of the `#ACT` lines in `sim/activities.asm`, from 0).
+More `-D` options for test builds: `AUTOHOUR=<0-23>` (the start time),
+`AUTODOGUP=1` / `2` (the dog starts on the middle floor / far end of the attic),
+`AUTOPHONE=1` (the phone rings in a minute; `2`-`7` picks the caller),
+`AUTOFRIEND=<n>` (Joey: `1` rings in a few seconds, `5` already in the attic with
+a record on, `10` beside Larry and straight to ping pong, `11` about to go home,
+`12` off for a drink), plus `AUTOFOOD`, `AUTOHUNGER`, `AUTOHEALTH`,
+`AUTODOGFOOD`.
 
 Credits
 -------
