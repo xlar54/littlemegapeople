@@ -319,10 +319,13 @@ ui_draw_status:
         bcs +
         lda #6
 +       jsr sb_char
-        lda fast_forward
+        lda fast_forward        ; sped up: how fast
         beq +
-        ldx #<l_st_ff
-        ldy #>l_st_ff
+        asl
+        tax
+        lda speed_names-2,x
+        ldy speed_names-1,x
+        tax
         jsr sb_strxy
         bra ++
 +       ldx #<l_st_help
@@ -363,9 +366,6 @@ l_st_mood:  .null " MOOD:"
         .send ftext
         .section ftext
 l_st_help:  .null "  F1"
-        .send ftext
-        .section ftext
-l_st_ff:    .null "  >>"
         .send ftext
 
 ;---------------------------------------------------------------------------------------
@@ -570,7 +570,7 @@ help_lines:
         .null "CTRL-D dog food CTRL-B book"
         .null "CTRL-R record   CTRL-C call him"
         .null "CTRL-A alarm    CTRL-T set time"
-        .null "F5 fast time    F7 quit"
+        .null "+ - time speed  F5 fast  F7 quit"
         .null " "
         .null "        PRESS RETURN"
         .byte 0

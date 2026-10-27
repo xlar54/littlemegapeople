@@ -91,9 +91,8 @@ doorbell_play:
         ldx #SND_BELL
         jmp sample_play
 flush_play:
-        ldx #SND_FLUSH
+        ldx #SND_FLUSH          ; (falls through)
 ; X = sound number
-snd_cur:    .byte 0         ; the one playing (or last played)
 sample_play:
         stx snd_cur
         lda #0
@@ -155,6 +154,7 @@ talk_stop:
         lda #0
         sta $D720
         rts
+snd_cur:    .byte 0         ; the sample playing (or last played)
 
 ; his friend's voice cut off (if it's what's playing)
 talk_low_stop:

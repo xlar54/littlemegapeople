@@ -11,7 +11,7 @@ FLOOR1_Y        = 128         ; mid-floor
 FLOOR2_Y        = 66          ; mid-floor
 DOG_Y           = 194         ; the dog trots nearer the viewer than him
 
-TICKS_PER_MIN   = 25        ; fast forward (F5): sim ticks per game minute
+SPEED_MAX       = 9         ; time speeds: 0 real time, 1-9 x2 .. x512
 
 ; person states
 PS_IDLE         = 0
@@ -77,7 +77,8 @@ REQ_THANKS      = $82
 ; State
 ;---------------------------------------------------------------------------------------
 frame_count:    .byte 0
-fast_forward:   .byte 0
+fast_forward:   .byte 0     ; the time speed: 0 real time, n = x2^n
+sp_count:       .word 0     ; sim ticks into this game minute (sped up)
 quit_request:   .byte 0
 rnd_seed:       .word $ACE1
 
@@ -86,7 +87,6 @@ date_day:       .byte 1
 date_year:      .byte 87    ; two digits
 clock_hour:     .byte 8
 clock_min:      .byte 0
-clock_tick:     .byte 0
 minute_count:   .byte 0     ; free-running game-minute counter
 rt_last:        .byte $FF   ; last RTC seconds byte seen ($FF = none yet)
 rt_frames:      .byte 0     ; frames since it last changed
@@ -225,17 +225,50 @@ sim_init:
         jmp shirt_pick
 
 ; The clock runs in real time, paced by the real-time clock's seconds (or,
-; if the RTC isn't ticking, by counting 50 frames a second). Fast forward
-; (F5) runs a game minute every TICKS_PER_MIN ticks instead.
+; if the RTC isn't ticking, by counting 50 frames a second). Sped up (+/-,
+; F5), a game minute every speed_ticks sim ticks instead: x2 .. x512 the
+; real pace (and from x16 the sim runs 2, from x128 4 ticks a frame).
+speed_ticks:    .word 3000, 1500, 750, 375, 375, 188, 94, 94, 47, 23
+speed_steps:    .byte 1, 1, 1, 1, 2, 2, 2, 4, 4, 4     ; sim ticks per frame
+speed_names:    .word l_spn1, l_spn2, l_spn3, l_spn4, l_spn5, l_spn6
+                .word l_spn7, l_spn8, l_spn9
+l_spn1:         .null "  x2"
+l_spn2:         .null "  x4"
+l_spn3:         .null "  x8"
+l_spn4:         .null " x16"
+l_spn5:         .null " x32"
+l_spn6:         .null " x64"
+l_spn7:         .null "x128"
+l_spn8:         .null "x256"
+l_spn9:         .null "x512"
+; A = the new speed (0 .. SPEED_MAX)
+speed_set:
+        sta fast_forward
+        lda #0
+        sta sp_count
+        sta sp_count+1
+        lda #1
+        sta ui_dirty
+        rts
 sim_tick:
         lda fast_forward
         beq l_st_real
-        inc clock_tick
-        lda clock_tick
-        cmp #TICKS_PER_MIN
+        inc sp_count
+        bne +
+        inc sp_count+1
++       lda fast_forward
+        asl
+        tax
+        lda sp_count+1
+        cmp speed_ticks+1,x
         bcc l_st_go
-        lda #0
-        sta clock_tick
+        bne +
+        lda sp_count
+        cmp speed_ticks,x
+        bcc l_st_go
++       lda #0
+        sta sp_count
+        sta sp_count+1
         jsr game_minute
         bra l_st_go
 l_st_real:

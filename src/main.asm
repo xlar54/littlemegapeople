@@ -257,11 +257,9 @@ game_loop:
         jsr input_tick
         lda quit_request
         bne game_quit
-        ldx #1
-        lda fast_forward
-        beq +
-        ldx #4
-+       stx l_gl_n
+        ldx fast_forward        ; (sped up: the sim runs faster too)
+        lda speed_steps,x
+        sta l_gl_n
 -       jsr sim_tick
         dec l_gl_n
         bne -

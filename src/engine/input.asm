@@ -51,14 +51,32 @@ input_tick:
 +       cmp #KEY_F1
         bne +
         jmp help_show
-+       cmp #KEY_F5
++       cmp #KEY_F5             ; F5: flat out, or back to real time
+        bne +
+        lda #SPEED_MAX
+        ldx fast_forward
+        beq l_it_speed
+        lda #0
+l_it_speed:
+        jmp speed_set
++       ldx input_len           ; + / - (not while typing): time twice as
+        bne l_it_typing         ;  fast, or half
+        cmp #'+'
         bne +
         lda fast_forward
-        eor #1
-        sta fast_forward
-        lda #1
-        sta ui_dirty
+        cmp #SPEED_MAX
+        bcs l_it_out2
+        inc a
+        bra l_it_speed
++       cmp #'-'
+        bne l_it_typing
+        lda fast_forward
+        beq l_it_out2
+        dec a
+        bra l_it_speed
+l_it_out2:
         rts
+l_it_typing:
 +       cmp #KEY_F7
         bne +
         lda #1
@@ -229,8 +247,10 @@ l_st_set:
         sta clock_hour
         lda l_st_m
         sta clock_min
-        lda #0
-        sta clock_tick
+        lda #0                  ; (the new minute starts now)
+        sta sp_count
+        sta sp_count+1
+        sta rt_secs
         jsr lights_update       ; day or night, and the office clock
         jsr clock_hands
         lda #1
